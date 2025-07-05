@@ -1,74 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Clock, ExternalLink, Mail } from 'lucide-react';
-import { DevCard } from '../App';
+import { Search, Clock, ExternalLink, Mail, Loader2 } from 'lucide-react';
+import { useContract } from '../hooks/useContract';
+import { DevCardData } from '../lib/suiClient';
 
 const Browse: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTech, setSelectedTech] = useState('');
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [cards, setCards] = useState<DevCardData[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const { getAllCards } = useContract();
 
-  // Mock data - in real app, this would come from the blockchain
-  const mockCards: DevCard[] = [
-    {
-      id: 1,
-      owner: '0x1234567890abcdef1234567890abcdef12345678',
-      name: 'Sarah Chen',
-      title: 'Senior Frontend Developer',
-      imageUrl: 'https://images.pexels.com/photos/3756681/pexels-photo-3756681.jpeg?auto=compress&cs=tinysrgb&w=300',
-      description: 'Passionate frontend developer with expertise in React, Vue, and modern web technologies. Love creating beautiful, user-friendly interfaces that make a difference.',
-      yearsOfExperience: 5,
-      technologies: 'React, Vue.js, TypeScript, Tailwind CSS, Node.js',
-      portfolio: 'https://sarahchen.dev',
-      contact: 'sarah@example.com',
-      openToWork: true
-    },
-    {
-      id: 2,
-      owner: '0x2345678901bcdef1234567890abcdef123456789',
-      name: 'Marcus Johnson',
-      title: 'Full Stack Engineer',
-      imageUrl: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300',
-      description: 'Full-stack developer specializing in scalable web applications and cloud architecture. Experience with both startups and enterprise solutions.',
-      yearsOfExperience: 7,
-      technologies: 'Python, Django, React, AWS, Docker, PostgreSQL',
-      portfolio: 'https://marcusjohnson.io',
-      contact: 'marcus@example.com',
-      openToWork: false
-    },
-    {
-      id: 3,
-      owner: '0x3456789012cdef1234567890abcdef1234567890',
-      name: 'Elena Rodriguez',
-      title: 'Blockchain Developer',
-      imageUrl: 'https://images.pexels.com/photos/3748221/pexels-photo-3748221.jpeg?auto=compress&cs=tinysrgb&w=300',
-      description: 'Blockchain enthusiast building the future of decentralized applications. Specialized in Sui, Solidity, and DeFi protocols.',
-      yearsOfExperience: 3,
-      technologies: 'Sui Move, Solidity, Rust, Web3.js, DeFi',
-      portfolio: 'https://elenarodriguez.xyz',
-      contact: 'elena@example.com',
-      openToWork: true
-    },
-    {
-      id: 4,
-      owner: '0x4567890123def1234567890abcdef12345678901',
-      name: 'David Kim',
-      title: 'DevOps Engineer',
-      imageUrl: 'https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=300',
-      description: 'DevOps engineer passionate about automation, infrastructure as code, and building reliable, scalable systems.',
-      yearsOfExperience: 6,
-      technologies: 'Kubernetes, Terraform, AWS, CI/CD, Monitoring',
-      portfolio: 'https://davidkim.tech',
-      contact: 'david@example.com',
-      openToWork: true
-    }
-  ];
+  useEffect(() => {
+    const fetchCards = async () => {
+      setLoading(true);
+      try {
+        const allCards = await getAllCards();
+        setCards(allCards);
+      } catch (error) {
+        console.error('Error fetching cards:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCards();
+  }, []);
 
   const allTechnologies = Array.from(
-    new Set(mockCards.flatMap(card => card.technologies.split(', ')))
+    new Set(cards.flatMap(card => card.technologies.split(', ')))
   ).sort();
 
-  const filteredCards = mockCards.filter(card => {
+  const filteredCards = cards.filter(card => {
     const matchesSearch = card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          card.technologies.toLowerCase().includes(searchTerm.toLowerCase());
@@ -77,6 +42,18 @@ const Browse: React.FC = () => {
     
     return matchesSearch && matchesTech && matchesAvailability;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Developers</h2>
+          <p className="text-gray-600">Fetching developer cards from the blockchain...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-8 pb-16">
@@ -96,13 +73,13 @@ const Browse: React.FC = () => {
           <div className="grid md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-700 h-5 w-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
                   placeholder="Search by name, title, or technology..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 text-gray-900 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 />
               </div>
             </div>
@@ -110,7 +87,7 @@ const Browse: React.FC = () => {
               <select
                 value={selectedTech}
                 onChange={(e) => setSelectedTech(e.target.value)}
-                className="w-full px-4 py-3 text-gray-900 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               >
                 <option value="">All Technologies</option>
                 {allTechnologies.map(tech => (
@@ -119,12 +96,12 @@ const Browse: React.FC = () => {
               </select>
             </div>
             <div className="flex items-center">
-              <label className="flex items-center space-x-2 cursor-pointer bg-white/80">
+              <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={showAvailableOnly}
                   onChange={(e) => setShowAvailableOnly(e.target.checked)}
-                  className="w-5 h-5 bg-white/80 text-blue-600 border-gray-100 rounded"
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <span className="text-gray-700 font-medium">Available only</span>
               </label>
@@ -134,7 +111,7 @@ const Browse: React.FC = () => {
 
         {/* Results count */}
         <div className="mb-8">
-          <p className="text-gray-700">
+          <p className="text-gray-600">
             Showing <span className="font-semibold text-gray-900">{filteredCards.length}</span> developers
           </p>
         </div>
@@ -230,7 +207,7 @@ const Browse: React.FC = () => {
         </div>
 
         {/* Empty State */}
-        {filteredCards.length === 0 && (
+        {filteredCards.length === 0 && !loading && (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Search className="h-12 w-12 text-gray-400" />

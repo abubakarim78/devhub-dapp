@@ -1,34 +1,117 @@
-import React, { useState } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { Shield, DollarSign, Users, TrendingUp, Download, UserCheck, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Shield, DollarSign, Users, TrendingUp, UserCheck, Settings, Loader2 } from 'lucide-react';
+import { useContract } from '../hooks/useContract';
+import { withdrawFeesTransaction, withdrawAllFeesTransaction } from '../lib/suiClient';
 
 interface AdminPanelProps {
   isAdmin: boolean;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
   const currentAccount = useCurrentAccount();
-  const [platformFees, setPlatformFees] = useState(5.4); // Mock data
-  const [totalCards] = useState(1247);
-  const [activeUsers] = useState(892);
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { getCardCount, getPlatformFeeBalance, isAdmin: checkIsAdmin } = useContract();
+  const [platformFees, setPlatformFees] = useState(0);
+  const [totalCards, setTotalCards] = useState(0);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
 
-  const recentTransactions = [
-    { id: 1, user: '0x1234...5678', amount: 0.1, type: 'Card Creation', date: '2024-01-15' },
-    { id: 2, user: '0x2345...6789', amount: 0.1, type: 'Card Creation', date: '2024-01-15' },
-    { id: 3, user: '0x3456...7890', amount: 0.1, type: 'Card Creation', date: '2024-01-14' },
-    { id: 4, user: '0x4567...8901', amount: 0.1, type: 'Card Creation', date: '2024-01-14' },
-    { id: 5, user: '0x5678...9012', amount: 0.1, type: 'Card Creation', date: '2024-01-13' },
-  ];
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      if (!currentAccount) return;
+      
+      setLoading(true);
+      try {
+        const [cardCount, feeBalance, adminStatus] = await Promise.all([
+          getCardCount(),
+          getPlatformFeeBalance(),
+          checkIsAdmin(currentAccount.address),
+        ]);
+        
+        setTotalCards(cardCount);
+        setPlatformFees(feeBalance / 1_000_000_000); // Convert from MIST to SUI
+        setIsAdminUser(adminStatus);
+      } catch (error) {
+        console.error('Error fetching admin data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleWithdraw = () => {
+    fetchAdminData();
+  }, [currentAccount, getCardCount, getPlatformFeeBalance, checkIsAdmin]);
+
+  const handleWithdraw = async () => {
+    if (!currentAccount) return;
+    
     const amount = parseFloat(withdrawAmount);
-    if (amount > 0 && amount <= platformFees) {
+    const amountInMist = amount * 1_000_000_000; // Convert SUI to MIST
+    
+    if (amount <= 0 || amount > platformFees) {
+      alert('Invalid withdrawal amount');
+      return;
+    }
+
+    setWithdrawing(true);
+    try {
+      const tx = withdrawFeesTransaction(currentAccount.address, amountInMist);
+
+signAndExecute(
+  {
+    transaction: tx,
+  },
+  {
+    onSuccess: () => {
       setPlatformFees(prev => prev - amount);
       setWithdrawAmount('');
+      setWithdrawing(false);
       alert(`Successfully withdrew ${amount} SUI`);
-    } else {
-      alert('Invalid withdrawal amount');
+    },
+    onError: (error: Error) => {
+      console.error('Error withdrawing fees:', error.message);
+      setWithdrawing(false);
+      alert('Failed to withdraw fees. Please try again.');
+    },
+  }
+);
+    } catch (error) {
+      console.error('Error in withdrawal process:', error);
+      setWithdrawing(false);
+    }
+  };
+
+  const handleWithdrawAll = async () => {
+    if (!currentAccount || platformFees <= 0) return;
+
+    setWithdrawing(true);
+    try {
+      const tx = withdrawAllFeesTransaction();
+      
+      signAndExecute(
+        {
+          transaction: tx,
+          },
+        {
+          onSuccess: () => {
+            const withdrawnAmount = platformFees;
+            setPlatformFees(0);
+            setWithdrawAmount('');
+            setWithdrawing(false);
+            alert(`Successfully withdrew all ${withdrawnAmount.toFixed(2)} SUI`);
+          },
+          onError: (error) => {
+            console.error('Error withdrawing all fees:', error);
+            setWithdrawing(false);
+            alert('Failed to withdraw fees. Please try again.');
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error in withdrawal process:', error);
+      setWithdrawing(false);
     }
   };
 
@@ -46,7 +129,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
     );
   }
 
-  if (!isAdmin) {
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-orange-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Admin Panel</h2>
+          <p className="text-gray-600">Checking admin privileges...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdminUser) {
     return (
       <div className="min-h-screen pt-16 flex items-center justify-center">
         <div className="text-center">
@@ -88,10 +183,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                 <div className="text-sm text-gray-600">Platform Fees</div>
               </div>
             </div>
-            <div className="flex items-center text-sm text-green-600">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span>+12% from last month</span>
-            </div>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
@@ -104,10 +195,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                 <div className="text-sm text-gray-600">Total Cards</div>
               </div>
             </div>
-            <div className="flex items-center text-sm text-blue-600">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span>+8% from last week</span>
-            </div>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
@@ -116,13 +203,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                 <UserCheck className="h-6 w-6 text-purple-600" />
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">{activeUsers.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-gray-900">-</div>
                 <div className="text-sm text-gray-600">Active Users</div>
               </div>
-            </div>
-            <div className="flex items-center text-sm text-purple-600">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span>+15% from last month</span>
             </div>
           </div>
 
@@ -132,13 +215,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                 <TrendingUp className="h-6 w-6 text-orange-600" />
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">24.7%</div>
+                <div className="text-2xl font-bold text-gray-900">-</div>
                 <div className="text-sm text-gray-600">Growth Rate</div>
               </div>
-            </div>
-            <div className="flex items-center text-sm text-orange-600">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span>+3% from last week</span>
             </div>
           </div>
         </div>
@@ -166,7 +245,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Withdrawal Amount (SUI)
@@ -185,14 +264,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                 <div className="flex items-end">
                   <button
                     onClick={handleWithdraw}
-                    className="w-full py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-teal-700 transition-all duration-200"
+                    disabled={withdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                    className="w-full py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                   >
-                    Withdraw Fees
+                    {withdrawing && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <span>Withdraw Fees</span>
                   </button>
                 </div>
               </div>
 
-              <div className="mt-4 flex space-x-2">
+              <div className="flex space-x-2 mb-4">
                 <button
                   onClick={() => setWithdrawAmount((platformFees * 0.5).toString())}
                   className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
@@ -206,37 +287,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                   All
                 </button>
               </div>
-            </div>
 
-            {/* Recent Transactions */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Recent Transactions</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-sm text-gray-600 border-b border-gray-200">
-                      <th className="pb-3">User</th>
-                      <th className="pb-3">Type</th>
-                      <th className="pb-3">Amount</th>
-                      <th className="pb-3">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="space-y-2">
-                    {recentTransactions.map((tx) => (
-                      <tr key={tx.id} className="text-sm border-b border-gray-100 last:border-0">
-                        <td className="py-3 font-mono text-gray-900">{tx.user}</td>
-                        <td className="py-3">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-lg">
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className="py-3 font-semibold text-green-600">{tx.amount} SUI</td>
-                        <td className="py-3 text-gray-600">{tx.date}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <button
+                onClick={handleWithdrawAll}
+                disabled={withdrawing || platformFees <= 0}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {withdrawing && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>Withdraw All Fees</span>
+              </button>
             </div>
           </div>
 
@@ -275,21 +334,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
               </div>
             </div>
 
-            {/* Export Data */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Export Data</h3>
-              <div className="space-y-3">
-                <button className="w-full flex items-center justify-center space-x-2 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors">
-                  <Download className="h-4 w-4" />
-                  <span>Export Transactions</span>
-                </button>
-                <button className="w-full flex items-center justify-center space-x-2 py-3 bg-gray-600 text-white font-medium rounded-xl hover:bg-gray-700 transition-colors">
-                  <Download className="h-4 w-4" />
-                  <span>Export User Data</span>
-                </button>
-              </div>
-            </div>
-
             {/* System Status */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
               <h3 className="text-lg font-bold text-gray-900 mb-4">System Status</h3>
@@ -309,10 +353,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isAdmin }) => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Database</span>
-                  <span className="flex items-center space-x-1 text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Healthy</span>
+                  <span className="text-sm text-gray-600">Network</span>
+                  <span className="flex items-center space-x-1 text-blue-600">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium">Sui Testnet</span>
                   </span>
                 </div>
               </div>
