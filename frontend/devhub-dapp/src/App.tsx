@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useContract } from './hooks/useContract';
 import Header from './components/Header';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
@@ -21,36 +22,46 @@ export interface DevCard {
   portfolio: string;
   contact: string;
   openToWork: boolean;
-  viewCount?: number;
-  inquiries?: number;
 }
 
 function App() {
   const currentAccount = useCurrentAccount();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isAdmin } = useContract();
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // In a real app, you would check if the current account is admin
-  // by calling your smart contract's is_admin function
-  React.useEffect(() => {
-    if (currentAccount) {
-      // Mock admin check - replace with actual contract call
-      // const adminAddress = "0x..."; // Your admin address
-      // setIsAdmin(currentAccount.address === adminAddress);
-      setIsAdmin(false); // Set to false by default for demo
-    }
-  }, [currentAccount]);
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (currentAccount) {
+        setLoading(true);
+        try {
+          const adminStatus = await isAdmin(currentAccount.address);
+          setIsAdminUser(adminStatus);
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdminUser(false);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setIsAdminUser(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [currentAccount, isAdmin]);
 
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <Header isAdmin={isAdmin} />
+        <Header isAdmin={isAdminUser} />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/browse" element={<Browse />} />
           <Route path="/create" element={<CreateCard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/card/:id" element={<CardDetails />} />
-          <Route path="/admin" element={<AdminPanel isAdmin={isAdmin} />} />
+          <Route path="/admin" element={<AdminPanel isAdmin={isAdminUser} />} />
         </Routes>
       </div>
     </Router>

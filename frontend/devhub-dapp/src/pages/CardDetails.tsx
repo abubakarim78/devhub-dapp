@@ -1,47 +1,72 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Mail, ExternalLink, Star, Clock, Calendar, Code2, Briefcase } from 'lucide-react';
-import { DevCard } from '../App';
+import { ArrowLeft, Mail, ExternalLink, Clock, Calendar, Code2, Briefcase, Loader2 } from 'lucide-react';
+import { useContract } from '../hooks/useContract';
+import { DevCardData } from '../lib/suiClient';
 
 const CardDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { getCardInfo } = useContract();
+  const [card, setCard] = useState<DevCardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock card data - in real app, this would come from the blockchain
-  const card: DevCard = {
-    id: parseInt(id || '1'),
-    owner: '0x1234567890abcdef1234567890abcdef12345678',
-    name: 'Sarah Chen',
-    title: 'Senior Frontend Developer',
-    imageUrl: 'https://images.pexels.com/photos/3756681/pexels-photo-3756681.jpeg?auto=compress&cs=tinysrgb&w=600',
-    description: 'Passionate frontend developer with expertise in React, Vue, and modern web technologies. I love creating beautiful, user-friendly interfaces that make a difference in people\'s lives. Currently working on building scalable applications and leading a team of talented developers.',
-    yearsOfExperience: 5,
-    technologies: 'React, Vue.js, TypeScript, Tailwind CSS, Node.js, GraphQL, Jest, Cypress',
-    portfolio: 'https://sarahchen.dev',
-    contact: 'sarah@example.com',
-    openToWork: true
-  };
+  useEffect(() => {
+    const fetchCard = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        const cardData = await getCardInfo(parseInt(id));
+        if (cardData) {
+          setCard(cardData);
+        } else {
+          setError('Card not found');
+        }
+      } catch (err) {
+        console.error('Error fetching card:', err);
+        setError('Failed to load card details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCard();
+  }, [id, getCardInfo]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Profile</h2>
+          <p className="text-gray-600">Fetching developer card details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !card) {
+    return (
+      <div className="min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Code2 className="h-12 w-12 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Card Not Found</h2>
+          <p className="text-gray-600 mb-6">{error || 'The developer card you\'re looking for doesn\'t exist.'}</p>
+          <Link
+            to="/browse"
+            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Browse Developers
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const technologies = card.technologies.split(', ');
-  const portfolioProjects = [
-    {
-      name: 'E-commerce Platform',
-      description: 'Modern e-commerce solution built with React and Node.js',
-      tech: ['React', 'Node.js', 'MongoDB'],
-      url: 'https://example.com/project1'
-    },
-    {
-      name: 'Task Management App',
-      description: 'Collaborative project management tool with real-time updates',
-      tech: ['Vue.js', 'TypeScript', 'Socket.io'],
-      url: 'https://example.com/project2'
-    },
-    {
-      name: 'Design System',
-      description: 'Comprehensive component library and design system',
-      tech: ['React', 'Storybook', 'Tailwind CSS'],
-      url: 'https://example.com/project3'
-    }
-  ];
 
   return (
     <div className="min-h-screen pt-8 pb-16">
@@ -76,7 +101,7 @@ const CardDetails: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-1">
                       <Calendar className="h-4 w-4" />
-                      <span>Member since 2024</span>
+                      <span>Card #{card.id}</span>
                     </div>
                   </div>
                   <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full font-medium ${
@@ -120,42 +145,27 @@ const CardDetails: React.FC = () => {
               </div>
             </div>
 
-            {/* Featured Projects */}
+            {/* Blockchain Info */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
                 <Briefcase className="h-5 w-5 text-blue-600" />
-                <span>Featured Projects</span>
+                <span>Blockchain Information</span>
               </h3>
-              <div className="space-y-6">
-                {portfolioProjects.map((project, index) => (
-                  <div
-                    key={index}
-                    className="p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <h4 className="font-semibold text-gray-900">{project.name}</h4>
-                      <a
-                        href={project.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-white rounded-lg hover:bg-blue-50 transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4 text-gray-600" />
-                      </a>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-4">{project.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {project.tech.map((tech, techIndex) => (
-                        <span
-                          key={techIndex}
-                          className="px-2 py-1 bg-white text-gray-700 text-xs font-medium rounded-lg border"
-                        >
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600">Owner Address:</span>
+                  <span className="font-mono text-sm text-gray-900">
+                    {card.owner.slice(0, 6)}...{card.owner.slice(-4)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600">Card ID:</span>
+                  <span className="font-semibold text-gray-900">#{card.id}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600">Network:</span>
+                  <span className="font-semibold text-blue-600">Sui Testnet</span>
+                </div>
               </div>
             </div>
           </div>
@@ -200,35 +210,41 @@ const CardDetails: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Stats</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Profile Views</span>
-                  <span className="font-semibold text-gray-900">124</span>
+                  <span className="text-gray-600">Card ID</span>
+                  <span className="font-semibold text-gray-900">#{card.id}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Projects</span>
-                  <span className="font-semibold text-gray-900">12</span>
+                  <span className="text-gray-600">Experience</span>
+                  <span className="font-semibold text-gray-900">{card.yearsOfExperience} years</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Rating</span>
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="font-semibold text-gray-900">4.9</span>
-                  </div>
+                  <span className="text-gray-600">Technologies</span>
+                  <span className="font-semibold text-gray-900">{technologies.length}</span>
                 </div>
               </div>
             </div>
 
             {/* Availability Card */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+            <div className={`rounded-2xl p-6 text-white ${
+              card.openToWork 
+                ? 'bg-gradient-to-r from-green-600 to-teal-600' 
+                : 'bg-gradient-to-r from-gray-600 to-gray-700'
+            }`}>
               <h3 className="text-lg font-semibold mb-2">Availability Status</h3>
-              <p className="text-blue-100 text-sm mb-4">
+              <p className={`text-sm mb-4 ${
+                card.openToWork ? 'text-green-100' : 'text-gray-100'
+              }`}>
                 {card.openToWork 
                   ? 'Currently available for new projects and opportunities.' 
                   : 'Not available for new projects at the moment.'}
               </p>
               {card.openToWork && (
-                <button className="w-full py-3 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-colors">
+                <a
+                  href={`mailto:${card.contact}`}
+                  className="block w-full py-3 bg-white text-green-600 font-semibold rounded-xl hover:bg-green-50 transition-colors text-center"
+                >
                   Contact Now
-                </button>
+                </a>
               )}
             </div>
           </div>

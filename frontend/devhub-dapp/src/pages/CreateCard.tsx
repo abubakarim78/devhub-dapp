@@ -1,27 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
-
-interface DeveloperCard {
-  id: string;
-  name: string;
-  title: string;
-  imageUrl: string;
-  yearsOfExperience: number;
-  technologies: string;
-  portfolio: string;
-  contact: string;
-  createdAt: string;
-  walletAddress: string;
-}
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2 } from 'lucide-react';
+import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
 
 const CreateCard: React.FC = () => {
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -69,17 +57,6 @@ const CreateCard: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const addCardToDashboard = (newCard: DeveloperCard) => {
-    // Get existing cards from localStorage (or initialize empty array)
-    const existingCards = JSON.parse(localStorage.getItem('developerCards') || '[]');
-    
-    // Add new card to the beginning of the array
-    const updatedCards = [newCard, ...existingCards];
-    
-    // Save back to localStorage
-    localStorage.setItem('developerCards', JSON.stringify(updatedCards));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -94,47 +71,65 @@ const CreateCard: React.FC = () => {
   };
 
   const handlePayment = async () => {
+    if (!currentAccount) return;
+
     setIsSubmitting(true);
     
     try {
-      // Simulate blockchain transaction
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Create new card object
-      const newCard: DeveloperCard = {
-        id: `card_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: formData.name,
-        title: formData.title,
-        imageUrl: formData.imageUrl,
-        yearsOfExperience: formData.yearsOfExperience,
-        technologies: formData.technologies,
-        portfolio: formData.portfolio,
-        contact: formData.contact,
-        createdAt: new Date().toISOString(),
-        walletAddress: currentAccount?.address || ''
-      };
-      
-      // Add card to dashboard storage
-      addCardToDashboard(newCard);
-      
-      console.log('Card created successfully:', newCard);
-      
-      setIsSubmitting(false);
-      setShowPaymentModal(false);
-      
-      // Show success message
-      setShowSuccessMessage(true);
-      
-      // Auto-hide success message and redirect after 3 seconds
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-        navigate('/dashboard');
-      }, 3000);
-      
+      // Get user's coins to pay for the transaction
+      const coins = await fetch(`https://fullnode.testnet.sui.io:443`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'suix_getCoins',
+          params: [currentAccount.address, '0x2::sui::SUI'],
+        }),
+      }).then(res => res.json());
+
+      if (!coins.result?.data?.length) {
+        throw new Error('No SUI coins found in wallet');
+      }
+
+      // Find a coin with sufficient balance
+      const suitableCoin = coins.result.data.find((coin: any) => 
+        parseInt(coin.balance) >= PLATFORM_FEE
+      );
+
+      if (!suitableCoin) {
+        throw new Error('Insufficient SUI balance for platform fee');
+      }
+
+      // Create transaction
+      const tx = createCardTransaction(formData, suitableCoin.coinObjectId);
+
+      // Execute transaction
+      signAndExecute(
+        {
+          transaction: tx, // or `transactionBlock` depending on your SDK version
+          // remove `options` entirely
+        },
+        {
+          onSuccess: (result) => {
+            console.log('Card created successfully:', result);
+            setIsSubmitting(false);
+            setShowPaymentModal(false);
+            navigate('/dashboard');
+          },
+          onError: (error) => {
+            console.error('Error creating card:', error);
+            setIsSubmitting(false);
+            alert('Failed to create card. Please try again.');
+          },
+        }
+      );
     } catch (error) {
-      console.error('Error creating card:', error);
+      console.error('Error in payment process:', error);
       setIsSubmitting(false);
-      alert('There was an error creating your card. Please try again.');
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     }
   };
 
@@ -171,7 +166,7 @@ const CreateCard: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Create Your Dev Card
+            Create Your Developer Card
           </h1>
           <p className="text-xl text-gray-600">
             Showcase your skills and connect with opportunities worldwide.
@@ -209,7 +204,7 @@ const CreateCard: React.FC = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="Enter your full name"
@@ -231,7 +226,7 @@ const CreateCard: React.FC = () => {
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.title ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="e.g., Senior Frontend Developer"
@@ -258,7 +253,7 @@ const CreateCard: React.FC = () => {
                     name="imageUrl"
                     value={formData.imageUrl}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.imageUrl ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="https://example.com/your-photo.jpg"
@@ -303,7 +298,7 @@ const CreateCard: React.FC = () => {
                     onChange={handleInputChange}
                     min="0"
                     max="50"
-                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.yearsOfExperience ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="0"
@@ -325,7 +320,7 @@ const CreateCard: React.FC = () => {
                     name="technologies"
                     value={formData.technologies}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.technologies ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="React, Node.js, Python, TypeScript"
@@ -357,7 +352,7 @@ const CreateCard: React.FC = () => {
                     name="portfolio"
                     value={formData.portfolio}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 text-gray-700 border rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.portfolio ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="https://yourportfolio.com"
@@ -379,7 +374,7 @@ const CreateCard: React.FC = () => {
                     name="contact"
                     value={formData.contact}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 text-gray-700 border rounded-xl focus:ring-2 transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.contact ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="your.email@example.com"
@@ -401,7 +396,7 @@ const CreateCard: React.FC = () => {
                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
               >
                 <Code className="h-5 w-5" />
-                <span>Create Dev Card</span>
+                <span>Create Developer Card</span>
               </button>
             </div>
           </div>
@@ -428,12 +423,12 @@ const CreateCard: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Gas Fee (est.):</span>
-                      <span className="font-medium">0.001 SUI</span>
+                      <span className="font-medium">~0.001 SUI</span>
                     </div>
                     <hr className="my-2" />
                     <div className="flex justify-between font-semibold">
                       <span>Total:</span>
-                      <span>0.101 SUI</span>
+                      <span>~0.101 SUI</span>
                     </div>
                   </div>
                 </div>
@@ -448,46 +443,18 @@ const CreateCard: React.FC = () => {
                   <button
                     onClick={handlePayment}
                     disabled={isSubmitting}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                   >
-                    {isSubmitting ? 'Processing...' : 'Confirm & Pay'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <span>Confirm & Pay</span>
+                    )}
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Success Message Modal */}
-        {showSuccessMessage && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Card Created Successfully!</h3>
-                <p className="text-gray-600 mb-6">
-                  Your developer card has been created and added to your dashboard. You'll be redirected shortly.
-                </p>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="text-green-800 font-medium">Transaction completed successfully</span>
-                  </div>
-                  <p className="text-green-700 text-sm mt-2">
-                    Your card is now live and visible to potential employers and collaborators.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowSuccessMessage(false);
-                    navigate('/dashboard');
-                  }}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200"
-                >
-                  Go to Dashboard
-                </button>
               </div>
             </div>
           </div>

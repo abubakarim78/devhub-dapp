@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Users, Zap, Shield, Star, Code} from 'lucide-react';
+import { ArrowRight, Users, Zap, Shield, Star, Code } from 'lucide-react';
 
 const Home: React.FC = () => {
   const features = [
@@ -137,7 +137,7 @@ const Home: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm text-gray-900 font-medium">4.9</span>
+                    <span className="text-sm font-medium">4.9</span>
                   </div>
                   <div className="flex items-center space-x-1 text-green-600">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>

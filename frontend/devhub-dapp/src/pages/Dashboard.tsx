@@ -1,117 +1,114 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus,
-Trash2, User } from 'lucide-react';
-
-// Updated DevCard interface to match CreateCard component
-interface DevCard {
-  id: string;
-  name: string;
-  title: string;
-  imageUrl: string;
-  yearsOfExperience: number;
-  technologies: string;
-  portfolio: string;
-  contact: string;
-  createdAt: string;
-  walletAddress: string;
-  openToWork?: boolean; // Optional field for work status
-  description?: string; // Optional field for description
-}
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2 } from 'lucide-react';
+import { useContract } from '../hooks/useContract';
+import { DevCardData } from '../lib/suiClient';
+import { updateDescriptionTransaction, toggleWorkStatusTransaction } from '../lib/suiClient';
 
 const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
-  const [editingDescription, setEditingDescription] = useState<string | null>(null);
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { getUserCards } = useContract();
+  const [editingDescription, setEditingDescription] = useState<number | null>(null);
   const [newDescription, setNewDescription] = useState('');
-  const [userCards, setUserCards] = useState<DevCard[]>([]);
+  const [userCards, setUserCards] = useState<DevCardData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<number | null>(null);
 
-  // Load cards from localStorage on component mount
   useEffect(() => {
-    const loadCards = () => {
+    const fetchUserCards = async () => {
+      if (!currentAccount) return;
+      
+      setLoading(true);
       try {
-        const storedCards = localStorage.getItem('developerCards');
-        if (storedCards) {
-          const cards: DevCard[] = JSON.parse(storedCards);
-          // Filter cards by current wallet address and add default values for missing fields
-          const userSpecificCards = cards
-            .filter(card => card.walletAddress === currentAccount?.address)
-            .map(card => ({
-              ...card,
-              openToWork: card.openToWork ?? true,
-              description: card.description ?? `Passionate developer with ${card.yearsOfExperience}+ years of experience building innovative solutions.`
-            }));
-          setUserCards(userSpecificCards);
-        }
+        const cards = await getUserCards(currentAccount.address);
+        setUserCards(cards);
       } catch (error) {
-        console.error('Error loading cards from localStorage:', error);
-        setUserCards([]);
+        console.error('Error fetching user cards:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    if (currentAccount?.address) {
-      loadCards();
-    }
-  }, [currentAccount?.address]);
+    fetchUserCards();
+  }, [currentAccount, getUserCards]);
 
-  // Save cards to localStorage whenever userCards changes
-  useEffect(() => {
-    if (userCards.length > 0) {
-      try {
-        // Get all cards from localStorage
-        const allCards = JSON.parse(localStorage.getItem('developerCards') || '[]');
-        
-        // Remove old cards for current user and add updated ones
-        const otherUsersCards = allCards.filter((card: DevCard) => 
-          card.walletAddress !== currentAccount?.address
-        );
-        
-        const updatedAllCards = [...otherUsersCards, ...userCards];
-        localStorage.setItem('developerCards', JSON.stringify(updatedAllCards));
-      } catch (error) {
-        console.error('Error saving cards to localStorage:', error);
-      }
-    }
-  }, [userCards, currentAccount?.address]);
+  const toggleWorkStatus = async (cardId: number, currentStatus: boolean) => {
+    if (!currentAccount) return;
 
-  const toggleWorkStatus = (cardId: string) => {
-    setUserCards(prev => prev.map(card =>
-      card.id === cardId
-        ? { ...card, openToWork: !card.openToWork }
-        : card
-    ));
+    setUpdating(cardId);
+    try {
+      const tx = toggleWorkStatusTransaction(cardId, !currentStatus);
+      
+      signAndExecute(
+        {
+          transaction: tx, // tx must be a TransactionBlock instance
+        },
+        {
+          onSuccess: () => {
+            setUserCards(prev => prev.map(card => 
+              card.id === cardId 
+                ? { ...card, openToWork: !currentStatus }
+                : card
+            ));
+            setUpdating(null);
+          },
+          onError: (error) => {
+            console.error('Error updating work status:', error);
+            setUpdating(null);
+            alert('Failed to update work status. Please try again.');
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error in toggleWorkStatus:', error);
+      setUpdating(null);
+    }
+    };
+
+
+  const updateDescription = async (cardId: number) => {
+    if (!currentAccount || !newDescription.trim()) return;
+
+    setUpdating(cardId);
+    try {
+      const tx = updateDescriptionTransaction(cardId, newDescription);
+      
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: () => {
+            setUserCards(prev => prev.map(card => 
+              card.id === cardId 
+                ? { ...card, description: newDescription }
+                : card
+            ));
+            setEditingDescription(null);
+            setNewDescription('');
+            setUpdating(null);
+          },
+          onError: (error) => {
+            console.error('Error updating description:', error);
+            setUpdating(null);
+            alert('Failed to update description. Please try again.');
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error in updateDescription:', error);
+      setUpdating(null);
+    }
   };
 
-  const updateDescription = (cardId: string) => {
-    setUserCards(prev => prev.map(card =>
-      card.id === cardId
-        ? { ...card, description: newDescription }
-        : card
-    ));
-    setEditingDescription(null);
-    setNewDescription('');
-  };
-
-  const startEditingDescription = (card: DevCard) => {
+  const startEditingDescription = (card: DevCardData) => {
     setEditingDescription(card.id);
     setNewDescription(card.description || '');
   };
 
-  const deleteCard = (cardId: string) => {
-    if (window.confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
-      setUserCards(prev => prev.filter(card => card.id !== cardId));
-      
-      // Also remove from localStorage
-      try {
-        const allCards = JSON.parse(localStorage.getItem('developerCards') || '[]');
-        const updatedCards = allCards.filter((card: DevCard) => card.id !== cardId);
-        localStorage.setItem('developerCards', JSON.stringify(updatedCards));
-      } catch (error) {
-        console.error('Error removing card from localStorage:', error);
-      }
-    }
-  };
-
+ 
   if (!currentAccount) {
     return (
       <div className="min-h-screen pt-16 flex items-center justify-center">
@@ -126,6 +123,18 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen pt-16 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Dashboard</h2>
+  //         <p className="text-gray-600">Fetching your developer cards...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
   return (
     <div className="min-h-screen pt-8 pb-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -133,7 +142,7 @@ const Dashboard: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-             Dashboard
+              Your Dashboard
             </h1>
             <p className="text-xl text-gray-600">
               Manage your developer cards and track your profile performance.
@@ -161,19 +170,11 @@ const Dashboard: React.FC = () => {
             <div className="text-gray-600">Available</div>
           </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-orange-600 mb-2">
-              {userCards.reduce((total, card) => {
-                // Generate a pseudo-random view count based on card creation time
-                const daysSinceCreation = Math.floor((Date.now() - new Date(card.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-                return total + Math.max(1, Math.floor(daysSinceCreation * 2.5 + Math.random() * 10));
-              }, 0)}
-            </div>
+            <div className="text-3xl font-bold text-orange-600 mb-2">-</div>
             <div className="text-gray-600">Profile Views</div>
           </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-purple-600 mb-2">
-              {Math.floor(userCards.length * 1.8 + Math.random() * 5)}
-            </div>
+            <div className="text-3xl font-bold text-purple-600 mb-2">-</div>
             <div className="text-gray-600">Inquiries</div>
           </div>
         </div>
@@ -198,7 +199,7 @@ const Dashboard: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">My Dev Cards</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Your Developer Cards</h2>
             <div className="grid lg:grid-cols-2 gap-8">
               {userCards.map((card) => (
                 <div
@@ -211,9 +212,6 @@ const Dashboard: React.FC = () => {
                       src={card.imageUrl}
                       alt={card.name}
                       className="w-20 h-20 rounded-xl object-cover ring-4 ring-white/50"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80x80?text=No+Image';
-                      }}
                     />
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-900 text-xl">{card.name}</h3>
@@ -222,15 +220,18 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => toggleWorkStatus(card.id)}
+                        onClick={() => toggleWorkStatus(card.id, card.openToWork)}
+                        disabled={updating === card.id}
                         className={`p-2 rounded-lg transition-colors ${
-                          card.openToWork
-                            ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                          card.openToWork 
+                            ? 'bg-green-100 text-green-600 hover:bg-green-200' 
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
+                        } disabled:opacity-50`}
                         title={card.openToWork ? 'Available for work' : 'Not available'}
                       >
-                        {card.openToWork ? (
+                        {updating === card.id ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : card.openToWork ? (
                           <ToggleRight className="h-6 w-6" />
                         ) : (
                           <ToggleLeft className="h-6 w-6" />
@@ -242,8 +243,8 @@ const Dashboard: React.FC = () => {
                   {/* Status Badge */}
                   <div className="mb-4">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      card.openToWork
-                        ? 'bg-green-100 text-green-700'
+                      card.openToWork 
+                        ? 'bg-green-100 text-green-700' 
                         : 'bg-gray-100 text-gray-600'
                     }`}>
                       {card.openToWork ? '🟢 Available for work' : '⚫ Not available'}
@@ -276,9 +277,11 @@ const Dashboard: React.FC = () => {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => updateDescription(card.id)}
-                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            disabled={updating === card.id}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
                           >
-                            Save
+                            {updating === card.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                            <span>Save</span>
                           </button>
                           <button
                             onClick={() => setEditingDescription(null)}
@@ -304,17 +307,10 @@ const Dashboard: React.FC = () => {
                           key={index}
                           className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-lg"
                         >
-                          {tech.trim()}
+                          {tech}
                         </span>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Card Creation Date */}
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-500">
-                      Created: {new Date(card.createdAt).toLocaleDateString()}
-                    </p>
                   </div>
 
                   {/* Actions */}
@@ -344,13 +340,6 @@ const Dashboard: React.FC = () => {
                         <Eye className="h-4 w-4" />
                       </Link>
                     </div>
-                    <button
-                      onClick={() => deleteCard(card.id)}
-                      className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                      title="Delete Card"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               ))}
