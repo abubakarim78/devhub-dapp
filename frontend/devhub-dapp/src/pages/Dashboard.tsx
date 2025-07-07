@@ -123,17 +123,17 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen pt-16 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
-  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Dashboard</h2>
-  //         <p className="text-gray-600">Fetching your developer cards...</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Dashboard</h2>
+          <p className="text-gray-600">Fetching your developer cards...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-8 pb-16">
