@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useContract } from './hooks/useContract';
@@ -23,6 +23,16 @@ export interface DevCard {
   contact: string;
   openToWork: boolean;
 }
+
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+    <div className="flex flex-col items-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <p className="mt-4 text-gray-600">Checking admin status...</p>
+    </div>
+  </div>
+);
 
 function App() {
   const currentAccount = useCurrentAccount();
@@ -55,6 +65,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         <Header isAdmin={isAdminUser} />
+        {loading && <LoadingSpinner />}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/browse" element={<Browse />} />
