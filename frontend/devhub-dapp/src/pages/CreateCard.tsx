@@ -10,7 +10,7 @@ const CreateCard: React.FC = () => {
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     title: '',
@@ -20,12 +20,10 @@ const CreateCard: React.FC = () => {
     portfolio: '',
     contact: '',
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.imageUrl.trim()) newErrors.imageUrl = 'Profile image URL is required';
@@ -59,25 +57,22 @@ const CreateCard: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+   
     if (!currentAccount) {
       alert('Please connect your wallet first');
       return;
     }
-
     if (!validateForm()) return;
-
     setShowPaymentModal(true);
   };
 
   const handlePayment = async () => {
     if (!currentAccount) return;
-
     setIsSubmitting(true);
-    
+   
     try {
       // Get user's coins to pay for the transaction
-      const coins = await fetch(`https://fullnode.testnet.sui.io:443`, {
+      const response = await fetch(`https://fullnode.testnet.sui.io:443`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,29 +83,43 @@ const CreateCard: React.FC = () => {
           method: 'suix_getCoins',
           params: [currentAccount.address, '0x2::sui::SUI'],
         }),
-      }).then(res => res.json());
+      });
 
+      const coins = await response.json();
+      
       if (!coins.result?.data?.length) {
         throw new Error('No SUI coins found in wallet');
       }
 
-      // Find a coin with sufficient balance
-      const suitableCoin = coins.result.data.find((coin: any) => 
-        parseInt(coin.balance) >= PLATFORM_FEE
-      );
+      // Calculate total needed (platform fee + estimated gas)
+      const ESTIMATED_GAS = 1000000; // 0.001 SUI estimated gas
+      const TOTAL_NEEDED = PLATFORM_FEE + ESTIMATED_GAS;
 
-      if (!suitableCoin) {
-        throw new Error('Insufficient SUI balance for platform fee');
+      // Find coins with sufficient balance
+      let totalBalance = 0;
+      const selectedCoins = [];
+      
+      for (const coin of coins.result.data) {
+        const balance = parseInt(coin.balance);
+        selectedCoins.push(coin.coinObjectId);
+        totalBalance += balance;
+        
+        if (totalBalance >= TOTAL_NEEDED) {
+          break;
+        }
       }
 
-      // Create transaction
-      const tx = createCardTransaction(formData, suitableCoin.coinObjectId);
+      if (totalBalance < TOTAL_NEEDED) {
+        throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1000000000).toFixed(3)} SUI (${(PLATFORM_FEE / 1000000000).toFixed(1)} SUI platform fee + ~${(ESTIMATED_GAS / 1000000000).toFixed(3)} SUI gas)`);
+      }
+
+      // Create transaction with selected coins
+      const tx = createCardTransaction(formData, selectedCoins[0]);
 
       // Execute transaction
       signAndExecute(
         {
-          transaction: tx, // or `transactionBlock` depending on your SDK version
-          // remove `options` entirely
+          transaction: tx,
         },
         {
           onSuccess: (result) => {
@@ -139,7 +148,7 @@ const CreateCard: React.FC = () => {
       ...prev,
       [name]: name === 'yearsOfExperience' ? parseInt(value) || 0 : value
     }));
-    
+   
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -179,7 +188,7 @@ const CreateCard: React.FC = () => {
           <div>
             <h3 className="font-semibold text-blue-900">Platform Fee</h3>
             <p className="text-blue-700 text-sm">
-              Creating a developer card requires a one-time platform fee of <strong>0.1 SUI</strong> 
+              Creating a developer card requires a one-time platform fee of <strong>0.1 SUI</strong>
               to cover blockchain transaction costs and platform maintenance.
             </p>
           </div>
@@ -204,7 +213,7 @@ const CreateCard: React.FC = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="Enter your full name"
@@ -216,7 +225,6 @@ const CreateCard: React.FC = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Professional Title *
@@ -226,7 +234,7 @@ const CreateCard: React.FC = () => {
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.title ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="e.g., Senior Frontend Developer"
@@ -253,7 +261,7 @@ const CreateCard: React.FC = () => {
                     name="imageUrl"
                     value={formData.imageUrl}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.imageUrl ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="https://example.com/your-photo.jpg"
@@ -298,7 +306,7 @@ const CreateCard: React.FC = () => {
                     onChange={handleInputChange}
                     min="0"
                     max="50"
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.yearsOfExperience ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="0"
@@ -310,7 +318,6 @@ const CreateCard: React.FC = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Technologies & Skills *
@@ -320,7 +327,7 @@ const CreateCard: React.FC = () => {
                     name="technologies"
                     value={formData.technologies}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.technologies ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="React, Node.js, Python, TypeScript"
@@ -352,7 +359,7 @@ const CreateCard: React.FC = () => {
                     name="portfolio"
                     value={formData.portfolio}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 text-gray-700 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.portfolio ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="https://yourportfolio.com"
@@ -364,7 +371,6 @@ const CreateCard: React.FC = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Contact Email *
@@ -374,7 +380,7 @@ const CreateCard: React.FC = () => {
                     name="contact"
                     value={formData.contact}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 text-gray-700 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
                       errors.contact ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
                     }`}
                     placeholder="your.email@example.com"
