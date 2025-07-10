@@ -46,6 +46,7 @@ export interface DevCardData {
 //   return Array.from(new TextEncoder().encode(str));
 // }
 
+
 // Helper function to create transaction block for card creation
 export function createCardTransaction(
   cardData: {
