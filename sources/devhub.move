@@ -2,12 +2,16 @@
 
 module devhub::devcard;
 
+use std::option::{Self, Option};
 use std::string::{Self, String};
 use sui::balance::{Self, Balance};
 use sui::coin::{Self, Coin};
 use sui::event;
+use sui::object::{Self, UID};
 use sui::sui::SUI;
 use sui::table::{Self, Table};
+use sui::transfer;
+use sui::tx_context::{Self, TxContext};
 use sui::url::{Self, Url};
 
 // creating error codes
