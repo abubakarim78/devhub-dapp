@@ -39,6 +39,7 @@ export interface DevCardData {
   portfolio: string;
   contact: string;
   openToWork: boolean;
+  skills: string[];
 }
 
 // // Helper function to convert string to vector<u8>
