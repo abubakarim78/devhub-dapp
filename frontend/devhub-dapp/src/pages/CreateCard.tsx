@@ -1,8 +1,44 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle, X } from 'lucide-react';
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
+
+// Toast Component
+const Toast: React.FC<{
+  message: string;
+  type: 'success' | 'error';
+  onClose: () => void;
+}> = ({ message, type, onClose }) => {
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+      <div className={`flex items-center space-x-3 px-6 py-4 rounded-xl shadow-lg ${
+        type === 'success' 
+          ? 'bg-green-50 border border-green-200' 
+          : 'bg-red-50 border border-red-200'
+      }`}>
+        {type === 'success' ? (
+          <CheckCircle className="h-5 w-5 text-green-600" />
+        ) : (
+          <AlertCircle className="h-5 w-5 text-red-600" />
+        )}
+        <span className={`font-medium ${
+          type === 'success' ? 'text-green-800' : 'text-red-800'
+        }`}>
+          {message}
+        </span>
+        <button
+          onClick={onClose}
+          className={`ml-2 ${
+            type === 'success' ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'
+          }`}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const CreateCard: React.FC = () => {
   const navigate = useNavigate();
@@ -10,6 +46,7 @@ const CreateCard: React.FC = () => {
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -21,6 +58,18 @@ const CreateCard: React.FC = () => {
     contact: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setToast(null);
+    }, 5000);
+  };
+
+  const closeToast = () => {
+    setToast(null);
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -59,7 +108,7 @@ const CreateCard: React.FC = () => {
     e.preventDefault();
    
     if (!currentAccount) {
-      alert('Please connect your wallet first');
+      showToast('Please connect your wallet first', 'error');
       return;
     }
     if (!validateForm()) return;
@@ -126,19 +175,25 @@ const CreateCard: React.FC = () => {
             console.log('Card created successfully:', result);
             setIsSubmitting(false);
             setShowPaymentModal(false);
-            navigate('/dashboard');
+            showToast('Developer card created successfully! 🎉', 'success');
+            // Navigate to dashboard after a short delay to allow user to see the success message
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 2000);
           },
           onError: (error) => {
             console.error('Error creating card:', error);
             setIsSubmitting(false);
-            alert('Failed to create card. Please try again.');
+            setShowPaymentModal(false);
+            showToast('Failed to create card. Please try again.', 'error');
           },
         }
       );
     } catch (error) {
       console.error('Error in payment process:', error);
       setIsSubmitting(false);
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      setShowPaymentModal(false);
+      showToast(error instanceof Error ? error.message : 'Unknown error occurred', 'error');
     }
   };
 
@@ -171,6 +226,15 @@ const CreateCard: React.FC = () => {
 
   return (
     <div className="min-h-screen pt-8 pb-16">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
+        />
+      )}
+
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">

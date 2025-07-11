@@ -79,7 +79,7 @@ const Browse: React.FC = () => {
                   placeholder="Search by name, title, or technology..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 bg-white/80 text-gray-700 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
                 />
               </div>
             </div>
@@ -87,7 +87,7 @@ const Browse: React.FC = () => {
               <select
                 value={selectedTech}
                 onChange={(e) => setSelectedTech(e.target.value)}
-                className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 bg-white/80 border text-gray-700 border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
               >
                 <option value="">All Technologies</option>
                 {allTechnologies.map(tech => (
@@ -103,7 +103,7 @@ const Browse: React.FC = () => {
                   onChange={(e) => setShowAvailableOnly(e.target.checked)}
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-gray-700 font-medium">Available only</span>
+                <span className="text-gray-600 font-medium">Available only</span>
               </label>
             </div>
           </div>
