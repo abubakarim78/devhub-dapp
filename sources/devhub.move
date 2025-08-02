@@ -1,6 +1,6 @@
 // defining the devhub module
 
-module devhub::devcard;
+module devhub::devcard {
 
 use std::string::{Self, String};
 use sui::balance::{Self, Balance};
@@ -14,14 +14,15 @@ use sui::url::{Self, Url};
 const NOT_THE_OWNER: u64 = 0;
 const INSUFFICIENT_FUNDS: u64 = 1;
 const NOT_ADMIN: u64 = 2;
-const PLATFORM_FEE: u64 = 100_000_000; // 0.1 SUI platform fee for card creation
+const CARD_ALREADY_EXISTS: u64 = 3;
+const CARD_NOT_FOUND: u64 = 4;
 
-// creatng DevCard struct
+// creating DevCard struct
 public struct DevCard has key, store {
     id: UID,
     owner: address,
     name: String,
-    description: Option<String>,
+    description: String, // Now required field
     image_url: Url,
     title: String,
     years_of_experience: u8,
@@ -29,14 +30,18 @@ public struct DevCard has key, store {
     contact: String,
     portfolio: String,
     open_to_work: bool,
+    is_active: bool, // New field for card activation status
 }
+
 // created the admin struct
 public struct DevHub has key, store {
     id: UID,
     admin: address,
     counter: u64,
     cards: Table<u64, DevCard>,
-    platform_fees: Balance<SUI>, // Collected platform fees from card creation
+    user_cards: Table<address, u64>, // Maps user address to their card ID
+    platform_fees: Balance<SUI>,
+    platform_fee: u64, // Dynamic platform fee
 }
 
 // created struct to handle created cards
@@ -46,7 +51,8 @@ public struct CardCreated has copy, drop {
     name: String,
     title: String,
     contact: String,
-    platform_fee_paid: u64, // Track platform fee paid
+    description: String,
+    platform_fee_paid: u64,
 }
 
 // created struct for updating description
@@ -54,6 +60,22 @@ public struct DescriptionUpdated has copy, drop {
     name: String,
     owner: address,
     new_description: String,
+}
+
+// created struct to handle card deletion
+public struct CardDeleted has copy, drop {
+    card_id: u64,
+    owner: address,
+    name: String,
+}
+
+// created struct to handle card activation/deactivation
+public struct CardStatusChanged has copy, drop {
+    card_id: u64,
+    owner: address,
+    name: String,
+    is_active: bool,
+    open_to_work: bool,
 }
 
 //created struct to handle platform withdrawal fees
@@ -69,110 +91,244 @@ public struct AdminTransferred has copy, drop {
     new_admin: address,
 }
 
-// created initilization function which will run once
+// created struct to handle platform fee changes
+public struct PlatformFeeChanged has copy, drop {
+    admin: address,
+    old_fee: u64,
+    new_fee: u64,
+}
 
+// created initialization function which will run once
 fun init(ctx: &mut TxContext) {
     transfer::share_object(DevHub {
         id: object::new(ctx),
         admin: tx_context::sender(ctx),
         counter: 0,
         cards: table::new(ctx),
+        user_cards: table::new(ctx),
         platform_fees: balance::zero(),
+        platform_fee: 100_000_000, // Default 0.1 SUI platform fee
     });
 }
 
 /// Create a new developer card with platform fee payment
 public entry fun create_card(
     name: vector<u8>,
+    description: vector<u8>, // Now required
     title: vector<u8>,
     image_url: vector<u8>,
     years_of_experience: u8,
     technologies: vector<u8>,
     portfolio: vector<u8>,
     contact: vector<u8>,
-    mut payment: Coin<SUI>, // Payment must include platform fee
+    mut payment: Coin<SUI>,
     devhub: &mut DevHub,
     ctx: &mut TxContext,
 ) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user already has a card
+    assert!(!table::contains(&devhub.user_cards, sender), CARD_ALREADY_EXISTS);
+    
     let value = coin::value(&payment);
-    assert!(value >= PLATFORM_FEE, INSUFFICIENT_FUNDS);
+    assert!(value >= devhub.platform_fee, INSUFFICIENT_FUNDS);
 
     // Collect platform fee
-    let platform_fee_coin = coin::split(&mut payment, PLATFORM_FEE, ctx);
+    let platform_fee_coin = coin::split(&mut payment, devhub.platform_fee, ctx);
     let platform_fee_balance = coin::into_balance(platform_fee_coin);
     balance::join(&mut devhub.platform_fees, platform_fee_balance);
 
     // Return any excess payment to the sender
     if (coin::value(&payment) > 0) {
-        transfer::public_transfer(payment, tx_context::sender(ctx));
+        transfer::public_transfer(payment, sender);
     } else {
         coin::destroy_zero(payment);
     };
 
     devhub.counter = devhub.counter + 1;
     let id = object::new(ctx);
+    let card_id = devhub.counter;
+
+    let name_str = string::utf8(name);
+    let description_str = string::utf8(description);
 
     event::emit(CardCreated {
-        card_id: devhub.counter,
-        name: string::utf8(name),
-        owner: tx_context::sender(ctx),
+        card_id,
+        name: name_str,
+        owner: sender,
         title: string::utf8(title),
         contact: string::utf8(contact),
-        platform_fee_paid: PLATFORM_FEE,
+        description: description_str,
+        platform_fee_paid: devhub.platform_fee,
     });
 
     let devcard = DevCard {
         id: id,
-        name: string::utf8(name),
-        owner: tx_context::sender(ctx),
+        name: name_str,
+        owner: sender,
         title: string::utf8(title),
         image_url: url::new_unsafe_from_bytes(image_url),
-        description: option::none(),
+        description: description_str,
         years_of_experience,
         technologies: string::utf8(technologies),
         portfolio: string::utf8(portfolio),
         contact: string::utf8(contact),
         open_to_work: true,
+        is_active: true, // Card is active by default
     };
 
-    table::add(&mut devhub.cards, devhub.counter, devcard);
+    table::add(&mut devhub.cards, card_id, devcard);
+    table::add(&mut devhub.user_cards, sender, card_id);
+}
+
+/// Delete user's card (allows them to create a new one)
+public entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = table::remove(&mut devhub.user_cards, sender);
+    let card = table::remove(&mut devhub.cards, card_id);
+    
+    // Verify ownership (extra safety check)
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    event::emit(CardDeleted {
+        card_id,
+        owner: sender,
+        name: card.name,
+    });
+
+    // Destroy the card object
+    let DevCard { 
+        id, 
+        owner: _, 
+        name: _, 
+        description: _, 
+        image_url: _, 
+        title: _, 
+        years_of_experience: _, 
+        technologies: _, 
+        contact: _, 
+        portfolio: _, 
+        open_to_work: _, 
+        is_active: _ 
+    } = card;
+    object::delete(id);
 }
 
 // created function to update card description
 public entry fun update_card_description(
     devhub: &mut DevHub,
     new_description: vector<u8>,
-    id: u64,
     ctx: &mut TxContext,
 ) {
-    let user_card = table::borrow_mut(&mut devhub.cards, id);
-    assert!(tx_context::sender(ctx) == user_card.owner, NOT_THE_OWNER);
-    let old_value = option::swap_or_fill(&mut user_card.description, string::utf8(new_description));
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let user_card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(sender == user_card.owner, NOT_THE_OWNER);
+    
+    let new_desc_str = string::utf8(new_description);
+    user_card.description = new_desc_str;
 
     event::emit(DescriptionUpdated {
         name: user_card.name,
         owner: user_card.owner,
-        new_description: string::utf8(new_description),
+        new_description: new_desc_str,
     });
-
-    _ = old_value;
 }
 
-// created function to activate card
-public entry fun activate_card(devhub: &mut DevHub, id: u64, ctx: &mut TxContext) {
-    let card = table::borrow_mut(&mut devhub.cards, id);
-    assert!(card.owner == tx_context::sender(ctx), NOT_THE_OWNER);
+// created function to activate card (sets both is_active and open_to_work to true)
+public entry fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+    
+    card.is_active = true;
     card.open_to_work = true;
+
+    event::emit(CardStatusChanged {
+        card_id,
+        owner: sender,
+        name: card.name,
+        is_active: true,
+        open_to_work: true,
+    });
 }
 
-// created function to deactivate card
-public entry fun deactivate_card(devhub: &mut DevHub, id: u64, ctx: &mut TxContext) {
-    let card = table::borrow_mut(&mut devhub.cards, id);
-    assert!(card.owner == tx_context::sender(ctx), NOT_THE_OWNER);
+// created function to deactivate card (sets both is_active and open_to_work to false)
+public entry fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+    
+    card.is_active = false;
     card.open_to_work = false;
+
+    event::emit(CardStatusChanged {
+        card_id,
+        owner: sender,
+        name: card.name,
+        is_active: false,
+        open_to_work: false,
+    });
+}
+
+// created function to set open_to_work status while keeping card active
+public entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut TxContext) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+    
+    // Only allow setting work availability if card is active
+    if (card.is_active) {
+        card.open_to_work = available;
+
+        event::emit(CardStatusChanged {
+            card_id,
+            owner: sender,
+            name: card.name,
+            is_active: card.is_active,
+            open_to_work: available,
+        });
+    };
 }
 
 // === Platform Fee Management (Admin Only) ===
+
+/// Change platform fee (admin only)
+public entry fun set_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mut TxContext) {
+    assert!(tx_context::sender(ctx) == devhub.admin, NOT_ADMIN);
+
+    let old_fee = devhub.platform_fee;
+    devhub.platform_fee = new_fee;
+
+    event::emit(PlatformFeeChanged {
+        admin: devhub.admin,
+        old_fee,
+        new_fee,
+    });
+}
 
 /// Withdraw collected platform fees to a specified address (admin only)
 public entry fun withdraw_platform_fees(
@@ -235,7 +391,7 @@ public entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &m
 public fun get_card_info(
     devhub: &DevHub,
     id: u64,
-): (String, address, String, Url, Option<String>, u8, String, String, String, bool) {
+): (String, address, String, Url, String, u8, String, String, String, bool, bool) {
     let card = table::borrow(&devhub.cards, id);
     (
         card.name,
@@ -248,7 +404,22 @@ public fun get_card_info(
         card.portfolio,
         card.contact,
         card.open_to_work,
+        card.is_active,
     )
+}
+
+/// Get user's card ID if they have one
+public fun get_user_card_id(devhub: &DevHub, user: address): Option<u64> {
+    if (table::contains(&devhub.user_cards, user)) {
+        option::some(*table::borrow(&devhub.user_cards, user))
+    } else {
+        option::none()
+    }
+}
+
+/// Check if user has a card
+public fun user_has_card(devhub: &DevHub, user: address): bool {
+    table::contains(&devhub.user_cards, user)
 }
 
 /// Get total number of cards
@@ -266,12 +437,34 @@ public fun get_platform_fee_balance(devhub: &DevHub): u64 {
     balance::value(&devhub.platform_fees)
 }
 
-/// Get the platform fee amount for card creation
-public fun get_platform_fee(): u64 {
-    PLATFORM_FEE
+/// Get the current platform fee amount for card creation
+public fun get_platform_fee(devhub: &DevHub): u64 {
+    devhub.platform_fee
 }
 
 /// Check if an address is the admin
 public fun is_admin(devhub: &DevHub, addr: address): bool {
     devhub.admin == addr
+}
+
+/// Check if a card exists and is active (for browse page filtering)
+public fun is_card_active(devhub: &DevHub, id: u64): bool {
+    if (table::contains(&devhub.cards, id)) {
+        let card = table::borrow(&devhub.cards, id);
+        card.is_active
+    } else {
+        false
+    }
+}
+
+/// Check if a card is open to work (only meaningful if card is active)
+public fun is_card_open_to_work(devhub: &DevHub, id: u64): bool {
+    if (table::contains(&devhub.cards, id)) {
+        let card = table::borrow(&devhub.cards, id);
+        card.is_active && card.open_to_work
+    } else {
+        false
+    }
+}
+
 }
