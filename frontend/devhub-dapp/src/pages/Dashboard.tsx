@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2, RefreshCw, AlertCircle, Shield, CheckCircle } from 'lucide-react';
+import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2, RefreshCw, AlertCircle, Shield, CheckCircle, Trash2, Power, PowerOff } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
-import { DevCardData } from '../lib/suiClient';
-import { updateDescriptionTransaction, toggleWorkStatusTransaction } from '../lib/suiClient';
+import { DevCardData, updateDescriptionTransaction, setWorkAvailabilityTransaction, activateCardTransaction, deactivateCardTransaction, deleteCardTransaction } from '../lib/suiClient';
 
 const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
-  const { getUserCards, getAllCards, loading, error, updateCardInCache, clearCache, setError } = useContract();
+  const { getUserCards, getAllCards, loading, error, updateCardInCache, removeCardFromCache, clearCache, setError } = useContract();
   const [editingDescription, setEditingDescription] = useState<number | null>(null);
   const [newDescription, setNewDescription] = useState('');
   const [userCards, setUserCards] = useState<DevCardData[]>([]);
@@ -17,6 +16,7 @@ const Dashboard: React.FC = () => {
   const [updating, setUpdating] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [deletingCard, setDeletingCard] = useState<number | null>(null);
 
   const userAddress = useMemo(() => currentAccount?.address || '', [currentAccount]);
 
@@ -96,12 +96,13 @@ const Dashboard: React.FC = () => {
     fetchUserCards(true);
   }, [clearCache, fetchUserCards, setError]);
 
+  // Updated work availability toggle using the new contract function
   const toggleWorkStatus = async (cardId: number, currentStatus: boolean) => {
     if (!currentAccount) return;
 
     setUpdating(cardId);
     try {
-      const tx = toggleWorkStatusTransaction(cardId, !currentStatus);
+      const tx = setWorkAvailabilityTransaction(!currentStatus);
       
       signAndExecute(
         {
@@ -138,12 +139,61 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Updated card activation/deactivation
+  const toggleCardActivation = async (cardId: number, currentlyActive: boolean) => {
+    if (!currentAccount) return;
+
+    setUpdating(cardId);
+    try {
+      const tx = currentlyActive ? deactivateCardTransaction() : activateCardTransaction();
+      
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: () => {
+            const updatedCards = userCards.map(card => 
+              card.id === cardId 
+                ? { 
+                    ...card, 
+                    isActive: !currentlyActive,
+                    // Deactivation also sets openToWork to false
+                    openToWork: currentlyActive ? false : card.openToWork
+                  }
+                : card
+            );
+            setUserCards(updatedCards);
+            
+            // Update cache
+            const updatedCard = updatedCards.find(card => card.id === cardId);
+            if (updatedCard) {
+              updateCardInCache(cardId, updatedCard);
+            }
+            
+            setUpdating(null);
+            console.log(`Card ${cardId} ${currentlyActive ? 'deactivated' : 'activated'}`);
+          },
+          onError: (error) => {
+            console.error('Error toggling card activation:', error);
+            setUpdating(null);
+            alert(`Failed to ${currentlyActive ? 'deactivate' : 'activate'} card. Please try again.`);
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error in toggleCardActivation:', error);
+      setUpdating(null);
+    }
+  };
+
+  // Updated description update function
   const updateDescription = async (cardId: number) => {
     if (!currentAccount || !newDescription.trim()) return;
 
     setUpdating(cardId);
     try {
-      const tx = updateDescriptionTransaction(cardId, newDescription);
+      const tx = updateDescriptionTransaction(newDescription);
       
       signAndExecute(
         {
@@ -182,6 +232,46 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // New delete card function
+  const deleteCard = async (cardId: number) => {
+    if (!currentAccount) return;
+
+    const confirmed = window.confirm('Are you sure you want to delete this card? This action cannot be undone.');
+    if (!confirmed) return;
+
+    setDeletingCard(cardId);
+    try {
+      const tx = deleteCardTransaction();
+      
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: () => {
+            // Remove card from local state
+            const filteredCards = userCards.filter(card => card.id !== cardId);
+            setUserCards(filteredCards);
+            
+            // Update cache
+            removeCardFromCache(cardId, userAddress);
+            
+            setDeletingCard(null);
+            console.log(`Card ${cardId} deleted successfully`);
+          },
+          onError: (error) => {
+            console.error('Error deleting card:', error);
+            setDeletingCard(null);
+            alert('Failed to delete card. Please try again.');
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error in deleteCard:', error);
+      setDeletingCard(null);
+    }
+  };
+
   const startEditingDescription = (card: DevCardData) => {
     setEditingDescription(card.id);
     setNewDescription(card.description || '');
@@ -192,12 +282,12 @@ const Dashboard: React.FC = () => {
     setNewDescription('');
   };
 
-  // Memoize stats to prevent unnecessary recalculations
+  // Updated stats to include active/inactive status
   const stats = useMemo(() => ({
     totalCards: userCards.length,
-    availableCards: userCards.filter(card => card.openToWork).length,
-    profileViews: '-', // Placeholder for future implementation
-    inquiries: '-', // Placeholder for future implementation
+    activeCards: userCards.filter(card => card.isActive).length,
+    availableCards: userCards.filter(card => card.openToWork && card.isActive).length,
+    inactiveCards: userCards.filter(card => !card.isActive).length,
   }), [userCards]);
 
   // Loading skeleton component
@@ -352,23 +442,23 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Updated Stats */}
         <div className="grid md:grid-cols-4 gap-6 mb-12">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
             <div className="text-3xl font-bold text-blue-600 mb-2">{stats.totalCards}</div>
             <div className="text-gray-600">Total Cards</div>
           </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-green-600 mb-2">{stats.availableCards}</div>
-            <div className="text-gray-600">Available</div>
+            <div className="text-3xl font-bold text-green-600 mb-2">{stats.activeCards}</div>
+            <div className="text-gray-600">Active Cards</div>
           </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-orange-600 mb-2">{stats.profileViews}</div>
-            <div className="text-gray-600">Profile Views</div>
+            <div className="text-3xl font-bold text-orange-600 mb-2">{stats.availableCards}</div>
+            <div className="text-gray-600">Available for Work</div>
           </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-purple-600 mb-2">{stats.inquiries}</div>
-            <div className="text-gray-600">Inquiries</div>
+            <div className="text-3xl font-bold text-red-600 mb-2">{stats.inactiveCards}</div>
+            <div className="text-gray-600">Inactive Cards</div>
           </div>
         </div>
 
@@ -426,7 +516,9 @@ const Dashboard: React.FC = () => {
               {userCards.map((card) => (
                 <div
                   key={card.id}
-                  className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
+                  className={`bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 ${
+                    !card.isActive ? 'opacity-75 border-red-200' : ''
+                  }`}
                 >
                   {/* Card Header */}
                   <div className="flex items-start space-x-4 mb-6">
@@ -446,43 +538,89 @@ const Dashboard: React.FC = () => {
                       <p className="text-gray-400 text-xs mt-1">Card ID: {card.id}</p>
                     </div>
                     <div className="flex items-center space-x-2">
+                      {/* Card Active/Inactive Toggle */}
                       <button
-                        onClick={() => toggleWorkStatus(card.id, card.openToWork)}
+                        onClick={() => toggleCardActivation(card.id, card.isActive)}
                         disabled={updating === card.id}
                         className={`p-2 rounded-lg transition-colors ${
-                          card.openToWork 
+                          card.isActive 
                             ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            : 'bg-red-100 text-red-600 hover:bg-red-200'
                         } disabled:opacity-50`}
-                        title={card.openToWork ? 'Available for work' : 'Not available'}
+                        title={card.isActive ? 'Card is active' : 'Card is inactive'}
                       >
                         {updating === card.id ? (
-                          <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : card.openToWork ? (
-                          <ToggleRight className="h-6 w-6" />
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : card.isActive ? (
+                          <Power className="h-5 w-5" />
                         ) : (
-                          <ToggleLeft className="h-6 w-6" />
+                          <PowerOff className="h-5 w-5" />
+                        )}
+                      </button>
+                      
+                      {/* Work Availability Toggle (only if card is active) */}
+                      {card.isActive && (
+                        <button
+                          onClick={() => toggleWorkStatus(card.id, card.openToWork)}
+                          disabled={updating === card.id}
+                          className={`p-2 rounded-lg transition-colors ${
+                            card.openToWork 
+                              ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          } disabled:opacity-50`}
+                          title={card.openToWork ? 'Available for work' : 'Not available for work'}
+                        >
+                          {updating === card.id ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          ) : card.openToWork ? (
+                            <ToggleRight className="h-6 w-6" />
+                          ) : (
+                            <ToggleLeft className="h-6 w-6" />
+                          )}
+                        </button>
+                      )}
+                      
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => deleteCard(card.id)}
+                        disabled={deletingCard === card.id}
+                        className="p-2 rounded-lg transition-colors bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-50"
+                        title="Delete card"
+                      >
+                        {deletingCard === card.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-5 w-5" />
                         )}
                       </button>
                     </div>
                   </div>
 
-                  {/* Status Badge */}
-                  <div className="mb-4">
+                  {/* Status Badges */}
+                  <div className="mb-4 flex items-center space-x-2">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      card.openToWork 
+                      card.isActive 
                         ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-600'
+                        : 'bg-red-100 text-red-700'
                     }`}>
-                      {card.openToWork ? '🟢 Available for work' : '⚫ Not available'}
+                      {card.isActive ? '✅ Active' : '❌ Inactive'}
                     </span>
+                    {card.isActive && (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        card.openToWork 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {card.openToWork ? '🟢 Available for work' : '⚫ Not available'}
+                      </span>
+                    )}
                   </div>
 
                   {/* Description */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-medium text-gray-900">Description</h4>
-                      {editingDescription !== card.id && (
+                      {editingDescription !== card.id && card.isActive && (
                         <button
                           onClick={() => startEditingDescription(card)}
                           className="p-1 text-gray-400 hover:text-blue-600 transition-colors"

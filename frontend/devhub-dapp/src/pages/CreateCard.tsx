@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle, X } from 'lucide-react';
+import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle, X, FileText } from 'lucide-react';
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
 
 // Toast Component
@@ -50,6 +50,7 @@ const CreateCard: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: '',
+    description: '', // Added description field
     title: '',
     imageUrl: '',
     yearsOfExperience: 0,
@@ -74,12 +75,18 @@ const CreateCard: React.FC = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required'; // Added validation
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.imageUrl.trim()) newErrors.imageUrl = 'Profile image URL is required';
     if (formData.yearsOfExperience < 0) newErrors.yearsOfExperience = 'Experience must be positive';
     if (!formData.technologies.trim()) newErrors.technologies = 'Technologies are required';
     if (!formData.portfolio.trim()) newErrors.portfolio = 'Portfolio URL is required';
     if (!formData.contact.trim()) newErrors.contact = 'Contact information is required';
+
+    // Validate description length
+    if (formData.description.trim() && formData.description.length > 500) {
+      newErrors.description = 'Description must be 500 characters or less';
+    }
 
     // Validate URLs
     try {
@@ -309,6 +316,47 @@ const CreateCard: React.FC = () => {
                       <span>{errors.title}</span>
                     </p>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Description Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <span>About You</span>
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Professional Description *
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows={4}
+                  maxLength={500}
+                  className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 resize-none ${
+                    errors.description ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
+                  }`}
+                  placeholder="Write a brief description about yourself, your expertise, and what makes you unique as a developer. This will help others understand your background and skills."
+                />
+                <div className="flex justify-between items-center mt-1">
+                  {errors.description ? (
+                    <p className="text-red-600 text-sm flex items-center space-x-1">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{errors.description}</span>
+                    </p>
+                  ) : (
+                    <p className="text-gray-500 text-sm">
+                      Tell potential employers or collaborators about your experience and passion for development.
+                    </p>
+                  )}
+                  <span className={`text-sm ${
+                    formData.description.length > 450 ? 'text-red-500' : 'text-gray-400'
+                  }`}>
+                    {formData.description.length}/500
+                  </span>
                 </div>
               </div>
             </div>
