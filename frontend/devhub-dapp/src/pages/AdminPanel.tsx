@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { Shield, DollarSign, Users, TrendingUp, UserCheck, Settings, Loader2 } from 'lucide-react';
+import { Shield, DollarSign, Users, TrendingUp, UserCheck, Settings, Loader2, RefreshCw } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { withdrawFeesTransaction, withdrawAllFeesTransaction } from '../lib/suiClient';
 
@@ -11,44 +11,97 @@ interface AdminPanelProps {
 const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
-  const { getCardCount, getPlatformFeeBalance, isAdmin: checkIsAdmin } = useContract();
+  const { 
+    getCardCount, 
+    getPlatformFeeBalance, 
+    isAdmin: checkIsAdmin,
+    getAllActiveCards,
+    getCardsOpenToWork,
+    clearCache,
+    getCacheStats
+  } = useContract();
+  
   const [platformFees, setPlatformFees] = useState(0);
   const [totalCards, setTotalCards] = useState(0);
+  const [activeCards, setActiveCards] = useState(0);
+  const [openToWorkCards, setOpenToWorkCards] = useState(0);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [cacheStats, setCacheStats] = useState<any>(null);
+
+  const fetchAdminData = async (forceRefresh: boolean = false) => {
+    if (!currentAccount) return;
+    
+    const loadingState = forceRefresh ? setRefreshing : setLoading;
+    loadingState(true);
+    
+    try {
+      console.log('🔄 Fetching admin data...', { forceRefresh });
+      
+      const [cardCount, feeBalance, adminStatus] = await Promise.all([
+        getCardCount(forceRefresh),
+        getPlatformFeeBalance(forceRefresh),
+        checkIsAdmin(currentAccount.address, forceRefresh),
+      ]);
+      
+      console.log('📊 Admin data fetched:', { cardCount, feeBalance, adminStatus });
+      
+      setTotalCards(cardCount);
+      setPlatformFees(feeBalance / 1_000_000_000); // Convert from MIST to SUI
+      setIsAdminUser(adminStatus);
+      
+      // Fetch additional stats if user is admin
+      if (adminStatus) {
+        try {
+          const [activeCardsData, openToWorkCardsData] = await Promise.all([
+            getAllActiveCards(forceRefresh),
+            getCardsOpenToWork(forceRefresh),
+          ]);
+          
+          setActiveCards(activeCardsData.length);
+          setOpenToWorkCards(openToWorkCardsData.length);
+          
+          console.log('📈 Additional stats:', { 
+            activeCards: activeCardsData.length, 
+            openToWork: openToWorkCardsData.length 
+          });
+        } catch (error) {
+          console.warn('⚠️ Error fetching additional stats:', error);
+        }
+      }
+      
+      // Update cache stats
+      setCacheStats(getCacheStats());
+      
+    } catch (error) {
+      console.error('❌ Error fetching admin data:', error);
+    } finally {
+      loadingState(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAdminData = async () => {
-      if (!currentAccount) return;
-      
-      setLoading(true);
-      try {
-        const [cardCount, feeBalance, adminStatus] = await Promise.all([
-          getCardCount(),
-          getPlatformFeeBalance(),
-          checkIsAdmin(currentAccount.address),
-        ]);
-        
-        setTotalCards(cardCount);
-        setPlatformFees(feeBalance / 1_000_000_000); // Convert from MIST to SUI
-        setIsAdminUser(adminStatus);
-      } catch (error) {
-        console.error('Error fetching admin data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAdminData();
-  }, [currentAccount, getCardCount, getPlatformFeeBalance, checkIsAdmin]);
+  }, [currentAccount]);
+
+  const handleRefresh = () => {
+    fetchAdminData(true);
+  };
+
+  const handleClearCache = () => {
+    clearCache();
+    setCacheStats(getCacheStats());
+    fetchAdminData(true);
+  };
 
   const handleWithdraw = async () => {
     if (!currentAccount) return;
     
     const amount = parseFloat(withdrawAmount);
-    const amountInMist = amount * 1_000_000_000; // Convert SUI to MIST
+    const amountInMist = Math.floor(amount * 1_000_000_000); // Convert SUI to MIST and ensure integer
     
     if (amount <= 0 || amount > platformFees) {
       alert('Invalid withdrawal amount');
@@ -57,28 +110,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
 
     setWithdrawing(true);
     try {
+      console.log('💰 Withdrawing fees:', { amount, amountInMist });
       const tx = withdrawFeesTransaction(currentAccount.address, amountInMist);
 
-signAndExecute(
-  {
-    transaction: tx,
-  },
-  {
-    onSuccess: () => {
-      setPlatformFees(prev => prev - amount);
-      setWithdrawAmount('');
-      setWithdrawing(false);
-      alert(`Successfully withdrew ${amount} SUI`);
-    },
-    onError: (error: Error) => {
-      console.error('Error withdrawing fees:', error.message);
-      setWithdrawing(false);
-      alert('Failed to withdraw fees. Please try again.');
-    },
-  }
-);
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: () => {
+            console.log('✅ Withdrawal successful');
+            setPlatformFees(prev => prev - amount);
+            setWithdrawAmount('');
+            setWithdrawing(false);
+            alert(`Successfully withdrew ${amount} SUI`);
+            // Refresh data after successful withdrawal
+            fetchAdminData(true);
+          },
+          onError: (error: Error) => {
+            console.error('❌ Error withdrawing fees:', error.message);
+            setWithdrawing(false);
+            alert('Failed to withdraw fees. Please try again.');
+          },
+        }
+      );
     } catch (error) {
-      console.error('Error in withdrawal process:', error);
+      console.error('❌ Error in withdrawal process:', error);
       setWithdrawing(false);
     }
   };
@@ -88,29 +145,33 @@ signAndExecute(
 
     setWithdrawing(true);
     try {
+      console.log('💰 Withdrawing all fees:', { platformFees });
       const tx = withdrawAllFeesTransaction();
       
       signAndExecute(
         {
           transaction: tx,
-          },
+        },
         {
           onSuccess: () => {
             const withdrawnAmount = platformFees;
+            console.log('✅ Withdraw all successful');
             setPlatformFees(0);
             setWithdrawAmount('');
             setWithdrawing(false);
             alert(`Successfully withdrew all ${withdrawnAmount.toFixed(2)} SUI`);
+            // Refresh data after successful withdrawal
+            fetchAdminData(true);
           },
           onError: (error) => {
-            console.error('Error withdrawing all fees:', error);
+            console.error('❌ Error withdrawing all fees:', error);
             setWithdrawing(false);
             alert('Failed to withdraw fees. Please try again.');
           },
         }
       );
     } catch (error) {
-      console.error('Error in withdrawal process:', error);
+      console.error('❌ Error in withdrawal process:', error);
       setWithdrawing(false);
     }
   };
@@ -150,6 +211,15 @@ signAndExecute(
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
           <p className="text-gray-600 mb-6">You don't have admin privileges to access this panel.</p>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 mx-auto"
+          >
+            {refreshing && <Loader2 className="h-4 w-4 animate-spin" />}
+            <RefreshCw className="h-4 w-4" />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
     );
@@ -160,13 +230,32 @@ signAndExecute(
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-12">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl">
-              <Shield className="h-8 w-8" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl">
+                <Shield className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Admin Panel</h1>
+                <p className="text-xl text-gray-600">Platform management and analytics dashboard</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Admin Panel</h1>
-              <p className="text-xl text-gray-600">Platform management and analytics dashboard</p>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                <span>Refresh</span>
+              </button>
+              <button
+                onClick={handleClearCache}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2"
+              >
+                <Settings className="h-4 w-4" />
+                <span>Clear Cache</span>
+              </button>
             </div>
           </div>
         </div>
@@ -203,8 +292,8 @@ signAndExecute(
                 <UserCheck className="h-6 w-6 text-purple-600" />
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">-</div>
-                <div className="text-sm text-gray-600">Active Users</div>
+                <div className="text-2xl font-bold text-gray-900">{activeCards.toLocaleString()}</div>
+                <div className="text-sm text-gray-600">Active Cards</div>
               </div>
             </div>
           </div>
@@ -215,8 +304,8 @@ signAndExecute(
                 <TrendingUp className="h-6 w-6 text-orange-600" />
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">-</div>
-                <div className="text-sm text-gray-600">Growth Rate</div>
+                <div className="text-2xl font-bold text-gray-900">{openToWorkCards.toLocaleString()}</div>
+                <div className="text-sm text-gray-600">Open to Work</div>
               </div>
             </div>
           </div>
@@ -275,13 +364,25 @@ signAndExecute(
 
               <div className="flex space-x-2 mb-4">
                 <button
-                  onClick={() => setWithdrawAmount((platformFees * 0.5).toString())}
+                  onClick={() => setWithdrawAmount((platformFees * 0.25).toFixed(2))}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  25%
+                </button>
+                <button
+                  onClick={() => setWithdrawAmount((platformFees * 0.5).toFixed(2))}
                   className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   50%
                 </button>
                 <button
-                  onClick={() => setWithdrawAmount(platformFees.toString())}
+                  onClick={() => setWithdrawAmount((platformFees * 0.75).toFixed(2))}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  75%
+                </button>
+                <button
+                  onClick={() => setWithdrawAmount(platformFees.toFixed(2))}
                   className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   All
@@ -361,6 +462,29 @@ signAndExecute(
                 </div>
               </div>
             </div>
+
+            {/* Cache Statistics */}
+            {cacheStats && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Cache Statistics</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Cached Cards</span>
+                    <span className="font-medium">{cacheStats.validCards}/{cacheStats.totalCards}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">User Caches</span>
+                    <span className="font-medium">{cacheStats.validUserCaches}/{cacheStats.totalUserCaches}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Card Count Cache</span>
+                    <span className={`font-medium ${cacheStats.cardCountValid ? 'text-green-600' : 'text-red-600'}`}>
+                      {cacheStats.cardCountValid ? 'Valid' : 'Invalid'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

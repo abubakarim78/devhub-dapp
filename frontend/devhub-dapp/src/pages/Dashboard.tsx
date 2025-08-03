@@ -341,11 +341,6 @@ const Dashboard: React.FC = () => {
           <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Dashboard</h2>
           <p className="text-gray-600">Fetching your developer cards...</p>
-          <div className="mt-4 bg-gray-50 p-4 rounded-lg border">
-            <p className="text-sm text-gray-600">
-              Connected as: <span className="font-mono text-xs">{userAddress}</span>
-            </p>
-          </div>
         </div>
       </div>
     );
@@ -474,11 +469,6 @@ const Dashboard: React.FC = () => {
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
               Create your first developer card to start showcasing your skills and connecting with opportunities.
             </p>
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-8">
-              <p className="text-sm text-blue-800">
-                Cards created with this wallet ({userAddress.slice(0, 6)}...{userAddress.slice(-4)}) will appear here.
-              </p>
-            </div>
             <div className="flex items-center justify-center space-x-4">
               <Link
                 to="/create"
