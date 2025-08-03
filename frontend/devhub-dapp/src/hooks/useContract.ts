@@ -174,36 +174,6 @@ const safeDecodeUrl = (bytes: any): string => {
   return cleaned;
 };
 
-// Helper function to parse return values from Sui contract calls
-const parseReturnValue = (returnValue: any): any => {
-  if (!returnValue || !returnValue[0]) {
-    return '';
-  }
-
-  const bytes = returnValue[0];
-  
-  // If it's a boolean (single byte)
-  if (bytes.length === 1 && (bytes[0] === 0 || bytes[0] === 1)) {
-    return Boolean(bytes[0]);
-  }
-  
-  // If it's a number
-  if (typeof bytes === 'string' || typeof bytes === 'number') {
-    return bytes.toString();
-  }
-  
-  // If it's bytes that should be decoded as string
-  if (Array.isArray(bytes) || bytes instanceof Uint8Array) {
-    try {
-      return new TextDecoder().decode(new Uint8Array(bytes));
-    } catch {
-      return bytes.toString();
-    }
-  }
-  
-  return bytes.toString();
-};
-
 export function useContract() {
   const currentAccount = useCurrentAccount();
   const client = useSuiClient();
