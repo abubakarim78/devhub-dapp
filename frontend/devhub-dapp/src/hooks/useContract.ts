@@ -509,194 +509,242 @@ export function useContract() {
     }
   }, [getAllCards]);
 
-  // Debug version of getUserCards with better logging and FIXED address comparison
   const getUserCards = useCallback(async (
-    userAddress: string,
-    forceRefresh: boolean = false
-  ): Promise<DevCardData[]> => {
-    if (!userAddress) {
-      console.log(`⚠️ No user address provided`);
-      return [];
-    }
+  userAddress: string,
+  forceRefresh: boolean = false
+): Promise<DevCardData[]> => {
+  if (!userAddress) return [];
 
-    console.log(`👤 Fetching cards for user: ${userAddress}`);
+  // PERFORMANCE FIX: Check cache first without blocking
+  const cached = cacheRef.current.userCards.get(userAddress) || null;
+  if (!forceRefresh && isCacheValid(cached)) {
+    return cached.data;
+  }
+  
+  try {
+    // OPTIMIZATION: Use Promise.allSettled for parallel processing
+    const count = await getCardCount(forceRefresh);
+    if (count === 0) return [];
 
-    const cached = cacheRef.current.userCards.get(userAddress) || null;
-
-    if (!forceRefresh && isCacheValid(cached)) {
-      console.log(`📋 Using cached user cards: ${cached.data.length} cards`);
-      return cached.data;
-    }
+    // OPTIMIZED: Process in smaller chunks with better concurrency
+    const CHUNK_SIZE = 3; // Smaller chunks for faster first results
+    const MAX_CONCURRENT = 2; // Limit concurrent requests
     
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    const userCards: DevCardData[] = [];
+    const totalChunks = Math.ceil(count / CHUNK_SIZE);
     
-    try {
-      // Strategy 1: Try to get user cards from existing cache first
-      const allCachedCards = Array.from(cacheRef.current.cards.values())
-        .filter(entry => isCacheValid(entry))
-        .map(entry => entry.data)
-        .filter(card => card.owner.toLowerCase() === userAddress.toLowerCase());
-
-      // If we have cached cards and they're recent, use them
-      if (allCachedCards.length > 0 && !forceRefresh) {
-        const userCards = allCachedCards.sort((a, b) => a.id - b.id);
-        cacheRef.current.userCards.set(userAddress, setCacheEntry(userCards));
-        
-        console.log(`📋 Using cached cards from individual cache: ${userCards.length} cards`);
-        
-        setState(prev => ({ 
-          ...prev, 
-          loading: false, 
-          lastFetch: Date.now(),
-          error: null 
-        }));
-        
-        return userCards;
-      }
-
-      // Strategy 2: Fetch all cards and filter
-      const count = await getCardCount(forceRefresh);
-      console.log(`📊 Total cards in contract: ${count}`);
+    // Process chunks with controlled concurrency
+    for (let i = 0; i < totalChunks; i += MAX_CONCURRENT) {
+      const chunkPromises = [];
       
-      if (count === 0) {
-        console.log(`⚠️ No cards exist in the contract`);
-        const emptyResult: DevCardData[] = [];
-        cacheRef.current.userCards.set(userAddress, setCacheEntry(emptyResult));
+      for (let j = 0; j < MAX_CONCURRENT && i + j < totalChunks; j++) {
+        const chunkIndex = i + j;
+        const startId = chunkIndex * CHUNK_SIZE + 1;
+        const endId = Math.min(startId + CHUNK_SIZE - 1, count);
         
-        setState(prev => ({ ...prev, loading: false }));
-        return emptyResult;
+        const chunkPromise = processCardChunk(startId, endId, userAddress, forceRefresh);
+        chunkPromises.push(chunkPromise);
       }
-
-      console.log(`🔍 Checking all ${count} cards for ownership by ${userAddress}`);
-
-      // For better performance, we'll fetch cards in smaller batches
-      // and filter as we go, allowing early termination if needed
-      const userCards: DevCardData[] = [];
-      const totalBatches = Math.ceil(count / BATCH_SIZE);
       
-      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-        const startId = batchIndex * BATCH_SIZE + 1;
-        const endId = Math.min(startId + BATCH_SIZE - 1, count);
-        const batchIds = Array.from({ length: endId - startId + 1 }, (_, i) => startId + i);
-        
-        console.log(`📦 Processing batch ${batchIndex + 1}/${totalBatches}, cards ${startId}-${endId}`);
-        
-        try {
-          const batchCards = await batchFetchCards(batchIds, forceRefresh);
-          console.log(`📥 Fetched ${batchCards.length} cards in batch ${batchIndex + 1}`);
-          
-          const userCardsInBatch = batchCards.filter(card => {
-            console.log(`🔍 Comparing addresses - Card owner: "${card.owner}", User: "${userAddress}"`);
-            const isOwner = card.owner.toLowerCase() === userAddress.toLowerCase();
-            if (isOwner) {
-              console.log(`✅ Found user card: ID ${card.id}, name: ${card.name}`);
-            }
-            return isOwner;
-          });
-          
-          userCards.push(...userCardsInBatch);
-          console.log(`👤 User cards found in batch: ${userCardsInBatch.length}`);
-        } catch (err) {
-          console.warn(`⚠️ Error fetching batch ${batchIndex + 1}:`, err);
-          // Continue with other batches
+      const results = await Promise.allSettled(chunkPromises);
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          userCards.push(...result.value);
         }
-      }
-
-      const sortedUserCards = userCards.sort((a, b) => a.id - b.id);
-      cacheRef.current.userCards.set(userAddress, setCacheEntry(sortedUserCards));
-      
-      console.log(`✅ Final user cards result: ${sortedUserCards.length} cards`);
-      
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        lastFetch: Date.now(),
-        error: null 
-      }));
-      
-      return sortedUserCards;
-    } catch (err) {
-      console.error('❌ Error getting user cards:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to get user cards';
-      
-      setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      return [];
+      });
     }
-  }, [getCardCount, batchFetchCards, isCacheValid, setCacheEntry]);
 
-  // Enhanced admin check with caching
+    const sortedCards = userCards.sort((a, b) => a.id - b.id);
+    cacheRef.current.userCards.set(userAddress, setCacheEntry(sortedCards));
+    return sortedCards;
+    
+  } catch (err) {
+    console.error('❌ Error getting user cards:', err);
+    return [];
+  }
+}, [getCardCount, isCacheValid, setCacheEntry]);
+
+// Helper function for processing card chunks
+const processCardChunk = async (
+  startId: number, 
+  endId: number, 
+  userAddress: string, 
+  forceRefresh: boolean
+): Promise<DevCardData[]> => {
+  const cardIds = Array.from({ length: endId - startId + 1 }, (_, i) => startId + i);
+  
+  try {
+    // Use Promise.all for parallel fetching within chunk
+    const cardPromises = cardIds.map(id => getCardInfo(id, forceRefresh));
+    const cards = await Promise.all(cardPromises);
+    
+    return cards
+      .filter((card): card is DevCardData => card !== null)
+      .filter(card => card.owner.toLowerCase() === userAddress.toLowerCase());
+      
+  } catch (error) {
+    console.warn(`Error processing chunk ${startId}-${endId}:`, error);
+    return [];
+  }
+};
+
   const isAdmin = useCallback(async (address: string, forceRefresh: boolean = false): Promise<boolean> => {
-    const cached = cacheRef.current.adminStatus.get(address) || null;
+  const cached = cacheRef.current.adminStatus.get(address) || null;
+  
+  if (!forceRefresh && isCacheValid(cached)) {
+    return cached.data;
+  }
+
+  try {
+    console.log(`🔍 Checking admin status for: ${address}`);
     
-    if (!forceRefresh && isCacheValid(cached)) {
-      return cached.data;
-    }
-
-    try {
-      const adminStatus = await withRetry(async () => {
-        const tx = new Transaction();
-        tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.IS_ADMIN}`,
-          arguments: [tx.object(DEVHUB_OBJECT_ID), tx.pure.address(address)],
-        });
-
-        const result = await client.devInspectTransactionBlock({
-          transactionBlock: tx,
-          sender: currentAccount?.address || '0x0',
-        });
-
-        if (result.results?.[0]?.returnValues?.[0]) {
-          return Boolean(result.results[0].returnValues[0][0]);
-        }
-        return false;
+    const adminStatus = await withRetry(async () => {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.IS_ADMIN}`,
+        arguments: [tx.object(DEVHUB_OBJECT_ID), tx.pure.address(address)],
       });
 
-      cacheRef.current.adminStatus.set(address, setCacheEntry(adminStatus));
-      return adminStatus;
-    } catch (err) {
-      console.error('Error checking admin status:', err);
-      setState(prev => ({ ...prev, error: 'Failed to check admin status' }));
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: '0x0000000000000000000000000000000000000000000000000000000000000000', // ✅ Neutral sender
+      });
+
+      console.log(`📥 Admin check result:`, result);
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        console.log(`📊 Raw bytes:`, bytes);
+        
+        // ✅ Proper boolean parsing
+        let isAdminResult: boolean;
+        if (Array.isArray(bytes)) {
+          isAdminResult = bytes[0] === 1; // Move boolean is 1 for true, 0 for false
+        } else {
+          isAdminResult = bytes === 1 || bytes === true;
+        }
+        
+        console.log(`👑 Admin status for ${address}:`, isAdminResult);
+        return isAdminResult;
+      }
       return false;
-    }
-  }, [client, currentAccount, isCacheValid, setCacheEntry, withRetry]);
+    });
 
-  // Enhanced platform fee balance with caching
+    cacheRef.current.adminStatus.set(address, setCacheEntry(adminStatus));
+    return adminStatus;
+  } catch (err) {
+    console.error(`❌ Error checking admin status:`, err);
+    return false; // ✅ Always default to false on error
+  }
+}, [client, isCacheValid, setCacheEntry, withRetry]);
+
   const getPlatformFeeBalance = useCallback(async (forceRefresh: boolean = false): Promise<number> => {
-    const cached = cacheRef.current.platformFeeBalance;
+  const cached = cacheRef.current.platformFeeBalance;
+  
+  if (!forceRefresh && isCacheValid(cached)) {
+    return cached.data;
+  }
+
+  try {
+    console.log('🔍 Fetching platform fee balance...');
     
-    if (!forceRefresh && isCacheValid(cached)) {
-      return cached.data;
-    }
-
-    try {
-      const balance = await withRetry(async () => {
-        const tx = new Transaction();
-        tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
-          arguments: [tx.object(DEVHUB_OBJECT_ID)],
-        });
-
-        const result = await client.devInspectTransactionBlock({
-          transactionBlock: tx,
-          sender: currentAccount?.address || '0x0',
-        });
-
-        if (result.results?.[0]?.returnValues?.[0]) {
-          const [bytes] = result.results[0].returnValues[0];
-          return parseInt(bytes.toString());
-        }
-        return 0;
+    const balance = await withRetry(async () => {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
+        arguments: [tx.object(DEVHUB_OBJECT_ID)],
       });
 
-      cacheRef.current.platformFeeBalance = setCacheEntry(balance);
-      return balance;
-    } catch (err) {
-      console.error('Error getting platform fee balance:', err);
-      setState(prev => ({ ...prev, error: 'Failed to get platform fee balance' }));
-      return 0;
-    }
-  }, [client, currentAccount, isCacheValid, setCacheEntry, withRetry]);
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: currentAccount?.address || '0x0',
+      });
 
+      console.log('📥 Platform fee balance result:', result);
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        console.log('📊 Raw bytes:', bytes);
+        
+        // Handle different byte formats for u64
+        let balance: number;
+        if (Array.isArray(bytes)) {
+          // Convert little-endian byte array to number
+          balance = bytes.reduce((acc, byte, index) => {
+            return acc + (byte * Math.pow(256, index));
+          }, 0);
+        } else if (typeof bytes === 'string') {
+          balance = parseInt(bytes);
+        } else {
+          balance = Number(bytes);
+        }
+        
+        console.log('💰 Parsed balance:', balance, 'MIST');
+        return balance;
+      }
+      return 0;
+    });
+
+    cacheRef.current.platformFeeBalance = setCacheEntry(balance);
+    return balance;
+  } catch (err) {
+    console.error('❌ Error getting platform fee balance:', err);
+    setState(prev => ({ ...prev, error: 'Failed to get platform fee balance' }));
+    return 0;
+  }
+}, [client, currentAccount, isCacheValid, setCacheEntry, withRetry]);
+
+// Add this function after the getPlatformFeeBalance function in your useContract hook
+
+const getPlatformFee = useCallback(async (): Promise<number> => {
+  // You can cache this if needed, but platform fee is usually a constant
+  try {
+    console.log('🔍 Fetching platform fee...');
+    
+    const fee = await withRetry(async () => {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE}`,
+        arguments: [tx.object(DEVHUB_OBJECT_ID)],
+      });
+
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: currentAccount?.address || '0x0',
+      });
+
+      console.log('📥 Platform fee result:', result);
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        console.log('📊 Raw bytes:', bytes);
+        
+        // Handle different byte formats for u64
+        let fee: number;
+        if (Array.isArray(bytes)) {
+          // Convert little-endian byte array to number
+          fee = bytes.reduce((acc, byte, index) => {
+            return acc + (byte * Math.pow(256, index));
+          }, 0);
+        } else if (typeof bytes === 'string') {
+          fee = parseInt(bytes);
+        } else {
+          fee = Number(bytes);
+        }
+        
+        console.log('💰 Parsed platform fee:', fee, 'MIST');
+        return fee;
+      }
+      return 0;
+    });
+
+    return fee;
+  } catch (err) {
+    console.error('❌ Error getting platform fee:', err);
+    setState(prev => ({ ...prev, error: 'Failed to get platform fee' }));
+    return 0;
+  }
+}, [client, currentAccount, withRetry]);
   // Check if card is active
   const isCardActive = useCallback(async (cardId: number, forceRefresh: boolean = false): Promise<boolean> => {
     try {
@@ -836,6 +884,7 @@ export function useContract() {
     getCardsOpenToWork,
     getUserCards,
     isAdmin,
+    getPlatformFee, 
     getPlatformFeeBalance,
     isCardActive,
     isCardOpenToWork,
@@ -858,6 +907,7 @@ export function useContract() {
     getCardsOpenToWork,
     getUserCards,
     isAdmin,
+    getPlatformFee, 
     getPlatformFeeBalance,
     isCardActive,
     isCardOpenToWork,

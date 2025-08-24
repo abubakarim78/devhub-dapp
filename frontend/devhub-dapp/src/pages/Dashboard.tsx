@@ -5,26 +5,124 @@ import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Lo
 import { useContract } from '../hooks/useContract';
 import { DevCardData, updateDescriptionTransaction, setWorkAvailabilityTransaction, activateCardTransaction, deactivateCardTransaction, deleteCardTransaction } from '../lib/suiClient';
 
+// Skeleton components for better loading UX
+const StatCardSkeleton: React.FC = () => (
+  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg animate-pulse">
+    <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
+    <div className="h-4 bg-gray-200 rounded w-24"></div>
+  </div>
+);
+
+const CardSkeleton: React.FC = () => (
+  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg animate-pulse">
+    <div className="flex items-start space-x-4 mb-6">
+      <div className="w-20 h-20 bg-gray-200 rounded-xl"></div>
+      <div className="flex-1">
+        <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+        <div className="h-5 bg-gray-200 rounded w-1/2 mb-1"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+      </div>
+      <div className="flex space-x-2">
+        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+      </div>
+    </div>
+    <div className="mb-4">
+      <div className="flex space-x-2">
+        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+        <div className="h-6 bg-gray-200 rounded-full w-24"></div>
+      </div>
+    </div>
+    <div className="space-y-3 mb-6">
+      <div className="h-4 bg-gray-200 rounded w-full"></div>
+      <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+    </div>
+    <div className="flex flex-wrap gap-2 mb-6">
+      <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+      <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+      <div className="h-6 bg-gray-200 rounded-full w-12"></div>
+    </div>
+  </div>
+);
+
+const DashboardSkeletonLoader: React.FC = () => (
+  <div className="min-h-screen pt-8 pb-16">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Header Skeleton */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
+        <div className="flex-1">
+          <div className="h-12 bg-gray-200 rounded w-80 mb-4 animate-pulse"></div>
+          <div className="h-6 bg-gray-200 rounded w-96 mb-2 animate-pulse"></div>
+          <div className="bg-gray-50 p-3 rounded-lg border">
+            <div className="h-4 bg-gray-200 rounded w-72 animate-pulse"></div>
+          </div>
+        </div>
+        <div className="flex items-center space-x-4 mt-6 md:mt-0">
+          <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div className="w-40 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+        </div>
+      </div>
+
+      {/* Stats Grid Skeleton */}
+      <div className="grid md:grid-cols-4 gap-6 mb-12">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </div>
+
+      {/* Cards Grid Skeleton */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-8">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
-  const { getUserCards, getAllCards, loading, error, updateCardInCache, removeCardFromCache, clearCache, setError } = useContract();
+  const { getUserCards, error, updateCardInCache, removeCardFromCache, clearCache, setError } = useContract();
+  
+  // Enhanced loading states - more granular for better UX
+  const [loadingStates, setLoadingStates] = useState({
+    initialLoad: true,
+    basicData: false,
+    refreshing: false,
+    userCards: false,
+  });
+
+  // State variables
   const [editingDescription, setEditingDescription] = useState<number | null>(null);
   const [newDescription, setNewDescription] = useState('');
   const [userCards, setUserCards] = useState<DevCardData[]>([]);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [updating, setUpdating] = useState<number | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [deletingCard, setDeletingCard] = useState<number | null>(null);
 
   const userAddress = useMemo(() => currentAccount?.address || '', [currentAccount]);
 
+  // Update loading state helper
+  const updateLoadingState = useCallback((key: keyof typeof loadingStates, value: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [key]: value }));
+  }, []);
+
   // Reset state when account changes
   useEffect(() => {
     if (!currentAccount) {
       setUserCards([]);
-      setInitialLoad(true);
+      updateLoadingState('initialLoad', true);
       setFetchError(null);
       return;
     }
@@ -33,53 +131,71 @@ const Dashboard: React.FC = () => {
     if (userAddress && userAddress !== newAddress) {
       console.log(`Account changed from ${userAddress} to ${newAddress}`);
       setUserCards([]);
-      setInitialLoad(true);
+      updateLoadingState('initialLoad', true);
       setFetchError(null);
       clearCache();
     }
-  }, [currentAccount, userAddress, clearCache]);
+  }, [currentAccount, userAddress, clearCache, updateLoadingState]);
 
-  // Fetch user cards with improved error handling
-  const fetchUserCards = useCallback(async (showRefreshLoader = false) => {
-    if (!userAddress) {
-      setUserCards([]);
-      setInitialLoad(false);
-      return;
-    }
+ const fetchUserCards = useCallback(async (forceRefresh: boolean = false) => {
+  if (!userAddress) {
+    setUserCards([]);
+    updateLoadingState('initialLoad', false);
+    updateLoadingState('userCards', false);
+    return;
+  }
 
-    if (showRefreshLoader) setRefreshing(true);
-    setFetchError(null);
+  // OPTIMIZATION: Set more granular loading states
+  if (forceRefresh) {
+    updateLoadingState('refreshing', true);
+  } else if (loadingStates.initialLoad) {
+    updateLoadingState('basicData', true);
+  } else {
+    updateLoadingState('userCards', true);
+  }
+  
+  setFetchError(null);
 
+  try {
+    console.log(`🔄 Fetching cards for user: ${userAddress}`);
+    
+    // OPTIMIZATION: Start with cached data immediately if available
+    let cachedCards: DevCardData[] = [];
     try {
-      console.log(`Fetching cards for user: ${userAddress}`);
-      
-      // First try to get user-specific cards
-      let cards = await getUserCards(userAddress);
-      
-      // If no cards found or empty result, try alternative approach
-      if (!cards || cards.length === 0) {
-        console.log('No cards found with getUserCards, trying getAllCards approach...');
-        const allCards = await getAllCards();
-        cards = allCards.filter(card => card.owner === userAddress);
-        console.log(`Found ${cards.length} cards for user from getAllCards`);
+      // Try to get immediately available cached data
+      cachedCards = await getUserCards(userAddress, false);
+      if (cachedCards.length > 0 && !forceRefresh) {
+        console.log(`⚡ Displaying ${cachedCards.length} cached cards immediately`);
+        setUserCards(cachedCards);
+        // Update loading states but keep fetching fresh data in background
+        updateLoadingState('initialLoad', false);
+        updateLoadingState('basicData', false);
       }
-
-      // Validate cards belong to current user
-      const validCards = cards.filter(card => card.owner === userAddress);
-      console.log(`Final validated cards count: ${validCards.length}`);
-
-      setUserCards(validCards);
-      setInitialLoad(false);
-      
-    } catch (error) {
-      console.error('Error fetching user cards:', error);
-      setFetchError(error instanceof Error ? error.message : 'Failed to fetch cards');
-      setUserCards([]);
-      setInitialLoad(false);
-    } finally {
-      if (showRefreshLoader) setRefreshing(false);
+    } catch (cacheError) {
+      console.warn('Cache retrieval failed, will fetch fresh:', cacheError);
     }
-  }, [userAddress, getUserCards, getAllCards]);
+    
+    // Fetch fresh data (will use cache if valid)
+    const cards = await getUserCards(userAddress, forceRefresh);
+    
+    // Only update if data has changed
+    if (JSON.stringify(cards) !== JSON.stringify(cachedCards)) {
+      console.log(`🔄 Updating with fresh data: ${cards.length} cards`);
+      setUserCards(cards);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching user cards:', error);
+    setFetchError(error instanceof Error ? error.message : 'Failed to fetch cards');
+    setUserCards([]);
+  } finally {
+    // Clear all loading states
+    updateLoadingState('initialLoad', false);
+    updateLoadingState('basicData', false);
+    updateLoadingState('userCards', false);
+    updateLoadingState('refreshing', false);
+  }
+}, [userAddress, getUserCards, loadingStates.initialLoad, updateLoadingState]);
 
   // Initial load effect
   useEffect(() => {
@@ -89,7 +205,7 @@ const Dashboard: React.FC = () => {
   }, [userAddress, fetchUserCards]);
 
   const handleRefresh = useCallback(() => {
-    console.log('Manual refresh triggered');
+    console.log('🔄 Manual refresh triggered');
     setError(null);
     setFetchError(null);
     clearCache();
@@ -124,17 +240,17 @@ const Dashboard: React.FC = () => {
             }
             
             setUpdating(null);
-            console.log(`Work status updated for card ${cardId}: ${!currentStatus}`);
+            console.log(`✅ Work status updated for card ${cardId}: ${!currentStatus}`);
           },
           onError: (error) => {
-            console.error('Error updating work status:', error);
+            console.error('❌ Error updating work status:', error);
             setUpdating(null);
             alert('Failed to update work status. Please try again.');
           },
         }
       );
     } catch (error) {
-      console.error('Error in toggleWorkStatus:', error);
+      console.error('❌ Error in toggleWorkStatus:', error);
       setUpdating(null);
     }
   };
@@ -172,17 +288,17 @@ const Dashboard: React.FC = () => {
             }
             
             setUpdating(null);
-            console.log(`Card ${cardId} ${currentlyActive ? 'deactivated' : 'activated'}`);
+            console.log(`✅ Card ${cardId} ${currentlyActive ? 'deactivated' : 'activated'}`);
           },
           onError: (error) => {
-            console.error('Error toggling card activation:', error);
+            console.error('❌ Error toggling card activation:', error);
             setUpdating(null);
             alert(`Failed to ${currentlyActive ? 'deactivate' : 'activate'} card. Please try again.`);
           },
         }
       );
     } catch (error) {
-      console.error('Error in toggleCardActivation:', error);
+      console.error('❌ Error in toggleCardActivation:', error);
       setUpdating(null);
     }
   };
@@ -217,17 +333,17 @@ const Dashboard: React.FC = () => {
             setEditingDescription(null);
             setNewDescription('');
             setUpdating(null);
-            console.log(`Description updated for card ${cardId}`);
+            console.log(`✅ Description updated for card ${cardId}`);
           },
           onError: (error) => {
-            console.error('Error updating description:', error);
+            console.error('❌ Error updating description:', error);
             setUpdating(null);
             alert('Failed to update description. Please try again.');
           },
         }
       );
     } catch (error) {
-      console.error('Error in updateDescription:', error);
+      console.error('❌ Error in updateDescription:', error);
       setUpdating(null);
     }
   };
@@ -257,17 +373,17 @@ const Dashboard: React.FC = () => {
             removeCardFromCache(cardId, userAddress);
             
             setDeletingCard(null);
-            console.log(`Card ${cardId} deleted successfully`);
+            console.log(`✅ Card ${cardId} deleted successfully`);
           },
           onError: (error) => {
-            console.error('Error deleting card:', error);
+            console.error('❌ Error deleting card:', error);
             setDeletingCard(null);
             alert('Failed to delete card. Please try again.');
           },
         }
       );
     } catch (error) {
-      console.error('Error in deleteCard:', error);
+      console.error('❌ Error in deleteCard:', error);
       setDeletingCard(null);
     }
   };
@@ -290,29 +406,6 @@ const Dashboard: React.FC = () => {
     inactiveCards: userCards.filter(card => !card.isActive).length,
   }), [userCards]);
 
-  // Loading skeleton component
-  const LoadingSkeleton = () => (
-    <div className="grid lg:grid-cols-2 gap-8">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg animate-pulse">
-          <div className="flex items-start space-x-4 mb-6">
-            <div className="w-20 h-20 bg-gray-200 rounded-xl"></div>
-            <div className="flex-1">
-              <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-5 bg-gray-200 rounded w-1/2 mb-1"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   // User not connected state
   if (!currentAccount) {
     return (
@@ -333,17 +426,9 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // Show loading only on initial load
-  if (initialLoad && loading) {
-    return (
-      <div className="min-h-screen pt-16 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Dashboard</h2>
-          <p className="text-gray-600">Fetching your developer cards...</p>
-        </div>
-      </div>
-    );
+  // Show skeleton loader during initial load or basic data loading
+  if (loadingStates.initialLoad || loadingStates.basicData) {
+    return <DashboardSkeletonLoader />;
   }
 
   // Show error state
@@ -372,10 +457,10 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-center space-x-4">
             <button
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={loadingStates.refreshing}
               className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              {refreshing ? (
+              {loadingStates.refreshing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
                   Retrying...
@@ -421,11 +506,11 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center space-x-4 mt-6 md:mt-0">
             <button
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={loadingStates.refreshing}
               className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
               title="Refresh data"
             >
-              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-5 w-5 ${loadingStates.refreshing ? 'animate-spin' : ''}`} />
             </button>
             <Link
               to="/create"
@@ -437,29 +522,56 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Updated Stats */}
+        {/* Stats */}
         <div className="grid md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-blue-600 mb-2">{stats.totalCards}</div>
-            <div className="text-gray-600">Total Cards</div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-green-600 mb-2">{stats.activeCards}</div>
-            <div className="text-gray-600">Active Cards</div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-orange-600 mb-2">{stats.availableCards}</div>
-            <div className="text-gray-600">Available for Work</div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-            <div className="text-3xl font-bold text-red-600 mb-2">{stats.inactiveCards}</div>
-            <div className="text-gray-600">Inactive Cards</div>
-          </div>
+          {loadingStates.userCards ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="text-3xl font-bold text-blue-600 mb-2">{stats.totalCards}</div>
+                <div className="text-gray-600">Total Cards</div>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="text-3xl font-bold text-green-600 mb-2">{stats.activeCards}</div>
+                <div className="text-gray-600">Active Cards</div>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="text-3xl font-bold text-orange-600 mb-2">{stats.availableCards}</div>
+                <div className="text-gray-600">Available for Work</div>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="text-3xl font-bold text-red-600 mb-2">{stats.inactiveCards}</div>
+                <div className="text-gray-600">Inactive Cards</div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Cards Content */}
-        {loading && !initialLoad ? (
-          <LoadingSkeleton />
+        {loadingStates.userCards ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading cards...</span>
+                </div>
+              </div>
+            </div>
+            <div className="grid lg:grid-cols-2 gap-8">
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </div>
+          </div>
         ) : userCards.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -491,7 +603,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900">Your Developer Cards</h2>
               <div className="flex items-center space-x-4">
-                {refreshing && (
+                {loadingStates.refreshing && (
                   <div className="flex items-center space-x-2 text-blue-600">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-sm">Refreshing...</span>
