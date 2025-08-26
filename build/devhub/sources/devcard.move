@@ -112,7 +112,7 @@ fun init(ctx: &mut TxContext) {
 }
 
 /// Create a new developer card with platform fee payment
-public entry fun create_card(
+entry fun create_card(
     name: vector<u8>,
     description: vector<u8>, // Now required
     title: vector<u8>,
@@ -182,7 +182,7 @@ public entry fun create_card(
 }
 
 /// Delete user's card (allows them to create a new one)
-public entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -219,7 +219,7 @@ public entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 // created function to update card description
-public entry fun update_card_description(
+entry fun update_card_description(
     devhub: &mut DevHub,
     new_description: vector<u8>,
     ctx: &mut TxContext,
@@ -244,7 +244,7 @@ public entry fun update_card_description(
 }
 
 // created function to activate card (sets both is_active and open_to_work to true)
-public entry fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+entry fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -267,7 +267,7 @@ public entry fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 // created function to deactivate card (sets both is_active and open_to_work to false)
-public entry fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+entry fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -290,7 +290,7 @@ public entry fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 // created function to set open_to_work status while keeping card active
-public entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut TxContext) {
+entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -317,7 +317,7 @@ public entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx
 // === Platform Fee Management (Admin Only) ===
 
 /// Change platform fee (admin only)
-public entry fun set_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mut TxContext) {
+entry fun set_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mut TxContext) {
     assert!(tx_context::sender(ctx) == devhub.admin, NOT_ADMIN);
 
     let old_fee = devhub.platform_fee;
@@ -331,7 +331,7 @@ public entry fun set_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mut T
 }
 
 /// Withdraw collected platform fees to a specified address (admin only)
-public entry fun withdraw_platform_fees(
+entry fun withdraw_platform_fees(
     devhub: &mut DevHub,
     recipient: address,
     amount: u64,
@@ -355,7 +355,7 @@ public entry fun withdraw_platform_fees(
 }
 
 /// Withdraw all collected platform fees to admin's address
-public entry fun withdraw_all_platform_fees(devhub: &mut DevHub, ctx: &mut TxContext) {
+entry fun withdraw_all_platform_fees(devhub: &mut DevHub, ctx: &mut TxContext) {
     assert!(tx_context::sender(ctx) == devhub.admin, NOT_ADMIN);
 
     let amount = balance::value(&devhub.platform_fees);
@@ -374,7 +374,7 @@ public entry fun withdraw_all_platform_fees(devhub: &mut DevHub, ctx: &mut TxCon
 }
 
 /// Transfer admin privileges to a new address (admin only)
-public entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxContext) {
+entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxContext) {
     assert!(tx_context::sender(ctx) == devhub.admin, NOT_ADMIN);
 
     let old_admin = devhub.admin;
