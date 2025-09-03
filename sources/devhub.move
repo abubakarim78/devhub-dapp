@@ -113,7 +113,6 @@ fun init(ctx: &mut TxContext) {
 
 /// Create a new developer card with platform fee payment
 entry fun create_card(
-entry fun create_card(
     name: vector<u8>,
     description: vector<u8>, // Now required
     title: vector<u8>,
