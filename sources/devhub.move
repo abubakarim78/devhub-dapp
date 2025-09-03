@@ -113,6 +113,7 @@ fun init(ctx: &mut TxContext) {
 
 /// Create a new developer card with platform fee payment
 entry fun create_card(
+entry fun create_card(
     name: vector<u8>,
     description: vector<u8>, // Now required
     title: vector<u8>,
@@ -219,7 +220,7 @@ entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 // created function to update card description
-public fun update_card_description(
+entry fun update_card_description(
     devhub: &mut DevHub,
     new_description: vector<u8>,
     ctx: &mut TxContext,
@@ -244,7 +245,7 @@ public fun update_card_description(
 }
 
 // created function to activate card (sets both is_active and open_to_work to true)
-public fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+entry fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -267,7 +268,7 @@ public fun activate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 // created function to deactivate card (sets both is_active and open_to_work to false)
-public fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
+entry fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -290,7 +291,7 @@ public fun deactivate_card(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 // created function to set open_to_work status while keeping card active
-public fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut TxContext) {
+entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
     
     // Check if user has a card
@@ -374,7 +375,7 @@ entry fun withdraw_all_platform_fees(devhub: &mut DevHub, ctx: &mut TxContext) {
 }
 
 /// Transfer admin privileges to a new address (admin only)
- entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxContext) {
+entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxContext) {
     assert!(tx_context::sender(ctx) == devhub.admin, NOT_ADMIN);
 
     let old_admin = devhub.admin;
