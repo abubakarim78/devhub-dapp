@@ -110,6 +110,27 @@ const safeDecodeText = (bytes: any): string => {
   }
 };
 
+// Parse Move bool from devInspect return value variants
+const parseMoveBool = (raw: any): boolean => {
+  if (Array.isArray(raw)) {
+    // Common case: [1] or [0]
+    return raw[0] === 1;
+  }
+  if (raw instanceof Uint8Array) {
+    return raw[0] === 1;
+  }
+  if (typeof raw === 'number') {
+    return raw === 1;
+  }
+  if (typeof raw === 'string') {
+    const v = raw.toLowerCase();
+    return v === '1' || v === 'true';
+  }
+  if (raw === true) return true;
+  if (raw === false) return false;
+  return Boolean(raw);
+};
+
 // Helper function to clean text strings of unwanted characters
 const cleanTextString = (text: string): string => {
   if (!text) return '';
@@ -331,19 +352,14 @@ export function useContract() {
           const technologies = safeDecodeText(values[6]?.[0]);
           const portfolio = safeDecodeUrl(values[7]?.[0]);
           const contact = safeDecodeText(values[8]?.[0]);
-          const openToWork = values[9]?.[0] ? Boolean(values[9][0]) : false;
-          const isActive = values[10]?.[0] ? Boolean(values[10][0]) : false;
+          const openToWork = parseMoveBool(values[10]?.[0]);
+          const isActive = parseMoveBool(values[10]?.[0]);
           
           console.log(`📝 Raw decoded data for card ${cardId}:`, { 
             name, owner, title, imageUrl, description, yearsOfExperience,
             technologies, portfolio, contact, openToWork, isActive 
           });
-          
-          // Log the cleaning process for debugging
-          console.log(`🧹 Original imageUrl: "${values[3]?.[0]}" -> Cleaned: "${imageUrl}"`);
-          console.log(`🧹 Original description: "${values[4]?.[0]}" -> Cleaned: "${description}"`);
-          console.log(`🏠 Owner address (properly formatted): ${owner}`);
-          
+
           // Updated data parsing to match new contract structure
           const cardData: DevCardData = {
             id: cardId,
@@ -360,19 +376,14 @@ export function useContract() {
             isActive,
           };
 
-          console.log(`✅ Final cleaned card data for ID ${cardId}:`, cardData);
-
           // Validate required fields
           if (!cardData.name || !cardData.owner) {
-            console.error(`❌ Invalid card data for ID ${cardId}:`, cardData);
             throw new Error(`Invalid card data for ID ${cardId}`);
           }
 
           return cardData;
         }
-        
-        console.error(`❌ No return values found for card ID ${cardId}`);
-        throw new Error(`No data found for card ID ${cardId}`);
+                throw new Error(`No data found for card ID ${cardId}`);
       });
 
       cacheRef.current.cards.set(cardId, setCacheEntry(cardData));

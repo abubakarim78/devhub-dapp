@@ -16,6 +16,7 @@ const INSUFFICIENT_FUNDS: u64 = 1;
 const NOT_ADMIN: u64 = 2;
 const CARD_ALREADY_EXISTS: u64 = 3;
 const CARD_NOT_FOUND: u64 = 4;
+const INVALID_PROJECT_INDEX: u64 = 5;
 
 // creating DevCard struct
 public struct DevCard has key, store {
@@ -31,6 +32,10 @@ public struct DevCard has key, store {
     portfolio: String,
     open_to_work: bool,
     is_active: bool, // New field for card activation status
+    // Featured projects (parallel vectors for titles/descriptions/links)
+    projects_titles: vector<String>,
+    projects_descriptions: vector<String>,
+    projects_links: vector<String>,
 }
 
 // created the admin struct
@@ -175,6 +180,9 @@ entry fun create_card(
         contact: string::utf8(contact),
         open_to_work: true,
         is_active: true, // Card is active by default
+        projects_titles: vector::empty<String>(),
+        projects_descriptions: vector::empty<String>(),
+        projects_links: vector::empty<String>(),
     };
 
     table::add(&mut devhub.cards, card_id, devcard);
@@ -213,7 +221,10 @@ entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
         contact: _, 
         portfolio: _, 
         open_to_work: _, 
-        is_active: _ 
+        is_active: _,
+        projects_titles: _,
+        projects_descriptions: _,
+        projects_links: _
     } = card;
     object::delete(id);
 }
@@ -314,6 +325,58 @@ entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut 
     };
 }
 
+/// Add a featured project to the caller's card
+entry fun add_project(
+    devhub: &mut DevHub,
+    title: vector<u8>,
+    description: vector<u8>,
+    link: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    vector::push_back(&mut card.projects_titles, string::utf8(title));
+    vector::push_back(&mut card.projects_descriptions, string::utf8(description));
+    vector::push_back(&mut card.projects_links, string::utf8(link));
+}
+
+/// Remove a project by index from the caller's card
+entry fun remove_project(
+    devhub: &mut DevHub,
+    index: u64,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    let len = vector::length(&card.projects_titles);
+    assert!(index < len, INVALID_PROJECT_INDEX);
+
+    // Remove by swapping with last for O(1) pop
+    let idx = index;
+    let last = len - 1;
+
+    if (idx != last) {
+        let last_title = *vector::borrow(&card.projects_titles, last);
+        let last_desc = *vector::borrow(&card.projects_descriptions, last);
+        let last_link = *vector::borrow(&card.projects_links, last);
+        *vector::borrow_mut(&mut card.projects_titles, idx) = last_title;
+        *vector::borrow_mut(&mut card.projects_descriptions, idx) = last_desc;
+        *vector::borrow_mut(&mut card.projects_links, idx) = last_link;
+    };
+    // pop back
+    let _ = vector::pop_back(&mut card.projects_titles);
+    let _ = vector::pop_back(&mut card.projects_descriptions);
+    let _ = vector::pop_back(&mut card.projects_links);
+}
+
 // === Platform Fee Management (Admin Only) ===
 
 /// Change platform fee (admin only)
@@ -391,7 +454,7 @@ entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxCo
 public fun get_card_info(
     devhub: &DevHub,
     id: u64,
-): (String, address, String, Url, String, u8, String, String, String, bool, bool) {
+): (String, address, String, Url, String, u8, String, String, String, bool, bool, vector<String>, vector<String>, vector<String>) {
     let card = table::borrow(&devhub.cards, id);
     (
         card.name,
@@ -405,6 +468,9 @@ public fun get_card_info(
         card.contact,
         card.open_to_work,
         card.is_active,
+        card.projects_titles,
+        card.projects_descriptions,
+        card.projects_links,
     )
 }
 

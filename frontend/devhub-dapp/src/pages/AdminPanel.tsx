@@ -74,7 +74,7 @@ const AdminSkeletonLoader: React.FC = () => (
 );
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
-  const currentAccount = useCurrentAccount();
+  const currentAccount = useCurrentAccount();   // Get current account    
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const { 
     getCardCount, 
@@ -481,22 +481,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
     <div className="min-h-screen pt-8 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-12">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl">
-                <Shield className="h-8 w-8" />
-              </div>
-              <div>
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Admin Panel</h1>
-                <p className="text-xl text-gray-600">Platform management and analytics dashboard</p>
-                <div className="flex items-center space-x-2 mt-2">
-                  <div className="flex items-center space-x-1 text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Admin Verified</span>
-                  </div>
+          <div className="flex flex-col">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl">
+                  <Shield className="h-8 w-8" />
                 </div>
-              </div>
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Admin Panel</h1>
+                </div>
+              <p className="text-xl text-gray-600 mt-1">Platform management and analytics dashboard</p>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="flex items-center space-x-1 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Admin Verified</span>
             </div>
             <div className="flex space-x-2">
               <button
@@ -516,6 +513,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
               </button>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Stats Grid */}
@@ -808,13 +806,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                   <span className="flex items-center space-x-1 text-green-600">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="text-sm font-medium">Online</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Blockchain Connection</span>
-                  <span className="flex items-center space-x-1 text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Connected</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
