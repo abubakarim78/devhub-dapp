@@ -611,7 +611,7 @@ const Dashboard: React.FC = () => {
                 </span>
               </div>
             </div>
-            <div className="grid lg:grid-cols-2 gap-8">
+            <div className="w-full">
               {/* Card */}
               <div
                 className={`bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 ${
