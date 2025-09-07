@@ -1,4 +1,4 @@
-// defining the devhub module
+// defining the devhub module with Walrus integration
 
 module devhub::devcard {
 
@@ -16,14 +16,13 @@ const INSUFFICIENT_FUNDS: u64 = 1;
 const NOT_ADMIN: u64 = 2;
 const CARD_ALREADY_EXISTS: u64 = 3;
 const CARD_NOT_FOUND: u64 = 4;
-const INVALID_PROJECT_INDEX: u64 = 5;
 
-// creating DevCard struct
+// creating DevCard struct with Walrus support
 public struct DevCard has key, store {
     id: UID,
     owner: address,
     name: String,
-    description: String, // Now required field
+    description: String,
     image_url: Url,
     title: String,
     years_of_experience: u8,
@@ -31,11 +30,10 @@ public struct DevCard has key, store {
     contact: String,
     portfolio: String,
     open_to_work: bool,
-    is_active: bool, // New field for card activation status
-    // Featured projects (parallel vectors for titles/descriptions/links)
-    projects_titles: vector<String>,
-    projects_descriptions: vector<String>,
-    projects_links: vector<String>,
+    is_active: bool,
+    // New Walrus fields
+    walrus_blob_id: Option<String>, // Walrus blob ID for profile image
+    walrus_portfolio_blob_id: Option<String>, // Optional: for portfolio files
 }
 
 // created the admin struct
@@ -44,12 +42,12 @@ public struct DevHub has key, store {
     admin: address,
     counter: u64,
     cards: Table<u64, DevCard>,
-    user_cards: Table<address, u64>, // Maps user address to their card ID
+    user_cards: Table<address, u64>,
     platform_fees: Balance<SUI>,
-    platform_fee: u64, // Dynamic platform fee
+    platform_fee: u64,
 }
 
-// created struct to handle created cards
+// created struct to handle created cards with Walrus support
 public struct CardCreated has copy, drop {
     card_id: u64,
     owner: address,
@@ -58,6 +56,8 @@ public struct CardCreated has copy, drop {
     contact: String,
     description: String,
     platform_fee_paid: u64,
+    walrus_blob_id: Option<String>,
+    walrus_portfolio_blob_id: Option<String>,
 }
 
 // created struct for updating description
@@ -65,6 +65,16 @@ public struct DescriptionUpdated has copy, drop {
     name: String,
     owner: address,
     new_description: String,
+}
+
+// New struct for Walrus blob updates
+public struct WalrusBlobUpdated has copy, drop {
+    card_id: u64,
+    owner: address,
+    name: String,
+    blob_type: String, // "profile_image" or "portfolio"
+    old_blob_id: Option<String>,
+    new_blob_id: Option<String>,
 }
 
 // created struct to handle card deletion
@@ -116,16 +126,49 @@ fun init(ctx: &mut TxContext) {
     });
 }
 
-/// Create a new developer card with platform fee payment
+/// Create a new developer card with platform fee payment and optional Walrus storage
 entry fun create_card(
     name: vector<u8>,
-    description: vector<u8>, // Now required
+    description: vector<u8>,
     title: vector<u8>,
     image_url: vector<u8>,
     years_of_experience: u8,
     technologies: vector<u8>,
     portfolio: vector<u8>,
     contact: vector<u8>,
+    mut payment: Coin<SUI>,
+    devhub: &mut DevHub,
+    ctx: &mut TxContext,
+) {
+    create_card_with_walrus(
+        name,
+        description,
+        title,
+        image_url,
+        years_of_experience,
+        technologies,
+        portfolio,
+        contact,
+        option::none(), // no walrus blob for profile image
+        option::none(), // no walrus blob for portfolio
+        payment,
+        devhub,
+        ctx,
+    );
+}
+
+/// Create a new developer card with Walrus blob support
+entry fun create_card_with_walrus(
+    name: vector<u8>,
+    description: vector<u8>,
+    title: vector<u8>,
+    image_url: vector<u8>,
+    years_of_experience: u8,
+    technologies: vector<u8>,
+    portfolio: vector<u8>,
+    contact: vector<u8>,
+    walrus_blob_id: Option<vector<u8>>,
+    walrus_portfolio_blob_id: Option<vector<u8>>,
     mut payment: Coin<SUI>,
     devhub: &mut DevHub,
     ctx: &mut TxContext,
@@ -157,6 +200,19 @@ entry fun create_card(
     let name_str = string::utf8(name);
     let description_str = string::utf8(description);
 
+    // Convert Walrus blob IDs from vector<u8> to Option<String>
+    let blob_id_option = if (option::is_some(&walrus_blob_id)) {
+        option::some(string::utf8(*option::borrow(&walrus_blob_id)))
+    } else {
+        option::none()
+    };
+
+    let portfolio_blob_id_option = if (option::is_some(&walrus_portfolio_blob_id)) {
+        option::some(string::utf8(*option::borrow(&walrus_portfolio_blob_id)))
+    } else {
+        option::none()
+    };
+
     event::emit(CardCreated {
         card_id,
         name: name_str,
@@ -165,6 +221,8 @@ entry fun create_card(
         contact: string::utf8(contact),
         description: description_str,
         platform_fee_paid: devhub.platform_fee,
+        walrus_blob_id: blob_id_option,
+        walrus_portfolio_blob_id: portfolio_blob_id_option,
     });
 
     let devcard = DevCard {
@@ -179,14 +237,85 @@ entry fun create_card(
         portfolio: string::utf8(portfolio),
         contact: string::utf8(contact),
         open_to_work: true,
-        is_active: true, // Card is active by default
-        projects_titles: vector::empty<String>(),
-        projects_descriptions: vector::empty<String>(),
-        projects_links: vector::empty<String>(),
+        is_active: true,
+        walrus_blob_id: blob_id_option,
+        walrus_portfolio_blob_id: portfolio_blob_id_option,
     };
 
     table::add(&mut devhub.cards, card_id, devcard);
     table::add(&mut devhub.user_cards, sender, card_id);
+}
+
+/// Update profile image Walrus blob ID
+entry fun update_profile_image_blob(
+    devhub: &mut DevHub,
+    new_blob_id: Option<vector<u8>>,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    let old_blob_id = card.walrus_blob_id;
+    
+    // Convert new blob ID
+    let new_blob_id_option = if (option::is_some(&new_blob_id)) {
+        option::some(string::utf8(*option::borrow(&new_blob_id)))
+    } else {
+        option::none()
+    };
+
+    card.walrus_blob_id = new_blob_id_option;
+
+    event::emit(WalrusBlobUpdated {
+        card_id,
+        owner: sender,
+        name: card.name,
+        blob_type: string::utf8(b"profile_image"),
+        old_blob_id,
+        new_blob_id: new_blob_id_option,
+    });
+}
+
+/// Update portfolio Walrus blob ID
+entry fun update_portfolio_blob(
+    devhub: &mut DevHub,
+    new_blob_id: Option<vector<u8>>,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    let old_blob_id = card.walrus_portfolio_blob_id;
+    
+    // Convert new blob ID
+    let new_blob_id_option = if (option::is_some(&new_blob_id)) {
+        option::some(string::utf8(*option::borrow(&new_blob_id)))
+    } else {
+        option::none()
+    };
+
+    card.walrus_portfolio_blob_id = new_blob_id_option;
+
+    event::emit(WalrusBlobUpdated {
+        card_id,
+        owner: sender,
+        name: card.name,
+        blob_type: string::utf8(b"portfolio"),
+        old_blob_id,
+        new_blob_id: new_blob_id_option,
+    });
 }
 
 /// Delete user's card (allows them to create a new one)
@@ -222,9 +351,8 @@ entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
         portfolio: _, 
         open_to_work: _, 
         is_active: _,
-        projects_titles: _,
-        projects_descriptions: _,
-        projects_links: _
+        walrus_blob_id: _,
+        walrus_portfolio_blob_id: _,
     } = card;
     object::delete(id);
 }
@@ -325,58 +453,6 @@ entry fun set_work_availability(devhub: &mut DevHub, available: bool, ctx: &mut 
     };
 }
 
-/// Add a featured project to the caller's card
-entry fun add_project(
-    devhub: &mut DevHub,
-    title: vector<u8>,
-    description: vector<u8>,
-    link: vector<u8>,
-    ctx: &mut TxContext,
-) {
-    let sender = tx_context::sender(ctx);
-    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
-    let card_id = *table::borrow(&devhub.user_cards, sender);
-    let card = table::borrow_mut(&mut devhub.cards, card_id);
-    assert!(card.owner == sender, NOT_THE_OWNER);
-
-    vector::push_back(&mut card.projects_titles, string::utf8(title));
-    vector::push_back(&mut card.projects_descriptions, string::utf8(description));
-    vector::push_back(&mut card.projects_links, string::utf8(link));
-}
-
-/// Remove a project by index from the caller's card
-entry fun remove_project(
-    devhub: &mut DevHub,
-    index: u64,
-    ctx: &mut TxContext,
-) {
-    let sender = tx_context::sender(ctx);
-    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
-    let card_id = *table::borrow(&devhub.user_cards, sender);
-    let card = table::borrow_mut(&mut devhub.cards, card_id);
-    assert!(card.owner == sender, NOT_THE_OWNER);
-
-    let len = vector::length(&card.projects_titles);
-    assert!(index < len, INVALID_PROJECT_INDEX);
-
-    // Remove by swapping with last for O(1) pop
-    let idx = index;
-    let last = len - 1;
-
-    if (idx != last) {
-        let last_title = *vector::borrow(&card.projects_titles, last);
-        let last_desc = *vector::borrow(&card.projects_descriptions, last);
-        let last_link = *vector::borrow(&card.projects_links, last);
-        *vector::borrow_mut(&mut card.projects_titles, idx) = last_title;
-        *vector::borrow_mut(&mut card.projects_descriptions, idx) = last_desc;
-        *vector::borrow_mut(&mut card.projects_links, idx) = last_link;
-    };
-    // pop back
-    let _ = vector::pop_back(&mut card.projects_titles);
-    let _ = vector::pop_back(&mut card.projects_descriptions);
-    let _ = vector::pop_back(&mut card.projects_links);
-}
-
 // === Platform Fee Management (Admin Only) ===
 
 /// Change platform fee (admin only)
@@ -454,7 +530,7 @@ entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxCo
 public fun get_card_info(
     devhub: &DevHub,
     id: u64,
-): (String, address, String, Url, String, u8, String, String, String, bool, bool, vector<String>, vector<String>, vector<String>) {
+): (String, address, String, Url, String, u8, String, String, String, bool, bool, Option<String>, Option<String>) {
     let card = table::borrow(&devhub.cards, id);
     (
         card.name,
@@ -468,10 +544,21 @@ public fun get_card_info(
         card.contact,
         card.open_to_work,
         card.is_active,
-        card.projects_titles,
-        card.projects_descriptions,
-        card.projects_links,
+        card.walrus_blob_id,
+        card.walrus_portfolio_blob_id,
     )
+}
+
+/// Get Walrus blob ID for profile image
+public fun get_profile_image_blob_id(devhub: &DevHub, id: u64): Option<String> {
+    let card = table::borrow(&devhub.cards, id);
+    card.walrus_blob_id
+}
+
+/// Get Walrus blob ID for portfolio
+public fun get_portfolio_blob_id(devhub: &DevHub, id: u64): Option<String> {
+    let card = table::borrow(&devhub.cards, id);
+    card.walrus_portfolio_blob_id
 }
 
 /// Get user's card ID if they have one
