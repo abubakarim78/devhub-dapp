@@ -1,4 +1,4 @@
-// defining the devhub module
+// defining the devhub module with Walrus integration
 
 module devhub::devcard {
 
@@ -17,12 +17,12 @@ const NOT_ADMIN: u64 = 2;
 const CARD_ALREADY_EXISTS: u64 = 3;
 const CARD_NOT_FOUND: u64 = 4;
 
-// creating DevCard struct
+// creating DevCard struct with Walrus support
 public struct DevCard has key, store {
     id: UID,
     owner: address,
     name: String,
-    description: String, // Now required field
+    description: String,
     image_url: Url,
     title: String,
     years_of_experience: u8,
@@ -30,7 +30,10 @@ public struct DevCard has key, store {
     contact: String,
     portfolio: String,
     open_to_work: bool,
-    is_active: bool, // New field for card activation status
+    is_active: bool,
+    // New Walrus fields
+    walrus_blob_id: Option<String>, // Walrus blob ID for profile image
+    walrus_portfolio_blob_id: Option<String>, // Optional: for portfolio files
 }
 
 // created the admin struct
@@ -39,12 +42,12 @@ public struct DevHub has key, store {
     admin: address,
     counter: u64,
     cards: Table<u64, DevCard>,
-    user_cards: Table<address, u64>, // Maps user address to their card ID
+    user_cards: Table<address, u64>,
     platform_fees: Balance<SUI>,
-    platform_fee: u64, // Dynamic platform fee
+    platform_fee: u64,
 }
 
-// created struct to handle created cards
+// created struct to handle created cards with Walrus support
 public struct CardCreated has copy, drop {
     card_id: u64,
     owner: address,
@@ -53,6 +56,8 @@ public struct CardCreated has copy, drop {
     contact: String,
     description: String,
     platform_fee_paid: u64,
+    walrus_blob_id: Option<String>,
+    walrus_portfolio_blob_id: Option<String>,
 }
 
 // created struct for updating description
@@ -60,6 +65,16 @@ public struct DescriptionUpdated has copy, drop {
     name: String,
     owner: address,
     new_description: String,
+}
+
+// New struct for Walrus blob updates
+public struct WalrusBlobUpdated has copy, drop {
+    card_id: u64,
+    owner: address,
+    name: String,
+    blob_type: String, // "profile_image" or "portfolio"
+    old_blob_id: Option<String>,
+    new_blob_id: Option<String>,
 }
 
 // created struct to handle card deletion
@@ -111,16 +126,49 @@ fun init(ctx: &mut TxContext) {
     });
 }
 
-/// Create a new developer card with platform fee payment
+/// Create a new developer card with platform fee payment and optional Walrus storage
 entry fun create_card(
     name: vector<u8>,
-    description: vector<u8>, // Now required
+    description: vector<u8>,
     title: vector<u8>,
     image_url: vector<u8>,
     years_of_experience: u8,
     technologies: vector<u8>,
     portfolio: vector<u8>,
     contact: vector<u8>,
+    mut payment: Coin<SUI>,
+    devhub: &mut DevHub,
+    ctx: &mut TxContext,
+) {
+    create_card_with_walrus(
+        name,
+        description,
+        title,
+        image_url,
+        years_of_experience,
+        technologies,
+        portfolio,
+        contact,
+        option::none(), // no walrus blob for profile image
+        option::none(), // no walrus blob for portfolio
+        payment,
+        devhub,
+        ctx,
+    );
+}
+
+/// Create a new developer card with Walrus blob support
+entry fun create_card_with_walrus(
+    name: vector<u8>,
+    description: vector<u8>,
+    title: vector<u8>,
+    image_url: vector<u8>,
+    years_of_experience: u8,
+    technologies: vector<u8>,
+    portfolio: vector<u8>,
+    contact: vector<u8>,
+    walrus_blob_id: Option<vector<u8>>,
+    walrus_portfolio_blob_id: Option<vector<u8>>,
     mut payment: Coin<SUI>,
     devhub: &mut DevHub,
     ctx: &mut TxContext,
@@ -152,6 +200,19 @@ entry fun create_card(
     let name_str = string::utf8(name);
     let description_str = string::utf8(description);
 
+    // Convert Walrus blob IDs from vector<u8> to Option<String>
+    let blob_id_option = if (option::is_some(&walrus_blob_id)) {
+        option::some(string::utf8(*option::borrow(&walrus_blob_id)))
+    } else {
+        option::none()
+    };
+
+    let portfolio_blob_id_option = if (option::is_some(&walrus_portfolio_blob_id)) {
+        option::some(string::utf8(*option::borrow(&walrus_portfolio_blob_id)))
+    } else {
+        option::none()
+    };
+
     event::emit(CardCreated {
         card_id,
         name: name_str,
@@ -160,6 +221,8 @@ entry fun create_card(
         contact: string::utf8(contact),
         description: description_str,
         platform_fee_paid: devhub.platform_fee,
+        walrus_blob_id: blob_id_option,
+        walrus_portfolio_blob_id: portfolio_blob_id_option,
     });
 
     let devcard = DevCard {
@@ -174,11 +237,85 @@ entry fun create_card(
         portfolio: string::utf8(portfolio),
         contact: string::utf8(contact),
         open_to_work: true,
-        is_active: true, // Card is active by default
+        is_active: true,
+        walrus_blob_id: blob_id_option,
+        walrus_portfolio_blob_id: portfolio_blob_id_option,
     };
 
     table::add(&mut devhub.cards, card_id, devcard);
     table::add(&mut devhub.user_cards, sender, card_id);
+}
+
+/// Update profile image Walrus blob ID
+entry fun update_profile_image_blob(
+    devhub: &mut DevHub,
+    new_blob_id: Option<vector<u8>>,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    let old_blob_id = card.walrus_blob_id;
+    
+    // Convert new blob ID
+    let new_blob_id_option = if (option::is_some(&new_blob_id)) {
+        option::some(string::utf8(*option::borrow(&new_blob_id)))
+    } else {
+        option::none()
+    };
+
+    card.walrus_blob_id = new_blob_id_option;
+
+    event::emit(WalrusBlobUpdated {
+        card_id,
+        owner: sender,
+        name: card.name,
+        blob_type: string::utf8(b"profile_image"),
+        old_blob_id,
+        new_blob_id: new_blob_id_option,
+    });
+}
+
+/// Update portfolio Walrus blob ID
+entry fun update_portfolio_blob(
+    devhub: &mut DevHub,
+    new_blob_id: Option<vector<u8>>,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+
+    let old_blob_id = card.walrus_portfolio_blob_id;
+    
+    // Convert new blob ID
+    let new_blob_id_option = if (option::is_some(&new_blob_id)) {
+        option::some(string::utf8(*option::borrow(&new_blob_id)))
+    } else {
+        option::none()
+    };
+
+    card.walrus_portfolio_blob_id = new_blob_id_option;
+
+    event::emit(WalrusBlobUpdated {
+        card_id,
+        owner: sender,
+        name: card.name,
+        blob_type: string::utf8(b"portfolio"),
+        old_blob_id,
+        new_blob_id: new_blob_id_option,
+    });
 }
 
 /// Delete user's card (allows them to create a new one)
@@ -213,7 +350,9 @@ entry fun delete_card(devhub: &mut DevHub, ctx: &mut TxContext) {
         contact: _, 
         portfolio: _, 
         open_to_work: _, 
-        is_active: _ 
+        is_active: _,
+        walrus_blob_id: _,
+        walrus_portfolio_blob_id: _,
     } = card;
     object::delete(id);
 }
@@ -391,7 +530,7 @@ entry fun transfer_admin(devhub: &mut DevHub, new_admin: address, ctx: &mut TxCo
 public fun get_card_info(
     devhub: &DevHub,
     id: u64,
-): (String, address, String, Url, String, u8, String, String, String, bool, bool) {
+): (String, address, String, Url, String, u8, String, String, String, bool, bool, Option<String>, Option<String>) {
     let card = table::borrow(&devhub.cards, id);
     (
         card.name,
@@ -405,7 +544,21 @@ public fun get_card_info(
         card.contact,
         card.open_to_work,
         card.is_active,
+        card.walrus_blob_id,
+        card.walrus_portfolio_blob_id,
     )
+}
+
+/// Get Walrus blob ID for profile image
+public fun get_profile_image_blob_id(devhub: &DevHub, id: u64): Option<String> {
+    let card = table::borrow(&devhub.cards, id);
+    card.walrus_blob_id
+}
+
+/// Get Walrus blob ID for portfolio
+public fun get_portfolio_blob_id(devhub: &DevHub, id: u64): Option<String> {
+    let card = table::borrow(&devhub.cards, id);
+    card.walrus_portfolio_blob_id
 }
 
 /// Get user's card ID if they have one
