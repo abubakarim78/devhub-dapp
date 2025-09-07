@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Mail, ExternalLink, Clock, Calendar, Code2, Briefcase, Loader2 } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
+import { incrementView } from '../lib/analytics';
 
 const CardDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,9 +18,12 @@ const CardDetails: React.FC = () => {
       
       setLoading(true);
       try {
-        const cardData = await getCardInfo(parseInt(id));
+        const numericId = parseInt(id);
+        const cardData = await getCardInfo(numericId);
         if (cardData) {
           setCard(cardData);
+          // Record analytics view
+          incrementView(numericId);
         } else {
           setError('Card not found');
         }

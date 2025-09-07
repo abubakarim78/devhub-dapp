@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useContract } from './hooks/useContract';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import CreateCard from './pages/CreateCard';
@@ -35,7 +36,7 @@ const LoadingSpinner = ({ onTimeout }: { onTimeout?: () => void }) => {
   }, [onTimeout]);
 
   return (
-    <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-white/75 flex items-center justify-center z-50">
       <div className="flex flex-col items-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <p className="mt-4 text-gray-600">Checking admin status...</p>
@@ -137,7 +138,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900 flex flex-col">
         <Header isAdmin={isAdminUser} />
         
         {loading && <LoadingSpinner onTimeout={handleLoadingTimeout} />}
@@ -163,14 +164,18 @@ function App() {
           </div>
         )}
         
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/browse" element={<Browse />} />
-          <Route path="/create" element={<CreateCard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/card/:id" element={<CardDetails />} />
-          <Route path="/admin" element={<AdminPanel isAdmin={isAdminUser} />} />
-        </Routes>
+        <div className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/browse" element={<Browse />} />
+            <Route path="/create" element={<CreateCard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/card/:id" element={<CardDetails />} />
+            <Route path="/admin" element={<AdminPanel isAdmin={isAdminUser} />} />
+          </Routes>
+        </div>
+        
+        <Footer />
       </div>
     </Router>
   );
