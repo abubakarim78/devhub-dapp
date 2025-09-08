@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle, X, FileText } from 'lucide-react';
+import { User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle, X, FileText, Upload, CloudUpload, Image } from 'lucide-react';
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
+import { useContract } from '../hooks/useContract';
 
 // Toast Component
 const Toast: React.FC<{
@@ -44,13 +45,15 @@ const CreateCard: React.FC = () => {
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { uploadToWalrus, uploadUrlToWalrus, walrusUploading, walrusProgress } = useContract();
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
-    description: '', // Added description field
+    description: '',
     title: '',
     imageUrl: '',
     yearsOfExperience: 0,
@@ -60,9 +63,14 @@ const CreateCard: React.FC = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Walrus-related state
+  const [imageUploadMethod, setImageUploadMethod] = useState<'url' | 'file'>('url');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [walrusImageBlobId, setWalrusImageBlobId] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
+
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
-    // Auto-hide after 5 seconds
     setTimeout(() => {
       setToast(null);
     }, 5000);
@@ -75,9 +83,14 @@ const CreateCard: React.FC = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.description.trim()) newErrors.description = 'Description is required'; // Added validation
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
     if (!formData.title.trim()) newErrors.title = 'Title is required';
-    if (!formData.imageUrl.trim()) newErrors.imageUrl = 'Profile image URL is required';
+    
+    // Image validation - either URL or file or Walrus blob required
+    if (!formData.imageUrl.trim() && !imageFile && !walrusImageBlobId) {
+      newErrors.imageUrl = 'Profile image is required (URL, file upload, or Walrus blob)';
+    }
+    
     if (formData.yearsOfExperience < 0) newErrors.yearsOfExperience = 'Experience must be positive';
     if (!formData.technologies.trim()) newErrors.technologies = 'Technologies are required';
     if (!formData.portfolio.trim()) newErrors.portfolio = 'Portfolio URL is required';
@@ -88,11 +101,13 @@ const CreateCard: React.FC = () => {
       newErrors.description = 'Description must be 500 characters or less';
     }
 
-    // Validate URLs
-    try {
-      new URL(formData.imageUrl);
-    } catch {
-      newErrors.imageUrl = 'Please enter a valid image URL';
+    // Validate URLs only if provided
+    if (formData.imageUrl.trim() && imageUploadMethod === 'url') {
+      try {
+        new URL(formData.imageUrl);
+      } catch {
+        newErrors.imageUrl = 'Please enter a valid image URL';
+      }
     }
 
     try {
@@ -109,6 +124,73 @@ const CreateCard: React.FC = () => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select a valid image file', 'error');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image file must be less than 5MB', 'error');
+        return;
+      }
+
+      setImageFile(file);
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreviewUrl(previewUrl);
+      
+      // Clear any existing URL or blob
+      setFormData(prev => ({ ...prev, imageUrl: '' }));
+      setWalrusImageBlobId(null);
+    }
+  };
+
+  const handleUploadToWalrus = async () => {
+    if (!currentAccount) {
+      showToast('Please connect your wallet first', 'error');
+      return;
+    }
+
+    try {
+      if (imageUploadMethod === 'file' && imageFile) {
+        // Upload file to Walrus
+        const result = await uploadToWalrus(imageFile, (progress) => {
+          console.log('Upload progress:', progress);
+        });
+        
+        setWalrusImageBlobId(result.blob.blobId);
+        setImagePreviewUrl(result.blob.walrusUrl);
+        
+        // Clear file input and URL
+        setImageFile(null);
+        setFormData(prev => ({ ...prev, imageUrl: '' }));
+        
+        showToast('Image uploaded to Walrus successfully!', 'success');
+      } else if (imageUploadMethod === 'url' && formData.imageUrl.trim()) {
+        // Upload URL to Walrus
+        const result = await uploadUrlToWalrus(formData.imageUrl, (progress) => {
+          console.log('Upload progress:', progress);
+        });
+        
+        setWalrusImageBlobId(result.blob.blobId);
+        setImagePreviewUrl(result.blob.walrusUrl);
+        
+        showToast('Image uploaded to Walrus successfully!', 'success');
+      } else {
+        showToast('Please provide an image file or URL first', 'error');
+      }
+    } catch (error) {
+      console.error('Walrus upload error:', error);
+      showToast('Failed to upload to Walrus. Please try again.', 'error');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -169,8 +251,16 @@ const CreateCard: React.FC = () => {
         throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1000000000).toFixed(3)} SUI (${(PLATFORM_FEE / 1000000000).toFixed(1)} SUI platform fee + ~${(ESTIMATED_GAS / 1000000000).toFixed(3)} SUI gas)`);
       }
 
-      // Create transaction with selected coins
-      const tx = createCardTransaction(formData, selectedCoins[0]);
+      // Prepare card data with Walrus integration
+      const cardDataWithWalrus = {
+        ...formData,
+        // If we uploaded to Walrus, submit the public Walrus URL so the image displays
+        imageUrl: walrusImageBlobId ? imagePreviewUrl : formData.imageUrl,
+        walrusImageBlobId,
+      };
+
+      // Create transaction with Walrus support
+      const tx = createCardTransaction(cardDataWithWalrus, selectedCoins[0]);
 
       // Execute transaction
       signAndExecute(
@@ -183,7 +273,6 @@ const CreateCard: React.FC = () => {
             setIsSubmitting(false);
             setShowPaymentModal(false);
             showToast('Developer card created successfully! 🎉', 'success');
-            // Navigate to dashboard after a short delay to allow user to see the success message
             setTimeout(() => {
               navigate('/dashboard');
             }, 2000);
@@ -215,6 +304,24 @@ const CreateCard: React.FC = () => {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+
+    // Handle image URL changes
+    if (name === 'imageUrl' && imageUploadMethod === 'url') {
+      setImagePreviewUrl(value);
+      setWalrusImageBlobId(null); // Clear Walrus blob if using URL
+      setImageFile(null); // Clear file if using URL
+    }
+  };
+
+  const getImagePreviewSource = () => {
+    if (walrusImageBlobId) {
+      return imagePreviewUrl; // Walrus URL
+    } else if (imageFile) {
+      return imagePreviewUrl; // File preview URL
+    } else if (formData.imageUrl) {
+      return formData.imageUrl; // Regular URL
+    }
+    return '';
   };
 
   if (!currentAccount) {
@@ -264,6 +371,17 @@ const CreateCard: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Walrus Upload Progress */}
+        {walrusUploading && walrusProgress && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-center space-x-3">
+            <Loader2 className="h-5 w-5 text-yellow-600 animate-spin" />
+            <div>
+              <h4 className="font-medium text-yellow-900">Uploading to Walrus</h4>
+              <p className="text-yellow-700 text-sm">{walrusProgress}</p>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
@@ -361,40 +479,148 @@ const CreateCard: React.FC = () => {
               </div>
             </div>
 
-            {/* Profile Image */}
+            {/* Profile Image with Walrus Integration */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Profile Image URL *
-              </label>
-              <div className="flex space-x-4">
-                <div className="flex-1">
-                  <input
-                    type="url"
-                    name="imageUrl"
-                    value={formData.imageUrl}
-                    onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      errors.imageUrl ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
-                    }`}
-                    placeholder="https://example.com/your-photo.jpg"
-                  />
-                  {errors.imageUrl && (
-                    <p className="text-red-600 text-sm mt-1 flex items-center space-x-1">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>{errors.imageUrl}</span>
-                    </p>
-                  )}
-                </div>
-                {formData.imageUrl && (
-                  <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden">
-                    <img
-                      src={formData.imageUrl}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                <Image className="h-5 w-5 text-blue-600" />
+                <span>Profile Image</span>
+              </h3>
+              
+              {/* Upload Method Selection */}
+              <div className="mb-4">
+                <div className="flex space-x-4">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      value="url"
+                      checked={imageUploadMethod === 'url'}
+                      onChange={(e) => setImageUploadMethod(e.target.value as 'url' | 'file')}
+                      className="text-blue-600 focus:ring-blue-500"
                     />
+                    <span className="text-sm font-medium text-gray-900 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl disabled:opacity-50 flex items-center space-x-2">Image URL</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      value="file"
+                      checked={imageUploadMethod === 'file'}
+                      onChange={(e) => setImageUploadMethod(e.target.value as 'url' | 'file')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-900 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl disabled:opacity-50 flex items-center space-x-2">Upload File</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {imageUploadMethod === 'url' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Profile Image URL *
+                    </label>
+                    <div className="flex space-x-3">
+                      <div className="flex-1">
+                        <input
+                          type="url"
+                          name="imageUrl"
+                          value={formData.imageUrl}
+                          onChange={handleInputChange}
+                          disabled={!!walrusImageBlobId}
+                          className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                            errors.imageUrl ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
+                          } ${walrusImageBlobId ? 'opacity-50' : ''}`}
+                          placeholder="https://example.com/your-photo.jpg"
+                        />
+                        {errors.imageUrl && (
+                          <p className="text-red-600 text-sm mt-1 flex items-center space-x-1">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>{errors.imageUrl}</span>
+                          </p>
+                        )}
+                      </div>
+                      {formData.imageUrl && !walrusImageBlobId && (
+                        <button
+                          type="button"
+                          onClick={handleUploadToWalrus}
+                          disabled={walrusUploading}
+                          className="px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
+                        >
+                          {walrusUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CloudUpload className="h-4 w-4" />
+                          )}
+                          <span>{walrusUploading ? 'Uploading...' : 'Upload to Walrus'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload Profile Image *
+                    </label>
+                    <div className="flex space-x-3">
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          disabled={!!walrusImageBlobId}
+                          className={`w-full px-4 py-3 border text-gray-700 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                            errors.imageUrl ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white/80'
+                          } ${walrusImageBlobId ? 'opacity-50' : ''}`}
+                        />
+                        {errors.imageUrl && (
+                          <p className="text-red-600 text-sm mt-1 flex items-center space-x-1">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>{errors.imageUrl}</span>
+                          </p>
+                        )}
+                      </div>
+                      {imageFile && !walrusImageBlobId && (
+                        <button
+                          type="button"
+                          onClick={handleUploadToWalrus}
+                          disabled={walrusUploading}
+                          className="px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
+                        >
+                          {walrusUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4" />
+                          )}
+                          <span>{walrusUploading ? 'Uploading...' : 'Upload to Walrus'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Walrus Success Indicator */}
+                {walrusImageBlobId && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-green-800 font-medium">Image uploaded to Walrus successfully!</p>
+                      <p className="text-green-600 text-sm">Blob ID: {walrusImageBlobId.slice(0, 20)}...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Preview */}
+                {getImagePreviewSource() && (
+                  <div className="flex justify-center">
+                    <div className="w-32 h-32 bg-gray-100 rounded-xl overflow-hidden">
+                      <img
+                        src={getImagePreviewSource()}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -462,7 +688,7 @@ const CreateCard: React.FC = () => {
                 <span>Contact Information</span>
               </h3>
               <div className="grid md:grid-cols-2 gap-6">
-                <div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Portfolio URL *
                   </label>
@@ -506,15 +732,15 @@ const CreateCard: React.FC = () => {
                 </div>
               </div>
             </div>
-
             {/* Submit Button */}
             <div className="pt-6">
               <button
                 type="submit"
-                className="min-w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                disabled={walrusUploading}
+                className="min-w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Code className="h-5 w-5" />
-                <span>Create Card</span>
+                <span>{walrusUploading ? 'Please wait for upload...' : 'Create Card'}</span>
               </button>
             </div>
           </div>
@@ -532,6 +758,23 @@ const CreateCard: React.FC = () => {
                 <p className="text-gray-600 mb-6">
                   You're about to create your developer card with a platform fee of <strong>0.1 SUI</strong>.
                 </p>
+                
+                {/* Show Walrus info if image was uploaded */}
+                {walrusImageBlobId && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6 text-left">
+                    <h4 className="font-semibold text-purple-900 mb-2 flex items-center space-x-2">
+                      <CloudUpload className="h-4 w-4" />
+                      <span>Walrus Storage</span>
+                    </h4>
+                    <p className="text-purple-700 text-sm">
+                      Your profile image has been uploaded to Walrus decentralized storage.
+                    </p>
+                    <p className="text-purple-600 text-xs mt-1">
+                      Blob ID: {walrusImageBlobId.slice(0, 20)}...
+                    </p>
+                  </div>
+                )}
+                
                 <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
                   <h4 className="font-semibold text-gray-900 mb-2">Transaction Details:</h4>
                   <div className="space-y-1 text-sm text-gray-600">
@@ -543,6 +786,12 @@ const CreateCard: React.FC = () => {
                       <span>Gas Fee (est.):</span>
                       <span className="font-medium">~0.001 SUI</span>
                     </div>
+                    {walrusImageBlobId && (
+                      <div className="flex justify-between">
+                        <span>Walrus Storage:</span>
+                        <span className="font-medium text-green-600">Free</span>
+                      </div>
+                    )}
                     <hr className="my-2" />
                     <div className="flex justify-between font-semibold">
                       <span>Total:</span>
