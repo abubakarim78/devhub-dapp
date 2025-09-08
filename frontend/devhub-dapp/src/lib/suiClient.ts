@@ -2,8 +2,8 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
 // Contract configuration
-export const PACKAGE_ID = '0xbe9cc4e3058f16df7e0301fbb6f52c530b57ee9a55147386f521e2931218f5df';
-export const DEVHUB_OBJECT_ID = '0xdf79b65841b9e91634ba121537a39001eaefbb11e51f0a090864379fb0c91fda';
+export const PACKAGE_ID = '0xeb6caf43e7c918ca24982c958c370c9cf577c198a3b40ebfe37904d2362fc051';
+export const DEVHUB_OBJECT_ID = '0xc643044a8177ddae8c63263ca216725a3ce8b4b3b93c52262b6d23464f8db2ac';
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
 
 // Initialize Sui client
@@ -33,7 +33,7 @@ export const CONTRACT_FUNCTIONS = {
   IS_ADMIN: 'is_admin',
   IS_CARD_ACTIVE: 'is_card_active',
   IS_CARD_OPEN_TO_WORK: 'is_card_open_to_work',
-};
+};0xeb6caf43e7c918ca24982c958c370c9cf577c198a3b40ebfe37904d2362fc051
 
 export interface DevCardData {
   id: number;
