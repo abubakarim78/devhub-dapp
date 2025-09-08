@@ -49,10 +49,19 @@ export function getCardAnalytics(cardId: number): CardAnalytics {
 
 export function incrementView(cardId: number): CardAnalytics {
   const current = read(cardId);
+  const now = Date.now();
+  
+  // Prevent double-incrementing in development (React StrictMode)
+  // Only increment if more than 1 second has passed since last view
+  if (current.lastViewedAt && (now - current.lastViewedAt) < 1000) {
+    console.log('🚫 Skipping view increment - too soon after last view (React StrictMode protection)');
+    return current;
+  }
+  
   const updated: CardAnalytics = {
     ...current,
     views: current.views + 1,
-    lastViewedAt: Date.now(),
+    lastViewedAt: now,
   };
   write(cardId, updated);
   return updated;
