@@ -2,8 +2,8 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
 // Contract configuration
-export const PACKAGE_ID = '0xeb6caf43e7c918ca24982c958c370c9cf577c198a3b40ebfe37904d2362fc051';
-export const DEVHUB_OBJECT_ID = '0xc643044a8177ddae8c63263ca216725a3ce8b4b3b93c52262b6d23464f8db2ac';
+export const PACKAGE_ID = '0xffaa0a9a218543d69e761dfaf517fc9d4cba245483a344625b6d5c090b1ec6c3';
+export const DEVHUB_OBJECT_ID = '0xef16d03d71edd3ec7316416c51488555b923103f974eaffc30078702c7fb51ea';
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
 
 // Initialize Sui client
@@ -16,6 +16,7 @@ export const CONTRACT_FUNCTIONS = {
   CREATE_CARD: 'create_card',
   DELETE_CARD: 'delete_card',
   UPDATE_DESCRIPTION: 'update_card_description',
+  EDIT_DEVCARD: 'edit_devcard',
   ACTIVATE_CARD: 'activate_card',
   DEACTIVATE_CARD: 'deactivate_card',
   SET_WORK_AVAILABILITY: 'set_work_availability',
@@ -107,6 +108,37 @@ export function updateDescriptionTransaction(newDescription: string) {
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(newDescription))),
+    ],
+  });
+
+  return tx;
+}
+
+// Helper function to edit devcard with all fields
+export function editDevCardTransaction(cardData: {
+  name: string;
+  description: string;
+  title: string;
+  imageUrl: string;
+  yearsOfExperience: number;
+  technologies: string;
+  portfolio: string;
+  contact: string;
+}) {
+  const tx = new Transaction();
+  
+  tx.moveCall({
+    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.EDIT_DEVCARD}`,
+    arguments: [
+      tx.object(DEVHUB_OBJECT_ID),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.description))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.title))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.imageUrl))),
+      tx.pure.u8(cardData.yearsOfExperience),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.technologies))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.portfolio))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.contact))),
     ],
   });
 

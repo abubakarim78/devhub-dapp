@@ -84,6 +84,14 @@ public struct CardDeleted has copy, drop {
     name: String,
 }
 
+// created struct to handle card updates
+public struct CardUpdated has copy, drop {
+    card_id: u64,
+    owner: address,
+    name: String,
+    updated_fields: String, // Comma-separated list of updated fields
+}
+
 // created struct to handle card activation/deactivation
 public struct CardStatusChanged has copy, drop {
     card_id: u64,
@@ -379,6 +387,108 @@ entry fun update_card_description(
         name: user_card.name,
         owner: user_card.owner,
         new_description: new_desc_str,
+    });
+}
+
+/// Comprehensive function to edit devcard with all editable fields
+entry fun edit_devcard(
+    devhub: &mut DevHub,
+    name: vector<u8>,
+    description: vector<u8>,
+    title: vector<u8>,
+    image_url: vector<u8>,
+    years_of_experience: u8,
+    technologies: vector<u8>,
+    portfolio: vector<u8>,
+    contact: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user has a card
+    assert!(table::contains(&devhub.user_cards, sender), CARD_NOT_FOUND);
+    
+    let card_id = *table::borrow(&devhub.user_cards, sender);
+    let card = table::borrow_mut(&mut devhub.cards, card_id);
+    assert!(card.owner == sender, NOT_THE_OWNER);
+    
+    // Track which fields were updated
+    let mut updated_fields = vector::empty<String>();
+    
+    // Update name if provided
+    let new_name = string::utf8(name);
+    if (new_name != card.name) {
+        card.name = new_name;
+        vector::push_back(&mut updated_fields, string::utf8(b"name"));
+    };
+    
+    // Update description if provided
+    let new_description = string::utf8(description);
+    if (new_description != card.description) {
+        card.description = new_description;
+        vector::push_back(&mut updated_fields, string::utf8(b"description"));
+    };
+    
+    // Update title if provided
+    let new_title = string::utf8(title);
+    if (new_title != card.title) {
+        card.title = new_title;
+        vector::push_back(&mut updated_fields, string::utf8(b"title"));
+    };
+    
+    // Update image URL if provided
+    let new_image_url = url::new_unsafe_from_bytes(image_url);
+    if (new_image_url != card.image_url) {
+        card.image_url = new_image_url;
+        vector::push_back(&mut updated_fields, string::utf8(b"image_url"));
+    };
+    
+    // Update years of experience if provided
+    if (years_of_experience != card.years_of_experience) {
+        card.years_of_experience = years_of_experience;
+        vector::push_back(&mut updated_fields, string::utf8(b"years_of_experience"));
+    };
+    
+    // Update technologies if provided
+    let new_technologies = string::utf8(technologies);
+    if (new_technologies != card.technologies) {
+        card.technologies = new_technologies;
+        vector::push_back(&mut updated_fields, string::utf8(b"technologies"));
+    };
+    
+    // Update portfolio if provided
+    let new_portfolio = string::utf8(portfolio);
+    if (new_portfolio != card.portfolio) {
+        card.portfolio = new_portfolio;
+        vector::push_back(&mut updated_fields, string::utf8(b"portfolio"));
+    };
+    
+    // Update contact if provided
+    let new_contact = string::utf8(contact);
+    if (new_contact != card.contact) {
+        card.contact = new_contact;
+        vector::push_back(&mut updated_fields, string::utf8(b"contact"));
+    };
+    
+    // Create comma-separated string of updated fields
+    let updated_fields_str = if (vector::length(&updated_fields) > 0) {
+        let mut result = *vector::borrow(&updated_fields, 0);
+        let mut i = 1;
+        while (i < vector::length(&updated_fields)) {
+            string::append(&mut result, string::utf8(b", "));
+            string::append(&mut result, *vector::borrow(&updated_fields, i));
+            i = i + 1;
+        };
+        result
+    } else {
+        string::utf8(b"none")
+    };
+
+    event::emit(CardUpdated {
+        card_id,
+        owner: sender,
+        name: card.name,
+        updated_fields: updated_fields_str,
     });
 }
 

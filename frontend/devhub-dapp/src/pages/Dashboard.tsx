@@ -1,10 +1,46 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2, RefreshCw, AlertCircle, Shield, CheckCircle, Trash2, Power, PowerOff, Share2, Activity } from 'lucide-react';
+import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2, RefreshCw, AlertCircle, Shield, CheckCircle, Trash2, Power, PowerOff, Share2, Activity, X } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
-import { DevCardData, updateDescriptionTransaction, setWorkAvailabilityTransaction, activateCardTransaction, deactivateCardTransaction, deleteCardTransaction } from '../lib/suiClient';
+import { DevCardData, updateDescriptionTransaction, setWorkAvailabilityTransaction, activateCardTransaction, deactivateCardTransaction, deleteCardTransaction, editDevCardTransaction } from '../lib/suiClient';
 import { getCardAnalytics, incrementShare, recordToggle } from '../lib/analytics';
+
+// Toast Component
+const Toast: React.FC<{
+  message: string;
+  type: 'success' | 'error';
+  onClose: () => void;
+}> = ({ message, type, onClose }) => {
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+      <div className={`flex items-center space-x-3 px-6 py-4 rounded-xl shadow-lg ${
+        type === 'success' 
+          ? 'bg-green-50 border border-green-200' 
+          : 'bg-red-50 border border-red-200'
+      }`}>
+        {type === 'success' ? (
+          <CheckCircle className="h-5 w-5 text-green-600" />
+        ) : (
+          <AlertCircle className="h-5 w-5 text-red-600" />
+        )}
+        <span className={`font-medium ${
+          type === 'success' ? 'text-green-800' : 'text-red-800'
+        }`}>
+          {message}
+        </span>
+        <button
+          onClick={onClose}
+          className={`ml-2 ${
+            type === 'success' ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'
+          }`}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Skeleton components for better loading UX
 const StatCardSkeleton: React.FC = () => (
@@ -103,6 +139,188 @@ const formatRelative = (ts: number | null) => {
   return `${days}d ago`;
 };
 
+// Edit Card Modal Component
+interface EditCardModalProps {
+  card: DevCardData;
+  onClose: () => void;
+  onSave: (cardData: any) => void;
+  isEditing: boolean;
+}
+
+const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, isEditing }) => {
+  const [formData, setFormData] = useState({
+    name: card.name,
+    description: card.description,
+    title: card.title,
+    imageUrl: card.imageUrl,
+    yearsOfExperience: card.yearsOfExperience,
+    technologies: card.technologies,
+    portfolio: card.portfolio,
+    contact: card.contact,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  const handleChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Edit DevCard</h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleChange('title', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Years of Experience
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={formData.yearsOfExperience}
+                  onChange={(e) => handleChange('yearsOfExperience', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Profile Image URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.imageUrl}
+                  onChange={(e) => handleChange('imageUrl', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Technologies
+              </label>
+              <input
+                type="text"
+                value={formData.technologies}
+                onChange={(e) => handleChange('technologies', e.target.value)}
+                placeholder="e.g., React, TypeScript, Node.js"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Portfolio URL
+              </label>
+              <input
+                type="url"
+                value={formData.portfolio}
+                onChange={(e) => handleChange('portfolio', e.target.value)}
+                placeholder="https://your-portfolio.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Contact
+              </label>
+              <input
+                type="text"
+                value={formData.contact}
+                onChange={(e) => handleChange('contact', e.target.value)}
+                placeholder="Email, Twitter, LinkedIn, etc."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isEditing}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
+              >
+                {isEditing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Card'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
@@ -123,8 +341,23 @@ const Dashboard: React.FC = () => {
   const [updating, setUpdating] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [deletingCard, setDeletingCard] = useState<number | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCard, setEditingCard] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const userAddress = useMemo(() => currentAccount?.address || '', [currentAccount]);
+
+  // Toast helper functions
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 5000);
+  };
+
+  const closeToast = () => {
+    setToast(null);
+  };
 
   // Update loading state helper
   const updateLoadingState = useCallback((key: keyof typeof loadingStates, value: boolean) => {
@@ -393,6 +626,47 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Edit card function
+  const handleEditCard = async (cardData: any) => {
+    if (!currentAccount || !primaryCard) return;
+
+    setEditingCard(primaryCard.id);
+    try {
+      const tx = editDevCardTransaction(cardData);
+      
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: () => {
+            // Update card in local state
+            const updatedCard = { ...primaryCard, ...cardData };
+            setUserCards([updatedCard]);
+            
+            // Update cache
+            updateCardInCache(primaryCard.id, updatedCard);
+            
+            setEditingCard(null);
+            setShowEditModal(false);
+            
+            // Show success toast
+            showToast('DevCard updated successfully!', 'success');
+          },
+          onError: (error) => {
+            console.error('❌ Error editing card:', error);
+            setEditingCard(null);
+            showToast('Failed to update card. Please try again.', 'error');
+          },
+        }
+      );
+    } catch (error) {
+      console.error('❌ Error in handleEditCard:', error);
+      setEditingCard(null);
+      showToast('Failed to update card. Please try again.', 'error');
+    }
+  };
+
   const startEditingDescription = (card: DevCardData) => {
     setEditingDescription(card.id);
     setNewDescription(card.description || '');
@@ -475,6 +749,15 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen pt-8 pb-16">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
+        />
+      )}
+      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
@@ -679,6 +962,15 @@ const Dashboard: React.FC = () => {
                       </button>
                     )}
                     
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="p-2 rounded-lg transition-colors bg-blue-100 text-blue-600 hover:bg-blue-200"
+                      title="Edit card"
+                    >
+                      <Edit3 className="h-5 w-5" />
+                    </button>
+                    
                     {/* Delete Button */}
                     <button
                       onClick={() => deleteCard(primaryCard.id)}
@@ -830,6 +1122,16 @@ const Dashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Card Modal */}
+      {showEditModal && primaryCard && (
+        <EditCardModal
+          card={primaryCard}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleEditCard}
+          isEditing={editingCard === primaryCard.id}
+        />
+      )}
     </div>
   );
 };

@@ -22,7 +22,7 @@ const CardDetails: React.FC = () => {
         const cardData = await getCardInfo(numericId);
         if (cardData) {
           setCard(cardData);
-          // Record analytics view
+          // Record analytics view - only increment once per card load
           incrementView(numericId);
         } else {
           setError('Card not found');
@@ -36,7 +36,7 @@ const CardDetails: React.FC = () => {
     };
 
     fetchCard();
-  }, [id, getCardInfo]);
+  }, [id]); // Removed getCardInfo from dependencies to prevent multiple increments
 
   if (loading) {
     return (
