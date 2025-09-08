@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Code2, Wallet } from 'lucide-react';
+import { Code2, Wallet, Menu, X} from 'lucide-react';
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
 
 interface HeaderProps {
@@ -10,6 +10,8 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ isAdmin }) => {
   const location = useLocation();
   const currentAccount = useCurrentAccount();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -26,6 +28,7 @@ const Header: React.FC<HeaderProps> = ({ isAdmin }) => {
             </span>
           </Link>
 
+          {/* Desktop nav */}
           <nav className="hidden md:flex items-center space-x-1">
             <Link
               to="/"
@@ -85,7 +88,9 @@ const Header: React.FC<HeaderProps> = ({ isAdmin }) => {
             )}
           </nav>
 
+          {/* Right side: wallet + mobile toggle */}
           <div className="flex items-center space-x-3">
+        
             {currentAccount ? (
               <div className="flex items-center space-x-3">
                 <ConnectButton
@@ -109,8 +114,77 @@ const Header: React.FC<HeaderProps> = ({ isAdmin }) => {
                 className="!bg-[#006fee] !rounded-2xl !font-semibold cursor-pointer hover:opacity-80 transition-all duration-300"
               />
             )}
+
+            {/* Mobile menu button */}
+            <button
+              type="button"
+              aria-label="Toggle menu"
+              className="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={() => setMobileOpen((o) => !o)}
+            >
+              {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile nav panel */}
+        {mobileOpen && (
+          <div className="md:hidden pb-4">
+            <nav className="space-y-1">
+              <Link
+                to="/"
+                onClick={() => setMobileOpen(false)}
+                className={`block px-4 py-3 rounded-lg font-medium ${
+                  isActive('/') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/browse"
+                onClick={() => setMobileOpen(false)}
+                className={`block px-4 py-3 rounded-lg font-medium ${
+                  isActive('/browse') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                }`}
+              >
+                Browse Developers
+              </Link>
+              {currentAccount && (
+                <>
+                  <Link
+                    to="/create"
+                    onClick={() => setMobileOpen(false)}
+                    className={`block px-4 py-3 rounded-lg font-medium ${
+                      isActive('/create') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                    }`}
+                  >
+                    Create Card
+                  </Link>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className={`block px-4 py-3 rounded-lg font-medium ${
+                      isActive('/dashboard') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setMobileOpen(false)}
+                      className={`block px-4 py-3 rounded-lg font-medium ${
+                        isActive('/admin') ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                      }`}
+                    >
+                      Admin
+                    </Link>
+                  )}
+                </>
+              )}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );
