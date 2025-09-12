@@ -34,7 +34,7 @@ export const CONTRACT_FUNCTIONS = {
   IS_ADMIN: 'is_admin',
   IS_CARD_ACTIVE: 'is_card_active',
   IS_CARD_OPEN_TO_WORK: 'is_card_open_to_work',
-};0xeb6caf43e7c918ca24982c958c370c9cf577c198a3b40ebfe37904d2362fc051
+};
 
 export interface DevCardData {
   id: number;
