@@ -2,14 +2,17 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useContract } from './hooks/useContract';
-import Header from './components/Header';
-import Footer from './components/Footer';
+import Footer from './components/common/Footer';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import CreateCard from './pages/CreateCard';
 import Dashboard from './pages/Dashboard';
 import CardDetails from './pages/CardDetails';
 import AdminPanel from './pages/AdminPanel';
+import Navbar from './components/common/Navbar';
+import { useGlowingCursor } from './hooks/useGlowingCursor';
+import StarBackground from './components/common/StarBackground';
+
 
 export interface DevCard {
   id: number;
@@ -36,11 +39,11 @@ const LoadingSpinner = ({ onTimeout }: { onTimeout?: () => void }) => {
   }, [onTimeout]);
 
   return (
-    <div className="fixed inset-0 bg-white/75 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-background/75 flex items-center justify-center z-50">
       <div className="flex flex-col items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Checking admin status...</p>
-        <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-muted-foreground">Checking admin status...</p>
+        <p className="mt-2 text-sm text-muted-foreground/80">This may take a few moments</p>
       </div>
     </div>
   );
@@ -56,7 +59,7 @@ function App() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [loading, setLoading] = useState(false);
   const [adminCheckFailed, setAdminCheckFailed] = useState(false);
-
+  useGlowingCursor();
   // Memoize the current account address
   const currentAddress = useMemo(() => currentAccount?.address, [currentAccount]);
 
@@ -93,16 +96,16 @@ function App() {
       });
 
       const adminStatusPromise = isAdmin(address);
-      
+
       const adminStatus = await Promise.race([adminStatusPromise, timeoutPromise]);
-      
+
       setIsAdminUser(adminStatus);
       setCachedAdminStatus(address, adminStatus);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdminUser(false);
       setAdminCheckFailed(true);
-      
+
       // Cache failed result as false for shorter duration
       setCachedAdminStatus(address, false);
     } finally {
@@ -138,32 +141,35 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900 flex flex-col">
-        <Header isAdmin={isAdminUser} />
-        
+      <div id="glow-cursor" className="glow-cursor" />
+
+      <div className="min-h-screen flex flex-col">
+        <Navbar isAdmin={isAdminUser} />
+
+
         {loading && <LoadingSpinner onTimeout={handleLoadingTimeout} />}
-        
+
         {/* Show retry option if admin check failed */}
         {adminCheckFailed && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mx-4 mt-4">
+          <div className="bg-destructive/10 border-l-4 border-destructive p-4 mx-4 mt-4">
             <div className="flex items-center justify-between">
               <div className="flex">
                 <div className="ml-3">
-                  <p className="text-sm text-yellow-700">
+                  <p className="text-sm text-destructive-foreground">
                     Unable to verify admin status. Some features may be limited.
                   </p>
                 </div>
               </div>
               <button
                 onClick={retryAdminCheck}
-                className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded text-sm font-medium"
+                className="bg-destructive/20 hover:bg-destructive/30 text-destructive-foreground px-3 py-1 rounded text-sm font-medium"
               >
                 Retry
               </button>
             </div>
           </div>
         )}
-        
+
         <div className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -174,7 +180,7 @@ function App() {
             <Route path="/admin" element={<AdminPanel isAdmin={isAdminUser} />} />
           </Routes>
         </div>
-        
+
         <Footer />
       </div>
     </Router>
