@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { User, MessageSquare, Briefcase, Star, MapPin, GitBranch } from 'lucide-react';
+import { MessageSquare, Briefcase, Star, GitBranch } from 'lucide-react';
 
 export interface Developer {
     id: string;
