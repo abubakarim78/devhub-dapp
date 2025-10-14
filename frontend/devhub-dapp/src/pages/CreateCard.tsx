@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import {
   User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle,
-  X, FileText, Upload, CloudUpload, Image, ArrowRight, ArrowLeft
+  X, CloudUpload, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
 import { useContract } from '../hooks/useContract';

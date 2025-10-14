@@ -1,7 +1,29 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { DevCardData } from '@/lib/suiClient'; // Assuming this is your type location
-import { ArrowUpRight, Clock } from 'lucide-react';
+import { MessageSquare, Briefcase, Star, GitBranch } from 'lucide-react';
+
+export interface Developer {
+    id: string;
+    name: string;
+    owner?: string;
+    description?: string;
+    yearsOfExperience?: number;
+    technologies?: string;
+    portfolio?: string;
+    contact?: string;
+    openToWork?: boolean;
+    isActive?: boolean;
+    imageUrl: string;
+    title: string;
+    specialties: string;
+    location: string;
+    status: 'Available' | 'Open to offers' | 'Busy';
+    skills: string[];
+    repos: number;
+    experience: number;
+    workload: string;
+    rating: number;
+}
 
 interface DeveloperCardProps {
   developer: DevCardData;
