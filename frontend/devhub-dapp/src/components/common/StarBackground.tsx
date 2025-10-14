@@ -32,11 +32,11 @@ const StarBackground = () => {
   }, []);
 
   return (
-    <div ref={containerRef} className="absolute inset-0 z-0 h-full w-full bg-black">
+    <div ref={containerRef} className="absolute inset-0 z-0 h-full w-full bg-background">
       {stars.map((star, i) => (
         <div
           key={i}
-          className="absolute bg-white rounded-full"
+          className="absolute bg-foreground rounded-full"
           style={{
             left: `${star.x}%`,
             top: `${star.y}%`,
@@ -49,8 +49,8 @@ const StarBackground = () => {
       ))}
       <style>{`
         @keyframes twinkle {
-          0% { opacity: 0.2; }
-          100% { opacity: 1; }
+          0% { opacity: 0.1; }
+          100% { opacity: 0.7; }
         }
       `}</style>
     </div>

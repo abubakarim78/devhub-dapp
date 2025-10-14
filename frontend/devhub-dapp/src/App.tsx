@@ -11,6 +11,7 @@ import CardDetails from './pages/CardDetails';
 import AdminPanel from './pages/AdminPanel';
 import Navbar from './components/common/Navbar';
 import { useGlowingCursor } from './hooks/useGlowingCursor';
+import "./index.css";
 
 
 export interface DevCard {
