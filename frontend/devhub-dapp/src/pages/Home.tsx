@@ -1,6 +1,5 @@
-'use client'; // This component uses client-side hooks
+'use client'; 
 
-import { useGlowingCursor } from '@/hooks/useGlowingCursor';
 import Hero from '@/components/Hero';
 import Stats from '@/components/Stats';
 import Features from '@/components/Features';
@@ -8,11 +7,14 @@ import FeaturedDevelopers from '@/components/FeaturedDevelopers';
 import CTA from '@/components/CTA';
 import StarBackground from '@/components/common/StarBackground';
 
-export default function Home() {
-  useGlowingCursor(); // Activate the glowing cursor hook
+// The useGlowingCursor hook is now activated within the App component.
+// No need to call it here if it's already in a parent layout.
 
+export default function Home() {
   return (
-    <div className="relative overflow-hidden">
+    // The StarBackground serves as a base layer. 
+    // New components will add more layers of visuals on top.
+    <div className="relative overflow-hidden bg-background">
       <StarBackground />
       <div className="relative z-10">
         <main>

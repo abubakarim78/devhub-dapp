@@ -1,312 +1,298 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Clock, ExternalLink, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Loader2, AlertCircle, X, SlidersHorizontal, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
-import { Badge, Button } from '@radix-ui/themes';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import StarBackground from '@/components/common/StarBackground';
-import { motion } from 'framer-motion';
+import DeveloperCard from '@/components/common/DeveloperCard';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 
-// Constants
-const MAX_VISIBLE_TECHNOLOGIES = 4;
+const CARDS_PER_PAGE = 9;
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
 
 const Browse: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTech, setSelectedTech] = useState('');
-  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-  const [cards, setCards] = useState<DevCardData[]>([]);
-  const [loading, setLoading] = useState(true);
+  // --- STATE MANAGEMENT ---
+  const [allCards, setAllCards] = useState<DevCardData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedTech, setSelectedTech] = useState<string>('');
+  const [showAvailableOnly, setShowAvailableOnly] = useState<boolean>(false);
+  const [minExperience, setMinExperience] = useState<number>(0);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const { getAllCards } = useContract();
 
+  // --- DATA FETCHING ---
   useEffect(() => {
     const fetchCards = async () => {
       setLoading(true);
       setError(null);
       try {
-        const allCards = await getAllCards();
-        setCards(allCards);
-      } catch (err) {
+        const cards = await getAllCards();
+        setAllCards(cards);
+      } catch (err: unknown) {
         console.error('Error fetching cards:', err);
         setError('Failed to load developers. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
-
     fetchCards();
-  }, []);
+  }, [getAllCards]);
 
-  const allTechnologies = useMemo(() => {
-    return Array.from(
-      new Set(cards.flatMap(card => card.technologies.split(', ')))
-    ).sort();
-  }, [cards]);
+  // --- MEMOIZED COMPUTATIONS ---
+  const allTechnologies = useMemo((): string[] => {
+    const techSet = new Set(allCards.flatMap(card => card.technologies.split(',').map(t => t.trim()).filter(Boolean)));
+    return Array.from(techSet).sort();
+  }, [allCards]);
 
-  const filteredCards = useMemo(() => {
-    return cards.filter(card => {
-      const matchesSearch = card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           card.technologies.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTech = !selectedTech || card.technologies.includes(selectedTech);
+  const filteredCards = useMemo((): DevCardData[] => {
+    return allCards.filter(card => {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      const matchesSearch = 
+        card.name.toLowerCase().includes(lowerSearchTerm) ||
+        card.title.toLowerCase().includes(lowerSearchTerm) ||
+        card.description?.toLowerCase().includes(lowerSearchTerm);
+      const matchesTech = !selectedTech || card.technologies.split(',').map(t => t.trim()).includes(selectedTech);
       const matchesAvailability = !showAvailableOnly || card.openToWork;
+      const matchesExperience = card.yearsOfExperience >= minExperience;
       
-      return matchesSearch && matchesTech && matchesAvailability;
+      return matchesSearch && matchesTech && matchesAvailability && matchesExperience;
     });
-  }, [cards, searchTerm, selectedTech, showAvailableOnly]);
+  }, [allCards, searchTerm, selectedTech, showAvailableOnly, minExperience]);
 
-  const clearFilters = () => {
+  const totalPages = Math.ceil(filteredCards.length / CARDS_PER_PAGE);
+  const paginatedCards = useMemo(() => {
+    const startIndex = (currentPage - 1) * CARDS_PER_PAGE;
+    return filteredCards.slice(startIndex, startIndex + CARDS_PER_PAGE);
+  }, [filteredCards, currentPage]);
+
+
+  // --- CALLBACKS ---
+  const resetFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedTech('');
     setShowAvailableOnly(false);
+    setMinExperience(0);
+    setCurrentPage(1);
+  }, []);
+
+  useEffect(() => {
+    // Reset to page 1 whenever filters change
+    setCurrentPage(1);
+  }, [searchTerm, selectedTech, showAvailableOnly, minExperience]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
   };
 
-  // Loading State
+  // --- RENDER LOGIC ---
   if (loading) {
     return (
-      <div className="bg-black min-h-screen pt-16 flex items-center justify-center relative">
+      <div className="min-h-screen flex items-center justify-center bg-background relative">
         <StarBackground/>
         <div className="text-center relative z-10">
-          <Loader2 className="h-16 w-16 text-blue-500 animate-spin mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-white mb-2">Loading Developers</h2>
-          <p className="text-gray-400">Fetching developer cards from the blockchain...</p>
+          <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-foreground mb-2">Loading Developers...</h2>
+          <p className="text-muted-foreground">Fetching the latest talent from the blockchain.</p>
         </div>
       </div>
     );
   }
 
-  // Error State
   if (error) {
     return (
-      <div className="bg-black min-h-screen pt-16 flex items-center justify-center relative">
+      <div className="min-h-screen flex items-center justify-center bg-background relative">
         <StarBackground/>
         <div className="text-center max-w-md mx-auto px-4 relative z-10">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-white mb-3">{error}</h2>
-          <p className="text-gray-400 mb-8">Please check your connection and try again.</p>
-          <Button
+          <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-foreground mb-3">{error}</h2>
+          <p className="text-muted-foreground mb-8">Please check your connection and refresh the page.</p>
+          <button
             onClick={() => window.location.reload()}
-            className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+            className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
           >
             Retry
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-black text-white min-h-screen relative">
+    <div className="bg-background text-foreground min-h-screen relative">
       <StarBackground/>
       
       <div className="relative z-10 pt-32 pb-16">
-        {/* Page Header */}
         <motion.div
-          initial={{ opacity: 0, y: -30 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-16 px-4"
         >
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Browse Developers
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-4 bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Talent Discovery
           </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            Discover talented Web3 developers on Sui blockchain. Filter by skills, experience, and availability.
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            Find the perfect on-chain talent for your next big project.
           </p>
         </motion.div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Filter Panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-gray-900/60 backdrop-blur-xl rounded-3xl p-8 mb-12 border border-gray-700/50 shadow-2xl"
-          >
-            <div className="grid md:grid-cols-12 gap-4 items-center">
-              {/* Search Input */}
-              <div className="md:col-span-6">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    placeholder="Search by name, title, or technology..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-gray-800/80 text-white placeholder-gray-400 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    aria-label="Search developers"
-                  />
-                </div>
-              </div>
-
-              {/* Technology Filter */}
-              <div className="md:col-span-3">
-                <select
-                  value={selectedTech}
-                  onChange={(e) => setSelectedTech(e.target.value)}
-                  className="w-full px-4 py-4 bg-gray-800/80 text-white border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 cursor-pointer"
-                  aria-label="Filter by technology"
-                >
-                  <option value="">All Technologies</option>
-                  {allTechnologies.map(tech => (
-                    <option key={tech} value={tech}>{tech}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Availability Checkbox */}
-              <div className="md:col-span-3 flex items-center justify-center md:justify-start">
-                <label className="flex items-center space-x-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={showAvailableOnly}
-                    onChange={(e) => setShowAvailableOnly(e.target.checked)}
-                    className="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    aria-label="Show only available developers"
-                  />
-                  <span className="text-gray-300 font-medium group-hover:text-white transition-colors">
-                    Available only
-                  </span>
-                </label>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Results Count */}
-          <div className="mb-8">
-            <p className="text-gray-400 text-lg">
-              Showing <span className="font-bold text-white text-xl">{filteredCards.length}</span> developer{filteredCards.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-
-          {/* Developer Cards Grid */}
-          {filteredCards.length > 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-            >
-              {filteredCards.map((card, index) => (
-                <motion.div
-                  key={card.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.05 }}
-                >
-                  <Card className="group bg-gray-900/70 backdrop-blur-lg rounded-2xl p-6 border border-gray-700/50 hover:bg-gray-800/90 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/20 transform hover:-translate-y-2 transition-all duration-300 h-full">
-                    <CardHeader className="flex items-start space-x-4 mb-4 p-0">
-                      <img
-                        src={card.imageUrl}
-                        alt={`${card.name}'s profile`}
-                        className="w-20 h-20 rounded-2xl object-cover ring-4 ring-gray-700/50 group-hover:ring-blue-500/50 transition-all duration-300"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="font-bold text-white text-xl group-hover:text-blue-400 transition-colors truncate">
-                          {card.name}
-                        </CardTitle>
-                        <CardDescription className="text-blue-400 font-medium text-sm mt-1">
-                          {card.title}
-                        </CardDescription>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <Clock className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-400">{card.yearsOfExperience} years</span>
-                        </div>
-                      </div>
-                      <Badge className={`px-3 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
-                        card.openToWork 
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                          : 'bg-gray-700/50 text-gray-400 border border-gray-600/30'
-                      }`}>
-                        {card.openToWork ? '● Available' : 'Busy'}
-                      </Badge>
-                    </CardHeader>
-                    
-                    <CardContent className="p-0">
-                      {card.description && (
-                        <p className="text-gray-300 text-sm mb-5 line-clamp-3 leading-relaxed">
-                          {card.description}
-                        </p>
-                      )}
-                      
-                      {/* Technology Tags */}
-                      <div className="mb-6">
-                        <div className="flex flex-wrap gap-2">
-                          {card.technologies.split(', ').slice(0, MAX_VISIBLE_TECHNOLOGIES).map((tech, techIndex) => (
-                            <Badge
-                              key={`${card.id}-tech-${techIndex}`}
-                              className="px-3 py-1 bg-blue-500/20 text-blue-300 text-xs font-medium rounded-lg border border-blue-500/30 hover:bg-blue-500/30 transition-colors"
-                            >
-                              {tech}
-                            </Badge>
-                          ))}
-                          {card.technologies.split(', ').length > MAX_VISIBLE_TECHNOLOGIES && (
-                            <Badge className="px-3 py-1 bg-gray-700/50 text-gray-300 text-xs font-medium rounded-lg border border-gray-600/30">
-                              +{card.technologies.split(', ').length - MAX_VISIBLE_TECHNOLOGIES}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-700/50">
-                        <div className="flex items-center space-x-2">
-                          <a
-                            href={`mailto:${card.contact}`}
-                            className="p-2.5 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
-                            title="Send Email"
-                            aria-label={`Email ${card.name}`}
-                          >
-                            <Mail className="h-4 w-4" />
-                          </a>
-                          <a
-                            href={card.portfolio}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2.5 bg-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-600/50 border border-gray-600/30 transition-colors"
-                            title="View Portfolio"
-                            aria-label={`View ${card.name}'s portfolio`}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </div>
-                        <Link
-                          to={`/card/${card.id}`}
-                          className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg shadow-blue-500/25"
-                        >
-                          View Profile
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </motion.div>
-          ) : (
-            /* Empty State */
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              className="text-center py-20"
-            >
-              <div className="w-32 h-32 bg-gray-800/50 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-8 border border-gray-700/50">
-                <Search className="h-16 w-16 text-gray-500" />
-              </div>
-              <h3 className="text-3xl font-bold text-white mb-3">No developers found</h3>
-              <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
-                We couldn't find any developers matching your criteria. Try adjusting your filters.
-              </p>
-              <Button
-                onClick={clearFilters}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 cursor-pointer"
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* --- FILTER SIDEBAR --- */}
+            <aside className="lg:col-span-1">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="sticky top-24 bg-secondary/50 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl shadow-primary/5"
               >
-                Clear All Filters
-              </Button>
-            </motion.div>
-          )}
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <SlidersHorizontal size={20} className="text-primary"/> Filters
+                  </h3>
+                  <button onClick={resetFilters} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                    Reset
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Search Input */}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Search</label>
+                    <div className="relative mt-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder="Name, title..."
+                        value={searchTerm}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-background/80 text-foreground placeholder:text-muted-foreground border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Technology Select */}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Technology</label>
+                    <select
+                      value={selectedTech}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedTech(e.target.value)}
+                      className="w-full mt-2 px-3 py-2 bg-background/80 text-foreground border border-border rounded-lg focus:ring-2 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="">All Technologies</option>
+                      {allTechnologies.map(tech => (
+                        <option key={tech} value={tech}>{tech}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Experience Slider */}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Minimum Experience</label>
+                    <div className="flex items-center gap-3 mt-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="20"
+                        step="1"
+                        value={minExperience}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinExperience(Number(e.target.value))}
+                        className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <span className="font-semibold text-primary w-12 text-center">{minExperience}+ yrs</span>
+                    </div>
+                  </div>
+
+                  {/* Availability Toggle */}
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <label className="text-sm font-medium text-muted-foreground">Available for work</label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={showAvailableOnly} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowAvailableOnly(e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-border rounded-full peer peer-focus:ring-2 peer-focus:ring-primary peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                </div>
+              </motion.div>
+            </aside>
+
+            {/* --- RESULTS GRID & PAGINATION --- */}
+            <main className="lg:col-span-3">
+              <div className="mb-6">
+                <p className="text-muted-foreground">
+                  Showing <span className="font-bold text-foreground">{paginatedCards.length}</span> of <span className="font-bold text-foreground">{filteredCards.length}</span> developer{filteredCards.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentPage} // Animate when page changes
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
+                >
+                  {paginatedCards.length > 0 ? (
+                    paginatedCards.map((card) => (
+                      <motion.div key={card.id} variants={itemVariants}>
+                        <DeveloperCard developer={card} />
+                      </motion.div>
+                    ))
+                  ) : (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="md:col-span-2 xl:col-span-3">
+                      <div className="text-center py-20 bg-secondary/30 rounded-2xl border border-border">
+                        <div className="w-24 h-24 bg-background rounded-full flex items-center justify-center mx-auto mb-8 border border-border">
+                            <Search className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-foreground mb-3">No Developers Found</h3>
+                        <p className="text-muted-foreground mb-8 max-w-md mx-auto">Try adjusting your filters to find the talent you're looking for.</p>
+                        <button onClick={resetFilters} className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg shadow-primary/25 cursor-pointer">
+                            Clear All Filters
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-12">
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground font-semibold rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed">
+                    <ArrowLeft size={16}/> Prev
+                  </button>
+                  <span className="text-muted-foreground font-medium">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground font-semibold rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed">
+                    Next <ArrowRight size={16}/>
+                  </button>
+                </div>
+              )}
+            </main>
+          </div>
         </div>
       </div>
     </div>

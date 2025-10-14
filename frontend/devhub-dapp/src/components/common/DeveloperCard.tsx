@@ -26,68 +26,73 @@ export interface Developer {
 }
 
 interface DeveloperCardProps {
-    developer: Developer;
+  developer: DevCardData;
 }
 
-const statusStyles = {
-    Available: 'bg-green-500/20 text-green-400',
-    'Open to offers': 'bg-sky-500/20 text-sky-400',
-    Busy: 'bg-gray-500/20 text-gray-400',
-};
+const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
+  const technologies = developer.technologies.split(',').map(t => t.trim());
 
-export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
-    const cardVariants = {
-        hidden: { opacity: 0, y: 20 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-    };
+  return (
+    <motion.div
+      className="group relative bg-secondary/50 rounded-2xl p-6 border border-border overflow-hidden h-full flex flex-col"
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+    >
+      <div className="absolute top-0 right-0 h-24 w-24 bg-primary/10 rounded-bl-full blur-2xl group-hover:bg-primary/20 transition-all duration-300"></div>
+      
+      <div className="flex-grow">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <img 
+              src={developer.imageUrl} 
+              alt={developer.name} 
+              className="w-16 h-16 rounded-xl object-cover ring-2 ring-border"
+            />
+            <div>
+              <h3 className="font-bold text-lg text-foreground">{developer.name}</h3>
+              <p className="text-sm text-primary">{developer.title}</p>
+            </div>
+          </div>
+          <div className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${
+            developer.openToWork
+              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+              : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+          }`}>
+            {developer.openToWork ? 'Available' : 'Busy'}
+          </div>
+        </div>
+        
+        <p className="text-muted-foreground text-sm mb-5 line-clamp-2">
+          {developer.description}
+        </p>
 
-    return (
-        <motion.div
-            variants={cardVariants}
-            className="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 text-white hover:border-brand-purple/50 transition-colors duration-300"
+        <div className="flex flex-wrap gap-2 mb-4">
+          {technologies.slice(0, 3).map(skill => (
+            <span key={skill} className="bg-primary/10 text-primary text-xs px-3 py-1 rounded-full font-medium">
+              {skill}
+            </span>
+          ))}
+          {technologies.length > 3 && (
+            <span className="bg-secondary text-muted-foreground text-xs px-3 py-1 rounded-full font-medium">
+              +{technologies.length - 3} more
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-auto pt-4 border-t border-border flex justify-between items-center">
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span>{developer.yearsOfExperience} years exp.</span>
+        </div>
+        <Link
+          to={`/card/${developer.id}`}
+          className="inline-flex items-center gap-1 font-semibold text-sm text-foreground group-hover:text-primary transition-colors"
         >
-            <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gray-700 flex-shrink-0">
-                        <img src={developer.imageUrl} alt={developer.name} className="w-full h-full rounded-full object-cover" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-lg">{developer.name}</h3>
-                        <p className="text-sm text-gray-400">{`${developer.title} • ${developer.specialties}`}</p>
-                        <p className="text-xs text-gray-500 mt-1">{developer.location}</p>
-                    </div>
-                </div>
-                <div className={`text-xs font-medium px-3 py-1 rounded-full ${statusStyles[developer.status]}`}>
-                    {developer.status}
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-5">
-                {developer.skills.slice(0, 4).map((skill) => (
-                    <span key={skill} className="bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-md">
-                        {skill}
-                    </span>
-                ))}
-            </div>
-
-            <div className="flex items-center gap-4 text-sm text-gray-400 mb-6 border-t border-gray-800 pt-4">
-                <span className="flex items-center gap-1.5"><GitBranch size={14} /> {developer.repos} repos</span>
-                <span className="flex items-center gap-1.5"><Star size={14} /> {developer.rating.toFixed(1)} rating</span>
-                <span className="flex items-center gap-1.5"><Briefcase size={14} /> {developer.workload}</span>
-            </div>
-
-            <div className="flex items-center gap-3">
-                <Link
-                    to={`/card/${developer.id}`}
-                    className="flex-1 text-center font-semibold bg-gray-800 hover:bg-gray-700 py-2.5 px-4 rounded-lg transition-colors"
-                >
-                    View Profile
-                </Link>
-                <button className="flex-1 text-center font-semibold bg-brand-purple hover:bg-brand-purple-dark py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
-                    <MessageSquare size={16} />
-                    Message
-                </button>
-            </div>
-        </motion.div>
-    );
+          View Profile <ArrowUpRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </motion.div>
+  );
 };
+
+export default DeveloperCard;
