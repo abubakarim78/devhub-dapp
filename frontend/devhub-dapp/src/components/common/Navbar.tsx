@@ -86,15 +86,15 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <Link to="/" className="flex items-center space-x-2 group">
-           <div className="p-2 bg-blue-600 rounded-lg">
-              <Code2 className="h-6 w-6 text-white" />
+           <div className="p-2 bg-primary rounded-lg">
+              <Code2 className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-white">DevHub</span>
+            <span className="text-2xl font-bold text-foreground">DevHub</span>
           </Link>
       
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center space-x-2 text-white hover:text-gray-300 transition-colors">
+          <nav className="hidden md:flex items-center space-x-2">
             {navItems.map(item => <NavLink key={item.href} href={item.href}>{item.label}</NavLink>)}
           </nav>
 

@@ -17,8 +17,8 @@ const Toast: React.FC<{
   return (
     <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
       <div className={`flex items-center space-x-3 px-6 py-4 rounded-xl shadow-2xl backdrop-blur-xl ${type === 'success'
-          ? 'bg-green-500/20 border border-green-500/40'
-          : 'bg-red-500/20 border border-red-500/40'
+        ? 'bg-green-500/20 border border-green-500/40'
+        : 'bg-red-500/20 border border-red-500/40'
         }`}>
         {type === 'success' ? (
           <CheckCircle className="h-5 w-5 text-green-400" />
@@ -43,37 +43,37 @@ const Toast: React.FC<{
 
 // Skeleton components
 const StatCardSkeleton: React.FC = () => (
-  <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl animate-pulse">
-    <div className="h-8 bg-gray-700 rounded w-16 mb-2"></div>
-    <div className="h-4 bg-gray-700 rounded w-24"></div>
+  <div className="bg-background/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl animate-pulse">
+    <div className="h-8 bg-muted rounded w-16 mb-2"></div>
+    <div className="h-4 bg-muted rounded w-24"></div>
   </div>
 );
 
 const CardSkeleton: React.FC = () => (
-  <div className="bg-gray-900/70 backdrop-blur-xl rounded-3xl p-8 border border-gray-700/50 shadow-2xl animate-pulse">
+  <div className="bg-background/70 backdrop-blur-xl rounded-3xl p-8 border border-border shadow-2xl animate-pulse">
     <div className="flex items-start space-x-4 mb-6">
-      <div className="w-20 h-20 bg-gray-700 rounded-xl"></div>
+      <div className="w-20 h-20 bg-muted rounded-xl"></div>
       <div className="flex-1">
-        <div className="h-6 bg-gray-700 rounded w-3/4 mb-2"></div>
-        <div className="h-5 bg-gray-700 rounded w-1/2 mb-1"></div>
-        <div className="h-4 bg-gray-700 rounded w-1/3"></div>
+        <div className="h-6 bg-muted rounded w-3/4 mb-2"></div>
+        <div className="h-5 bg-muted rounded w-1/2 mb-1"></div>
+        <div className="h-4 bg-muted rounded w-1/3"></div>
       </div>
     </div>
     <div className="space-y-3">
-      <div className="h-4 bg-gray-700 rounded w-full"></div>
-      <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+      <div className="h-4 bg-muted rounded w-full"></div>
+      <div className="h-4 bg-muted rounded w-2/3"></div>
     </div>
   </div>
 );
 
 const DashboardSkeletonLoader: React.FC = () => (
-  <div className="bg-black min-h-screen pt-32 pb-16 relative">
+  <div className="bg-background min-h-screen pt-32 pb-16 relative">
     <StarBackground />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
         <div className="flex-1">
-          <div className="h-12 bg-gray-700 rounded w-80 mb-4 animate-pulse"></div>
-          <div className="h-6 bg-gray-700 rounded w-96 animate-pulse"></div>
+          <div className="h-12 bg-muted rounded w-80 mb-4 animate-pulse"></div>
+          <div className="h-6 bg-muted rounded w-96 animate-pulse"></div>
         </div>
       </div>
       <div className="grid md:grid-cols-4 gap-6 mb-12">
@@ -129,18 +129,18 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-gray-900 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700/50 shadow-2xl"
+        className="bg-card rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border shadow-2xl"
       >
         <div className="p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Edit DevCard</h2>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white"
+              className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"
             >
               <X className="w-6 h-6" />
             </button>
@@ -149,33 +149,33 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Name *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleChange('name', e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Title *
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleChange('title', e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Years of Experience
                 </label>
                 <input
@@ -184,38 +184,38 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
                   max="50"
                   value={formData.yearsOfExperience}
                   onChange={(e) => handleChange('yearsOfExperience', parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Profile Image URL
                 </label>
                 <input
                   type="url"
                   value={formData.imageUrl}
                   onChange={(e) => handleChange('imageUrl', e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Description *
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
                 rows={4}
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Technologies
               </label>
               <input
@@ -223,12 +223,12 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
                 value={formData.technologies}
                 onChange={(e) => handleChange('technologies', e.target.value)}
                 placeholder="e.g., React, TypeScript, Node.js"
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Portfolio URL
               </label>
               <input
@@ -236,12 +236,12 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
                 value={formData.portfolio}
                 onChange={(e) => handleChange('portfolio', e.target.value)}
                 placeholder="https://your-portfolio.com"
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Contact
               </label>
               <input
@@ -249,22 +249,22 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
                 value={formData.contact}
                 onChange={(e) => handleChange('contact', e.target.value)}
                 placeholder="Email, Twitter, LinkedIn, etc."
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
               />
             </div>
 
-            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-700/50">
+            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-border">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 text-gray-400 hover:text-white transition-colors font-medium"
+                className="px-6 py-3 text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isEditing}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center gap-2 font-semibold shadow-lg shadow-blue-500/25"
+                className="px-8 py-3 bg-primary   text-primary-foreground rounded-xl hover:bg-primary  /90 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center gap-2 font-semibold shadow-lg shadow-primary  /25"
               >
                 {isEditing ? (
                   <>
@@ -610,20 +610,20 @@ const Dashboard: React.FC = () => {
   // User not connected state
   if (!currentAccount) {
     return (
-      <div className="bg-black min-h-screen pt-16 flex items-center justify-center relative">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
         <StarBackground />
         <div className="text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-32 h-32 bg-blue-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30"
+            className="w-32 h-32 bg-primary  /20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary  /30"
           >
-            <User className="h-16 w-16 text-blue-400" />
+            <User className="h-16 w-16 text-primary  " />
           </motion.div>
-          <h2 className="text-4xl font-bold text-white mb-4">Connect Your Wallet</h2>
-          <p className="text-gray-400 mb-8 text-lg">You need to connect your Sui wallet to access your dashboard.</p>
-          <div className="bg-blue-500/10 backdrop-blur-sm p-6 rounded-xl border border-blue-500/30 max-w-md mx-auto">
-            <p className="text-blue-300">
+          <h2 className="text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
+          <p className="text-muted-foreground mb-8 text-lg">You need to connect your Sui wallet to access your dashboard.</p>
+          <div className="bg-primary  /10 backdrop-blur-sm p-6 rounded-xl border border-primary  /30 max-w-md mx-auto">
+            <p className="text-primary  ">
               Connect your wallet to view and manage your developer card.
             </p>
           </div>
@@ -639,19 +639,19 @@ const Dashboard: React.FC = () => {
   if (error || fetchError) {
     const displayError = fetchError || error;
     return (
-      <div className="bg-black min-h-screen pt-16 flex items-center justify-center relative">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
         <StarBackground />
         <div className="text-center max-w-lg mx-auto relative z-10 px-4">
-          <div className="w-32 h-32 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/30">
-            <AlertCircle className="h-16 w-16 text-red-400" />
+          <div className="w-32 h-32 bg-destructive/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-destructive/30">
+            <AlertCircle className="h-16 w-16 text-destructive" />
           </div>
-          <h2 className="text-4xl font-bold text-white mb-4">Unable to Load Card</h2>
-          <p className="text-gray-400 mb-8 text-lg">{displayError}</p>
+          <h2 className="text-4xl font-bold text-foreground mb-4">Unable to Load Card</h2>
+          <p className="text-muted-foreground mb-8 text-lg">{displayError}</p>
           <div className="flex items-center justify-center space-x-4">
             <button
               onClick={handleRefresh}
               disabled={loadingStates.refreshing}
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25"
+              className="px-8 py-4 bg-primary   text-primary-foreground font-semibold rounded-xl hover:bg-primary  /90 transition-all disabled:opacity-50 shadow-lg shadow-primary  /25"
             >
               {loadingStates.refreshing ? (
                 <>
@@ -664,7 +664,7 @@ const Dashboard: React.FC = () => {
             </button>
             <Link
               to="/create"
-              className="px-8 py-4 bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-teal-700 transition-all shadow-lg shadow-green-500/25"
+              className="px-8 py-4 bg-secondary text-secondary-foreground font-semibold rounded-xl hover:bg-secondary/90 transition-all shadow-lg"
             >
               Create New Card
             </Link>
@@ -677,7 +677,7 @@ const Dashboard: React.FC = () => {
   const technologies = primaryCard ? primaryCard.technologies.split(', ') : [];
 
   return (
-    <div className="bg-black min-h-screen text-white relative">
+    <div className="bg-background min-h-screen text-foreground relative">
       <StarBackground />
 
       {toast && (
@@ -697,16 +697,16 @@ const Dashboard: React.FC = () => {
             className="flex flex-col md:flex-row md:items-center md:justify-between mb-12"
           >
             <div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-primary   to-purple-400 bg-clip-text text-transparent">
                 Your Dashboard
               </h1>
-              <p className="text-xl text-gray-400 mb-4">
+              <p className="text-xl text-muted-foreground mb-4">
                 Manage your developer card and track its performance.
               </p>
-              <div className="bg-gray-900/50 backdrop-blur-sm p-4 rounded-xl border border-gray-700/50 inline-flex items-center space-x-3">
+              <div className="bg-card/50 backdrop-blur-sm p-4 rounded-xl border border-border inline-flex items-center space-x-3">
                 <Shield className="h-5 w-5 text-green-400" />
-                <p className="text-sm text-gray-300">
-                  Connected: <span className="font-mono text-xs text-blue-400">{userAddress.slice(0, 8)}...{userAddress.slice(-6)}</span>
+                <p className="text-sm text-card-foreground">
+                  Connected: <span className="font-mono text-xs text-primary  ">{userAddress.slice(0, 8)}...{userAddress.slice(-6)}</span>
                 </p>
                 <CheckCircle className="h-5 w-5 text-green-400" />
               </div>
@@ -715,14 +715,14 @@ const Dashboard: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={loadingStates.refreshing}
-                className="p-4 bg-gray-900/70 backdrop-blur-xl text-gray-300 rounded-xl hover:bg-gray-800/70 transition-all disabled:opacity-50 border border-gray-700/50 shadow-lg"
+                className="p-4 bg-background/70 backdrop-blur-xl text-card-foreground rounded-xl hover:bg-accent transition-all disabled:opacity-50 border border-border shadow-lg"
                 title="Refresh data"
               >
                 <RefreshCw className={`h-6 w-6 ${loadingStates.refreshing ? 'animate-spin' : ''}`} />
               </button>
               <Link
                 to="/create"
-                className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                className="inline-flex items-center space-x-2 px-8 py-4 bg-primary  font-semibold rounded-xl hover:bg-primary  /90 transform hover:scale-105 transition-all duration-200 shadow-lg shadow-primary  /25"
               >
                 <Plus className="h-6 w-6" />
                 <span>Create New Card</span>
@@ -738,48 +738,48 @@ const Dashboard: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="grid md:grid-cols-4 gap-6 mb-12"
             >
-              <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-blue-500/50 transition-all">
+              <div className="bg-background/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-blue-500/50 transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-500/30">
-                    <Eye className="h-6 w-6 text-blue-400" />
+                    <Eye className="h-6 w-6 text-primary  " />
                   </div>
-                  <div className="text-4xl font-bold text-blue-400">{analytics.views}</div>
+                  <div className="text-4xl font-bold text-primary  ">{analytics.views}</div>
                 </div>
-                <div className="text-gray-300 font-medium">Profile Views</div>
-                <div className="text-xs text-gray-500 mt-2">Last viewed {formatRelative(analytics.lastViewedAt)}</div>
+                <div className="text-card-foreground font-medium">Profile Views</div>
+                <div className="text-xs text-muted-foreground mt-2">Last viewed {formatRelative(analytics.lastViewedAt)}</div>
               </div>
 
-              <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-purple-500/50 transition-all">
+              <div className="bg-background/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-purple-500/50 transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-purple-500/20 rounded-xl border border-purple-500/30">
                     <Share2 className="h-6 w-6 text-purple-400" />
                   </div>
                   <div className="text-4xl font-bold text-purple-400">{analytics.shares}</div>
                 </div>
-                <div className="text-gray-300 font-medium">Shares</div>
-                <div className="text-xs text-gray-500 mt-2">Link copied or shared</div>
+                <div className="text-card-foreground font-medium">Shares</div>
+                <div className="text-xs text-muted-foreground mt-2">Link copied or shared</div>
               </div>
 
-              <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-green-500/50 transition-all">
+              <div className="bg-background/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-green-500/50 transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-green-500/20 rounded-xl border border-green-500/30">
                     <Activity className="h-6 w-6 text-green-400" />
                   </div>
                   <div className="text-4xl font-bold text-green-400">{analytics.toggles.isActive}</div>
                 </div>
-                <div className="text-gray-300 font-medium">Activation Changes</div>
-                <div className="text-xs text-gray-500 mt-2">Times toggled</div>
+                <div className="text-card-foreground font-medium">Activation Changes</div>
+                <div className="text-xs text-muted-foreground mt-2">Times toggled</div>
               </div>
 
-              <div className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-orange-500/50 transition-all">
+              <div className="bg-background/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-orange-500/50 transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-500/30">
                     <Activity className="h-6 w-6 text-orange-400" />
                   </div>
                   <div className="text-4xl font-bold text-orange-400">{analytics.toggles.openToWork}</div>
                 </div>
-                <div className="text-gray-300 font-medium">Availability Changes</div>
-                <div className="text-xs text-gray-500 mt-2">Times toggled</div>
+                <div className="text-card-foreground font-medium">Availability Changes</div>
+                <div className="text-xs text-muted-foreground mt-2">Times toggled</div>
               </div>
             </motion.div>
           )}
@@ -795,24 +795,24 @@ const Dashboard: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center py-20"
             >
-              <div className="w-32 h-32 bg-gray-800/50 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-8 border border-gray-700/50">
+              <div className="w-32 h-32 bg-background/50 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-8 border border-gray-700/50">
                 <Plus className="h-16 w-16 text-gray-500" />
               </div>
-              <h3 className="text-3xl font-bold text-white mb-4">No Developer Card Yet</h3>
-              <p className="text-gray-400 mb-8 max-w-md mx-auto text-lg">
+              <h3 className="text-3xl font-bold   text-primary  mb-4">No Developer Card Yet</h3>
+              <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
                 Create your developer card to start showcasing your skills and connecting with opportunities.
               </p>
               <div className="flex items-center justify-center space-x-4">
                 <Link
                   to="/create"
-                  className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg shadow-blue-500/25"
+                  className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-primary  font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg shadow-blue-500/25"
                 >
                   <Plus className="h-6 w-6" />
                   <span>Create Your Card</span>
                 </Link>
                 <button
                   onClick={handleRefresh}
-                  className="inline-flex items-center space-x-2 px-8 py-4 bg-gray-800/50 backdrop-blur-xl text-gray-300 font-semibold rounded-xl hover:bg-gray-700/50 transition-all border border-gray-700/50"
+                  className="inline-flex items-center space-x-2 px-8 py-4 bg-background/50 backdrop-blur-xl text-gray-300 font-semibold rounded-xl hover:bg-gray-700/50 transition-all border border-gray-700/50"
                 >
                   <RefreshCw className="h-6 w-6" />
                   <span>Check Again</span>
@@ -824,7 +824,7 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-white">Your Developer Card</h2>
                 {loadingStates.refreshing && (
-                  <div className="flex items-center space-x-2 text-blue-400">
+                  <div className="flex items-center space-x-2 text-primary  ">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span className="text-sm">Refreshing...</span>
                   </div>
@@ -836,7 +836,7 @@ const Dashboard: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className={`bg-gray-900/70 backdrop-blur-xl rounded-3xl p-8 border border-gray-700/50 shadow-2xl ${!primaryCard.isActive ? 'opacity-75 border-red-500/30' : ''
+                className={`bg-background/70 backdrop-blur-xl rounded-3xl p-8 border border-gray-700/50 shadow-2xl ${!primaryCard.isActive ? 'opacity-75 border-red-500/30' : ''
                   }`}
               >
                 {/* Card Header */}
@@ -853,33 +853,33 @@ const Dashboard: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        <h1 className="text-4xl font-bold text-primary  mb-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                           {primaryCard.name}
                         </h1>
-                        <p className="text-2xl text-blue-400 font-semibold mb-4">{primaryCard.title}</p>
+                        <p className="text-2xl text-primary   font-semibold mb-4">{primaryCard.title}</p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
-                      <div className="flex items-center space-x-2 bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700/30">
-                        <Clock className="h-5 w-5 text-blue-400" />
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
+                      <div className="flex items-center space-x-2 bg-background/50 px-4 py-2 rounded-lg border border-gray-700/30">
+                        <Clock className="h-5 w-5 text-primary  " />
                         <span>{primaryCard.yearsOfExperience} years experience</span>
                       </div>
-                      <div className="flex items-center space-x-2 bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700/30">
+                      <div className="flex items-center space-x-2 bg-background/50 px-4 py-2 rounded-lg border border-gray-700/30">
                         <Calendar className="h-5 w-5 text-purple-400" />
                         <span>Card #{primaryCard.id}</span>
                       </div>
                     </div>
 
                     <div className={`inline-flex items-center space-x-2 px-5 py-2.5 rounded-full font-semibold border-2 ${primaryCard.isActive
-                        ? primaryCard.openToWork
-                          ? 'bg-green-500/20 text-green-400 border-green-500/40'
-                          : 'bg-gray-700/50 text-gray-400 border-gray-600/40'
-                        : 'bg-red-500/20 text-red-400 border-red-500/40'
+                      ? primaryCard.openToWork
+                        ? 'bg-green-500/20 text-green-400 border-green-500/40'
+                        : 'bg-gray-700/50 text-muted-foreground border-gray-600/40'
+                      : 'bg-red-500/20 text-red-400 border-red-500/40'
                       }`}>
                       <div className={`w-2.5 h-2.5 rounded-full ${primaryCard.isActive
-                          ? primaryCard.openToWork ? 'bg-green-400 animate-pulse' : 'bg-gray-500'
-                          : 'bg-red-400 animate-pulse'
+                        ? primaryCard.openToWork ? 'bg-green-400 animate-pulse' : 'bg-gray-500'
+                        : 'bg-red-400 animate-pulse'
                         }`}></div>
                       <span>
                         {!primaryCard.isActive
@@ -897,8 +897,8 @@ const Dashboard: React.FC = () => {
                       onClick={() => toggleCardActivation(primaryCard.id, primaryCard.isActive)}
                       disabled={updating === primaryCard.id}
                       className={`p-3 rounded-xl transition-all ${primaryCard.isActive
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
-                          : 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+                        : 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
                         } disabled:opacity-50`}
                       title={primaryCard.isActive ? 'Card is active' : 'Card is inactive'}
                     >
@@ -916,8 +916,8 @@ const Dashboard: React.FC = () => {
                         onClick={() => toggleWorkStatus(primaryCard.id, primaryCard.openToWork)}
                         disabled={updating === primaryCard.id}
                         className={`p-3 rounded-xl transition-all border ${primaryCard.openToWork
-                            ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
-                            : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700/70 border-gray-600/30'
+                          ? 'bg-blue-500/20 text-primary   hover:bg-blue-500/30 border-blue-500/30'
+                          : 'bg-gray-700/50 text-muted-foreground hover:bg-gray-700/70 border-gray-600/30'
                           } disabled:opacity-50`}
                         title={primaryCard.openToWork ? 'Available for work' : 'Not available for work'}
                       >
@@ -933,7 +933,7 @@ const Dashboard: React.FC = () => {
 
                     <button
                       onClick={() => setShowEditModal(true)}
-                      className="p-3 rounded-xl transition-all bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30"
+                      className="p-3 rounded-xl transition-all bg-blue-500/20 text-primary   hover:bg-blue-500/30 border border-blue-500/30"
                       title="Edit card"
                     >
                       <Edit3 className="h-6 w-6" />
@@ -958,14 +958,14 @@ const Dashboard: React.FC = () => {
                 {(primaryCard.description || editingDescription === primaryCard.id) && (
                   <div className="pt-6 border-t border-gray-700/50 mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                      <h3 className="text-xl font-semibold text-primary  flex items-center space-x-2">
                         <Star className="h-5 w-5 text-yellow-400" />
                         <span>About</span>
                       </h3>
                       {editingDescription !== primaryCard.id && primaryCard.isActive && (
                         <button
                           onClick={() => startEditingDescription(primaryCard)}
-                          className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                          className="p-2 text-primary hover:text-primary   transition-colors"
                         >
                           <Edit3 className="h-5 w-5" />
                         </button>
@@ -976,7 +976,7 @@ const Dashboard: React.FC = () => {
                         <textarea
                           value={newDescription}
                           onChange={(e) => setNewDescription(e.target.value)}
-                          className="w-full p-4 bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                          className="w-full p-4 bg-background/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-primary placeholder-gray-500"
                           rows={4}
                           placeholder="Enter description..."
                         />
@@ -984,7 +984,7 @@ const Dashboard: React.FC = () => {
                           <button
                             onClick={() => updateDescription(primaryCard.id)}
                             disabled={updating === primaryCard.id || !newDescription.trim()}
-                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-semibold shadow-lg shadow-blue-500/25"
+                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-primary   rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-semibold shadow-lg shadow-blue-500/25"
                           >
                             {updating === primaryCard.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1011,8 +1011,8 @@ const Dashboard: React.FC = () => {
                 {/* Technologies */}
                 {technologies.length > 0 && (
                   <div className="pt-6 border-t border-gray-700/50 mb-6">
-                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
-                      <Code2 className="h-6 w-6 text-blue-400" />
+                    <h3 className="text-xl font-semibold text-primary  mb-4 flex items-center space-x-2">
+                      <Code2 className="h-6 w-6 text-primary  " />
                       <span>Technologies & Skills</span>
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -1034,17 +1034,17 @@ const Dashboard: React.FC = () => {
 
                 {/* Contact Information */}
                 <div className="pt-6 border-t border-gray-700/50 mb-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">Contact Information</h3>
+                  <h3 className="text-xl font-semibold text-primary  mb-4">Contact Information</h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <a
                       href={`mailto:${primaryCard.contact}`}
                       className="flex items-center space-x-4 p-4 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-all group border border-blue-500/30 hover:border-blue-400/50 transform hover:scale-[1.02]"
                     >
-                      <div className="p-3 bg-blue-600 text-white rounded-xl group-hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/20">
+                      <div className="p-3 bg-blue-600 text-primary  rounded-xl group-hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/20">
                         <Mail className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-white mb-1">Send Email</div>
+                        <div className="font-semibold text-primary  mb-1">Send Email</div>
                         <div className="text-sm text-blue-300 truncate">{primaryCard.contact}</div>
                       </div>
                     </a>
@@ -1055,12 +1055,12 @@ const Dashboard: React.FC = () => {
                         rel="noopener noreferrer"
                         className="flex items-center space-x-4 p-4 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl transition-all group border border-gray-600/30 hover:border-gray-500/50 transform hover:scale-[1.02]"
                       >
-                        <div className="p-3 bg-gray-600 text-white rounded-xl group-hover:bg-gray-500 transition-colors">
+                        <div className="p-3 bg-gray-600 text-primary  rounded-xl group-hover:bg-gray-500 transition-colors">
                           <ExternalLink className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-white mb-1">View Portfolio</div>
-                          <div className="text-sm text-gray-400">External link</div>
+                          <div className="font-semibold text-primary  mb-1">View Portfolio</div>
+                          <div className="text-sm text-muted-foreground">External link</div>
                         </div>
                       </a>
                     )}
@@ -1071,7 +1071,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between pt-6 border-t border-gray-700/50">
                   <Link
                     to={`/card/${primaryCard.id}`}
-                    className="flex items-center space-x-2 px-6 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-blue-400 hover:text-blue-300 transition-all rounded-xl border border-gray-700/30 hover:border-gray-600/50 font-semibold"
+                    className="flex items-center space-x-2 px-6 py-3 bg-background/50 hover:bg-gray-700/50 text-primary   hover:text-blue-300 transition-all rounded-xl border border-gray-700/30 hover:border-gray-600/50 font-semibold"
                   >
                     <Eye className="h-5 w-5" />
                     <span>View Public Card</span>
@@ -1082,7 +1082,7 @@ const Dashboard: React.FC = () => {
                       incrementShare(primaryCard.id);
                       showToast('Link copied to clipboard!', 'success');
                     }}
-                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-500/25"
+                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-primary  rounded-xl transition-all font-semibold shadow-lg shadow-blue-500/25"
                   >
                     <Share2 className="h-5 w-5" />
                     <span>Share Card</span>
