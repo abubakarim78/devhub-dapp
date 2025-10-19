@@ -1,27 +1,50 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Code2, Menu, Moon, Sun, X } from 'lucide-react';
-import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
-import { useTheme } from '@/contexts/ThemeContext';
-
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  Code2,
+  Menu,
+  Moon,
+  Sun,
+  X,
+  FolderKanban,
+  FileText,
+  Users,
+} from "lucide-react";
+import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface NavbarProps {
   isAdmin?: boolean;
 }
 
-const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => {
+interface NavItem {
+  href: string;
+  label: string;
+  icon?: React.ElementType;
+}
+
+const NavLink = ({
+  href,
+  children,
+  icon: Icon,
+}: {
+  href: string;
+  children: React.ReactNode;
+  icon?: React.ElementType;
+}) => {
   const location = useLocation();
   const isActive = location.pathname === href;
   return (
     <Link
       to={href}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
         isActive
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:text-foreground"
       }`}
     >
+      {Icon && <Icon size={16} />}
       {children}
     </Link>
   );
@@ -62,14 +85,19 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
     };
   }, []);
 
-  const navItems = [
-    { href: '/', label: 'Home' },
-    { href: '/browse', label: 'Browse Developers' },
-    ...(currentAccount ? [
-      { href: '/create', label: 'Create Card' },
-      { href: '/dashboard', label: 'Dashboard' }
-    ] : []),
-    ...(currentAccount && isAdmin ? [{ href: '/admin', label: 'Admin' }] : [])
+  const navItems: NavItem[] = [
+    { href: "/", label: "Home" },
+    { href: "/browse", label: "Browse Developers" },
+    ...(currentAccount
+      ? [
+          { href: "/projects", label: "Projects", icon: FolderKanban },
+          { href: "/proposals", label: "Proposals", icon: FileText },
+          { href: "/collaborations", label: "Collaborations", icon: Users },
+          { href: "/create", label: "Create Card" },
+          { href: "/dashboard", label: "Dashboard" },
+        ]
+      : []),
+    ...(currentAccount && isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
   return (
@@ -83,24 +111,27 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-8xl mx-auto px-2 sm:px-6 lg:px-24">
         <div className="flex justify-between items-center h-20">
           <Link to="/" className="flex items-center space-x-2 group">
-           <div className="p-2 bg-primary rounded-lg">
+            <div className="p-2 bg-primary rounded-lg">
               <Code2 className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="text-2xl font-bold text-foreground">DevHub</span>
           </Link>
-      
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-2">
-            {navItems.map(item => <NavLink key={item.href} href={item.href}>{item.label}</NavLink>)}
+            {navItems.map((item) => (
+              <NavLink key={item.href} href={item.href} icon={item.icon}>
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
 
           {/* Right Side */}
           <div className="flex items-center space-x-3">
-            <div className='hidden sm:block'>
+            <div className="hidden sm:block">
               <ConnectButton />
             </div>
             <ThemeSwitcher />
@@ -128,18 +159,18 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
                 key={item.href}
                 to={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`block px-4 py-3 rounded-lg font-medium ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium ${
                   isActive(item.href)
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
+                {item.icon && <item.icon size={18} />}
                 {item.label}
               </Link>
             ))}
             <div className="pt-2">
               <ConnectButton />
-              <ThemeSwitcher />
             </div>
           </nav>
         </motion.div>
