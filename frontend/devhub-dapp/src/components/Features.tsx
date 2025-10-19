@@ -1,6 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Users, Zap, Shield, GitBranch, Award, Layers } from 'lucide-react';
+import { Users, Award, Layers } from 'lucide-react';
 
 const Features = () => {
    const features = [

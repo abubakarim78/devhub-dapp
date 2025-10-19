@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { MessageSquare, Briefcase, Star, GitBranch, Clock, ArrowUpRight } from 'lucide-react';
+import { Clock, ArrowUpRight } from 'lucide-react';
 import { DevCardData } from '@/lib/suiClient';
 
 export interface Developer {
