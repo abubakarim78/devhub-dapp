@@ -265,8 +265,8 @@ module devhub::devhub {
     }
 
     // Messaging functions
-    entry fun start_conversation(participant2: address, ctx: &mut TxContext) {
-        messaging::start_conversation(participant2, ctx);
+    entry fun start_conversation(participant2: address, clock: &Clock, ctx: &mut TxContext) {
+        messaging::start_conversation(participant2, clock, ctx);
     }
 
     entry fun send_message(

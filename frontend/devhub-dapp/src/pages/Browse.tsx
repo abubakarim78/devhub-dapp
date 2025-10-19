@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Loader2, AlertCircle, X, SlidersHorizontal, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Search, Loader2, AlertCircle, SlidersHorizontal, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
 import StarBackground from '@/components/common/StarBackground';
