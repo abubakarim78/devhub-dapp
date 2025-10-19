@@ -33,7 +33,7 @@ const Toast: React.FC<{
     >
       {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
       <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="p-1 rounded-full hover:bg-white/10 transition-colors">
+      <button onClick={onClose} className="p-1 rounded-full hover:bg-accent/20 transition-colors">
         <X size={16} />
       </button>
     </div>
@@ -42,8 +42,8 @@ const Toast: React.FC<{
 
 const FormStep: React.FC<{ children: React.ReactNode; title: string; icon: React.ReactNode }> = ({ children, title, icon }) => (
     <div>
-        <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
-            <div className="bg-blue-500/20 p-2 rounded-lg">{icon}</div>
+        <h3 className="text-xl font-semibold text-foreground mb-6 flex items-center gap-3">
+            <div className="bg-primary/20 p-2 rounded-lg border border-primary/30">{icon}</div>
             {title}
         </h3>
         <div className="space-y-6">{children}</div>
@@ -62,7 +62,7 @@ const InputField: React.FC<{
   isTextArea?: boolean;
 }> = ({ label, name, value, onChange, error, placeholder, type = 'text', maxLength, isTextArea = false }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-400 mb-2">{label}</label>
+    <label className="block text-sm font-medium text-foreground mb-2">{label}</label>
     {isTextArea ? (
       <textarea
         name={name}
@@ -70,8 +70,8 @@ const InputField: React.FC<{
         onChange={onChange}
         rows={4}
         maxLength={maxLength}
-        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 resize-none bg-gray-800/60 text-white ${
-          error ? 'border-red-500/60 focus:ring-red-500/50' : 'border-gray-700 focus:ring-blue-500/50'
+        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 resize-none bg-input text-foreground placeholder-muted-foreground ${
+          error ? 'border-destructive focus:ring-destructive/50' : 'border-border focus:ring-ring'
         }`}
         placeholder={placeholder}
       />
@@ -81,8 +81,8 @@ const InputField: React.FC<{
         name={name}
         value={value}
         onChange={onChange}
-        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 bg-gray-800/60 text-white ${
-          error ? 'border-red-500/60 focus:ring-red-500/50' : 'border-gray-700 focus:ring-blue-500/50'
+        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 bg-input text-foreground placeholder-muted-foreground ${
+          error ? 'border-destructive focus:ring-destructive/50' : 'border-border focus:ring-ring'
         }`}
         placeholder={placeholder}
       />
@@ -93,7 +93,7 @@ const InputField: React.FC<{
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -5 }}
-          className="text-red-400 text-xs mt-1.5 flex items-center gap-1.5"
+          className="text-destructive text-xs mt-1.5 flex items-center gap-1.5"
         >
           <AlertCircle size={14} />
           {error}
@@ -310,21 +310,21 @@ const CreateCard: React.FC = () => {
 
     if (!currentAccount) {
       return (
-          <div className="bg-black min-h-screen flex items-center justify-center relative">
+          <div className="bg-background min-h-screen flex items-center justify-center relative">
               <StarBackground />
-              <div className="text-center relative z-10 p-8 bg-gray-900/50 backdrop-blur-md rounded-2xl border border-gray-800">
-                  <div className="w-20 h-20 bg-blue-500/20 border border-blue-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <User className="h-10 w-10 text-blue-400" />
+              <div className="text-center relative z-10 p-8 bg-card/50 backdrop-blur-md rounded-2xl border border-border">
+                  <div className="w-20 h-20 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <User className="h-10 w-10 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h2>
-                  <p className="text-gray-400">Please connect your Sui wallet to proceed.</p>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">Connect Your Wallet</h2>
+                  <p className="text-muted-foreground">Please connect your Sui wallet to proceed.</p>
               </div>
           </div>
       );
     }
 
     return (
-        <div className="bg-black min-h-screen pt-32 pb-20 relative text-white">
+        <div className="bg-background min-h-screen pt-32 pb-20 relative text-foreground">
             <StarBackground />
             <AnimatePresence>
                 {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
@@ -336,10 +336,10 @@ const CreateCard: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center mb-10"
                 >
-                    <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
                         Create Your Developer Card
                     </h1>
-                    <p className="text-lg text-gray-400">Showcase your skills and connect with the ecosystem.</p>
+                    <p className="text-lg text-muted-foreground">Showcase your skills and connect with the ecosystem.</p>
                 </motion.div>
 
                 {/* Progress Bar */}
@@ -348,20 +348,20 @@ const CreateCard: React.FC = () => {
                         {steps.map((step, index) => (
                             <React.Fragment key={index}>
                                 <div className="flex flex-col items-center">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${currentStep >= index ? 'bg-blue-600' : 'bg-gray-700'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${currentStep >= index ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                                         {currentStep > index ? <CheckCircle size={20}/> : index + 1}
                                     </div>
-                                    <p className={`mt-2 text-xs font-medium ${currentStep >= index ? 'text-white' : 'text-gray-500'}`}>{step}</p>
+                                    <p className={`mt-2 text-xs font-medium ${currentStep >= index ? 'text-foreground' : 'text-muted-foreground'}`}>{step}</p>
                                 </div>
                                 {index < steps.length - 1 && (
-                                    <div className={`flex-1 h-1 mx-2 rounded ${currentStep > index ? 'bg-blue-600' : 'bg-gray-700'}`}/>
+                                    <div className={`flex-1 h-1 mx-2 rounded ${currentStep > index ? 'bg-primary' : 'bg-muted'}`}/>
                                 )}
                             </React.Fragment>
                         ))}
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-8 border border-gray-800 shadow-2xl">
+                <form onSubmit={handleSubmit} className="bg-card/70 backdrop-blur-xl rounded-2xl p-8 border border-border shadow-2xl">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={currentStep}
@@ -380,22 +380,22 @@ const CreateCard: React.FC = () => {
                                     
                                     {/* --- [START] RE-INTEGRATED IMAGE UPLOAD SECTION --- */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-400 mb-2">Profile Image</label>
-                                      <div className="flex space-x-2 mb-4 p-1 bg-gray-800 rounded-lg">
-                                        <button type="button" onClick={() => setImageUploadMethod('url')} className={`flex-1 py-2 text-sm rounded-md transition-colors ${imageUploadMethod === 'url' ? 'bg-blue-600' : 'hover:bg-gray-700'}`}>Image URL</button>
-                                        <button type="button" onClick={() => setImageUploadMethod('file')} className={`flex-1 py-2 text-sm rounded-md transition-colors ${imageUploadMethod === 'file' ? 'bg-blue-600' : 'hover:bg-gray-700'}`}>Upload File</button>
+                                      <label className="block text-sm font-medium text-foreground mb-2">Profile Image</label>
+                                      <div className="flex space-x-2 mb-4 p-1 bg-secondary rounded-lg">
+                                        <button type="button" onClick={() => setImageUploadMethod('url')} className={`flex-1 py-2 text-sm rounded-md transition-colors ${imageUploadMethod === 'url' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-secondary-foreground'}`}>Image URL</button>
+                                        <button type="button" onClick={() => setImageUploadMethod('file')} className={`flex-1 py-2 text-sm rounded-md transition-colors ${imageUploadMethod === 'file' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-secondary-foreground'}`}>Upload File</button>
                                       </div>
                                       
                                       <div className="space-y-4">
                                         {imageUploadMethod === 'url' ? (
                                           <InputField label="" name="imageUrl" type="url" value={formData.imageUrl} onChange={handleInputChange} error={errors.imageUrl} placeholder="https://..." />
                                         ) : (
-                                          <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
+                                          <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"/>
                                         )}
                                         
                                         {(imagePreviewUrl || formData.imageUrl) && (
                                           <div className="flex items-center gap-4">
-                                            <div className="w-20 h-20 bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                                            <div className="w-20 h-20 bg-secondary rounded-lg overflow-hidden border border-border">
                                                 <img src={imagePreviewUrl || formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                                             </div>
                                             {!walrusImageBlobId && (formData.imageUrl || imageFile) && (
@@ -425,15 +425,15 @@ const CreateCard: React.FC = () => {
                             )}
 
                             {currentStep === 1 && (
-                                <FormStep title="Professional Details" icon={<Briefcase size={20} className="text-blue-400" />}>
+                                <FormStep title="Professional Details" icon={<Briefcase size={20} className="text-primary" />}>
                                     <InputField label="Years of Experience" name="yearsOfExperience" type="number" value={formData.yearsOfExperience} onChange={handleInputChange} error={errors.yearsOfExperience} placeholder="e.g., 5" />
                                     <InputField label="Technologies & Skills" name="technologies" value={formData.technologies} onChange={handleInputChange} error={errors.technologies} placeholder="e.g., React, Node.js, Sui" />
-                                    <p className="text-gray-500 text-xs -mt-4">Separate technologies with commas.</p>
+                                    <p className="text-muted-foreground text-xs -mt-4">Separate technologies with commas.</p>
                                 </FormStep>
                             )}
 
                             {currentStep === 2 && (
-                                <FormStep title="Contact Information" icon={<Mail size={20} className="text-blue-400" />}>
+                                <FormStep title="Contact Information" icon={<Mail size={20} className="text-primary" />}>
                                     <InputField label="Portfolio URL" name="portfolio" type="url" value={formData.portfolio} onChange={handleInputChange} error={errors.portfolio} placeholder="https://your-portfolio.com" />
                                     <InputField label="Contact Email" name="contact" type="email" value={formData.contact} onChange={handleInputChange} error={errors.contact} placeholder="your.email@example.com" />
                                 </FormStep>
@@ -442,10 +442,10 @@ const CreateCard: React.FC = () => {
                     </AnimatePresence>
                     
                     {/* Navigation */}
-                    <div className="mt-8 pt-6 border-t border-gray-800 flex justify-between items-center">
+                    <div className="mt-8 pt-6 border-t border-border flex justify-between items-center">
                         <div>
                             {currentStep > 0 && (
-                                <button type="button" onClick={prevStep} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors">
+                                <button type="button" onClick={prevStep} className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-accent transition-colors">
                                     <ArrowLeft size={16} />
                                     Back
                                 </button>
@@ -453,13 +453,13 @@ const CreateCard: React.FC = () => {
                         </div>
                         <div>
                             {currentStep < steps.length - 1 && (
-                                <button type="button" onClick={nextStep} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                                <button type="button" onClick={nextStep} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
                                     Next
                                     <ArrowRight size={16} />
                                 </button>
                             )}
                             {currentStep === steps.length - 1 && (
-                                <button type="submit" disabled={walrusUploading} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50">
+                                <button type="submit" disabled={walrusUploading} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transform hover:scale-105 transition-all duration-200 shadow-lg shadow-primary/25 disabled:opacity-50">
                                     <Code size={18} />
                                     {walrusUploading ? 'Uploading...' : 'Create Card'}
                                 </button>
@@ -471,31 +471,31 @@ const CreateCard: React.FC = () => {
 
             <AnimatePresence>
                 {showPaymentModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="fixed inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-md w-full text-white shadow-2xl"
+                            className="bg-card border border-border rounded-2xl p-8 max-w-md w-full text-foreground shadow-2xl"
                         >
                             <div className="text-center">
-                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-5">
-                                    <DollarSign className="h-8 w-8 text-blue-400" />
+                                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-5 border border-primary/30">
+                                    <DollarSign className="h-8 w-8 text-primary" />
                                 </div>
-                                <h3 className="text-2xl font-bold text-white mb-2">Confirm Payment</h3>
-                                <p className="text-gray-400 mb-6">A one-time platform fee is required to create your developer card.</p>
+                                <h3 className="text-2xl font-bold text-foreground mb-2">Confirm Payment</h3>
+                                <p className="text-muted-foreground mb-6">A one-time platform fee is required to create your developer card.</p>
                             </div>
                             
-                            <div className="bg-gray-800/60 rounded-xl p-4 mb-6 space-y-2 text-sm">
-                                <div className="flex justify-between"><span className="text-gray-400">Platform Fee:</span> <span className="font-mono">0.1 SUI</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">Est. Gas Fee:</span> <span className="font-mono">~0.001 SUI</span></div>
-                                {walrusImageBlobId && <div className="flex justify-between"><span className="text-gray-400">Walrus Storage:</span> <span className="font-medium text-green-400">Free</span></div>}
-                                <div className="pt-2 border-t border-gray-700 flex justify-between font-bold text-base"><span className="text-white">Total:</span> <span className="font-mono">~0.101 SUI</span></div>
+                            <div className="bg-secondary/60 rounded-xl p-4 mb-6 space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Platform Fee:</span> <span className="font-mono text-foreground">0.1 SUI</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Est. Gas Fee:</span> <span className="font-mono text-foreground">~0.001 SUI</span></div>
+                                {walrusImageBlobId && <div className="flex justify-between"><span className="text-muted-foreground">Walrus Storage:</span> <span className="font-medium text-green-400">Free</span></div>}
+                                <div className="pt-2 border-t border-border flex justify-between font-bold text-base"><span className="text-foreground">Total:</span> <span className="font-mono text-foreground">~0.101 SUI</span></div>
                             </div>
 
                             <div className="flex gap-3">
-                                <button onClick={() => setShowPaymentModal(false)} className="flex-1 py-3 px-4 bg-gray-700/50 text-gray-300 font-medium rounded-lg hover:bg-gray-700 transition-colors" disabled={isSubmitting}>Cancel</button>
-                                <button onClick={handlePayment} disabled={isSubmitting} className="flex-1 py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                                <button onClick={() => setShowPaymentModal(false)} className="flex-1 py-3 px-4 bg-secondary text-secondary-foreground font-medium rounded-lg hover:bg-accent transition-colors" disabled={isSubmitting}>Cancel</button>
+                                <button onClick={handlePayment} disabled={isSubmitting} className="flex-1 py-3 px-4 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                                     {isSubmitting ? (
                                         <><Loader2 size={16} className="animate-spin" /> <span>Processing...</span></>
                                     ) : (

@@ -15,30 +15,30 @@ const StatCardSkeleton: React.FC = () => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl animate-pulse"
+    className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl animate-pulse"
   >
     <div className="flex items-center justify-between mb-4">
-      <div className="p-3 bg-gray-800/50 rounded-xl w-12 h-12"></div>
+      <div className="p-3 bg-muted rounded-xl w-12 h-12"></div>
       <div className="text-right">
-        <div className="h-8 bg-gray-800/50 rounded w-20 mb-2"></div>
-        <div className="h-4 bg-gray-800/50 rounded w-16"></div>
+        <div className="h-8 bg-muted rounded w-20 mb-2"></div>
+        <div className="h-4 bg-muted rounded w-16"></div>
       </div>
     </div>
   </motion.div>
 );
 
 const AdminSkeletonLoader: React.FC = () => (
-  <div className="bg-black min-h-screen text-white relative">
+  <div className="bg-background min-h-screen text-foreground relative">
     <StarBackground />
     <div className="relative z-10 pt-32 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Skeleton */}
         <div className="mb-12">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-gray-800/50 rounded-xl animate-pulse w-14 h-14"></div>
+            <div className="p-3 bg-muted rounded-xl animate-pulse w-14 h-14"></div>
             <div>
-              <div className="h-12 bg-gray-800/50 rounded w-64 mb-2 animate-pulse"></div>
-              <div className="h-6 bg-gray-800/50 rounded w-80 animate-pulse"></div>
+              <div className="h-12 bg-muted rounded w-64 mb-2 animate-pulse"></div>
+              <div className="h-6 bg-muted rounded w-80 animate-pulse"></div>
             </div>
           </div>
         </div>
@@ -405,7 +405,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
   // Early returns
   if (!currentAccount) {
     return (
-      <div className="bg-black min-h-screen text-white relative">
+      <div className="bg-background min-h-screen text-foreground relative">
         <StarBackground />
         <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
           <motion.div
@@ -417,8 +417,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
             <div className="w-24 h-24 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-orange-500/30">
               <Shield className="h-12 w-12 text-orange-400" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-4">Admin Access Required</h2>
-            <p className="text-gray-400 mb-6">You need to connect your wallet to access the admin panel.</p>
+            <h2 className="text-3xl font-bold text-foreground mb-4">Admin Access Required</h2>
+            <p className="text-muted-foreground mb-6">You need to connect your wallet to access the admin panel.</p>
           </motion.div>
         </div>
       </div>
@@ -431,7 +431,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
 
   if (adminVerified === false) {
     return (
-      <div className="bg-black min-h-screen text-white relative">
+      <div className="bg-background min-h-screen text-foreground relative">
         <StarBackground />
         <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
           <motion.div
@@ -440,15 +440,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
             transition={{ duration: 0.5 }}
             className="text-center max-w-md mx-auto px-4"
           >
-            <div className="w-32 h-32 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-red-500/30">
-              <Shield className="h-16 w-16 text-red-400" />
+            <div className="w-32 h-32 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-destructive/30">
+              <Shield className="h-16 w-16 text-destructive" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-4">Access Denied</h2>
-            <p className="text-gray-400 mb-6">You are not authorized to access the admin panel.</p>
-            <p className="text-sm text-gray-500 mb-6">Only the contract publisher or transferred admins can access this area.</p>
+            <h2 className="text-3xl font-bold text-foreground mb-4">Access Denied</h2>
+            <p className="text-muted-foreground mb-6">You are not authorized to access the admin panel.</p>
+            <p className="text-sm text-muted-foreground mb-6">Only the contract publisher or transferred admins can access this area.</p>
             <button
               onClick={verifyAdminAccess}
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center space-x-2 mx-auto"
+              className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg shadow-primary/25 flex items-center space-x-2 mx-auto"
             >
               <RefreshCw className="h-4 w-4" />
               <span>Retry Verification</span>
@@ -464,7 +464,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
   }
 
   return (
-    <div className="bg-black min-h-screen text-white relative">
+    <div className="bg-background min-h-screen text-foreground relative">
       <StarBackground />
       
       <div className="relative z-10 pt-32 pb-16">
@@ -486,7 +486,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                     Admin Panel
                   </h1>
                 </div>
-                <p className="text-xl text-gray-400 ml-14">Platform management and analytics dashboard</p>
+                <p className="text-xl text-muted-foreground ml-14">Platform management and analytics dashboard</p>
                 <div className="flex items-center space-x-2 ml-14 mt-2">
                   <div className="flex items-center space-x-1 text-green-400">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -526,15 +526,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
               whileHover={{ scale: 1.02, y: -5 }}
-              className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-green-500/50 transition-all cursor-pointer"
+              className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-green-500/50 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-green-500/20 rounded-xl border border-green-500/30">
                   <DollarSign className="h-6 w-6 text-green-400" />
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{platformFees.toFixed(2)}</div>
-                  <div className="text-sm text-gray-400">Platform Fees</div>
+                  <div className="text-3xl font-bold text-foreground">{platformFees.toFixed(2)}</div>
+                  <div className="text-sm text-muted-foreground">Platform Fees</div>
                 </div>
               </div>
               <div className="text-xs text-green-400 font-medium">SUI</div>
@@ -545,15 +545,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               whileHover={{ scale: 1.02, y: -5 }}
-              className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-blue-500/50 transition-all cursor-pointer"
+              className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-blue-500/50 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-500/30">
                   <Users className="h-6 w-6 text-blue-400" />
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{totalCards.toLocaleString()}</div>
-                  <div className="text-sm text-gray-400">Total Cards</div>
+                  <div className="text-3xl font-bold text-foreground">{totalCards.toLocaleString()}</div>
+                  <div className="text-sm text-muted-foreground">Total Cards</div>
                 </div>
               </div>
               <div className="text-xs text-blue-400 font-medium">All Time</div>
@@ -564,7 +564,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               whileHover={{ scale: 1.02, y: -5 }}
-              className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-purple-500/50 transition-all cursor-pointer"
+              className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-purple-500/50 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-purple-500/20 rounded-xl border border-purple-500/30">
@@ -572,11 +572,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                 </div>
                 <div className="text-right">
                   {loadingStates.additionalStats ? (
-                    <div className="h-8 bg-gray-800/50 rounded w-16 mb-2 animate-pulse"></div>
+                    <div className="h-8 bg-muted rounded w-16 mb-2 animate-pulse"></div>
                   ) : (
-                    <div className="text-3xl font-bold text-white">{activeCards.toLocaleString()}</div>
+                    <div className="text-3xl font-bold text-foreground">{activeCards.toLocaleString()}</div>
                   )}
-                  <div className="text-sm text-gray-400">Active Cards</div>
+                  <div className="text-sm text-muted-foreground">Active Cards</div>
                 </div>
               </div>
               <div className="text-xs text-purple-400 font-medium">Current</div>
@@ -587,7 +587,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
               whileHover={{ scale: 1.02, y: -5 }}
-              className="bg-gray-900/70 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50 shadow-2xl hover:border-orange-500/50 transition-all cursor-pointer"
+              className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl hover:border-orange-500/50 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-500/30">
@@ -595,11 +595,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                 </div>
                 <div className="text-right">
                   {loadingStates.additionalStats ? (
-                    <div className="h-8 bg-gray-800/50 rounded w-16 mb-2 animate-pulse"></div>
+                    <div className="h-8 bg-muted rounded w-16 mb-2 animate-pulse"></div>
                   ) : (
-                    <div className="text-3xl font-bold text-white">{openToWorkCards.toLocaleString()}</div>
+                    <div className="text-3xl font-bold text-foreground">{openToWorkCards.toLocaleString()}</div>
                   )}
-                  <div className="text-sm text-gray-400">Open to Work</div>
+                  <div className="text-sm text-muted-foreground">Open to Work</div>
                 </div>
               </div>
               <div className="text-xs text-orange-400 font-medium">Available</div>
@@ -613,9 +613,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
-                className="bg-gray-900/70 backdrop-blur-xl rounded-3xl p-8 border border-gray-700/50 shadow-2xl"
+                className="bg-card/70 backdrop-blur-xl rounded-3xl p-8 border border-border shadow-2xl"
               >
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center space-x-2">
+                <h3 className="text-2xl font-bold text-foreground mb-6 flex items-center space-x-2">
                   <DollarSign className="h-6 w-6 text-green-400" />
                   <span>Platform Fee Management</span>
                 </h3>
@@ -626,8 +626,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className="font-semibold text-white text-lg">Available Balance</h4>
-                      <p className="text-sm text-gray-400">Total accumulated platform fees</p>
+                      <h4 className="font-semibold text-foreground text-lg">Available Balance</h4>
+                      <p className="text-sm text-muted-foreground">Total accumulated platform fees</p>
                     </div>
                     <div className="text-right">
                       <div className="text-4xl font-bold text-green-400">{platformFees.toFixed(2)}</div>
@@ -638,7 +638,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
 
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Withdrawal Amount (SUI)
                     </label>
                     <input
@@ -648,7 +648,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                       max={platformFees}
                       min="0"
                       step="0.01"
-                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-white placeholder-gray-500"
+                      className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
                       placeholder="0.00"
                     />
                   </div>
@@ -671,7 +671,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setWithdrawAmount((platformFees * 0.25).toFixed(2))}
-                    className="px-4 py-2 bg-gray-800/50 text-gray-300 text-sm rounded-lg hover:bg-gray-700/50 transition-colors border border-gray-700/30"
+                    className="px-4 py-2 bg-secondary text-secondary-foreground text-sm rounded-lg hover:bg-accent transition-colors border border-border"
                   >
                     25%
                   </motion.button>
@@ -679,7 +679,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setWithdrawAmount((platformFees * 0.5).toFixed(2))}
-                    className="px-4 py-2 bg-gray-800/50 text-gray-300 text-sm rounded-lg hover:bg-gray-700/50 transition-colors border border-gray-700/30"
+                    className="px-4 py-2 bg-secondary text-secondary-foreground text-sm rounded-lg hover:bg-accent transition-colors border border-border"
                   >
                     50%
                   </motion.button>
@@ -687,7 +687,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setWithdrawAmount((platformFees * 0.75).toFixed(2))}
-                    className="px-4 py-2 bg-gray-800/50 text-gray-300 text-sm rounded-lg hover:bg-gray-700/50 transition-colors border border-gray-700/30"
+                    className="px-4 py-2 bg-secondary text-secondary-foreground text-sm rounded-lg hover:bg-accent transition-colors border border-border"
                   >
                     75%
                   </motion.button>
@@ -695,7 +695,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setWithdrawAmount(platformFees.toFixed(2))}
-                    className="px-4 py-2 bg-gray-800/50 text-gray-300 text-sm rounded-lg hover:bg-gray-700/50 transition-colors border border-gray-700/30"
+                    className="px-4 py-2 bg-secondary text-secondary-foreground text-sm rounded-lg hover:bg-accent transition-colors border border-border"
                   >
                     All
                   </motion.button>
