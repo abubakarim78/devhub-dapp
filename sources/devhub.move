@@ -5,14 +5,20 @@ module devhub::devhub {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
 
-    use devhub::devcard::{Self, DevCard, DevCardRegistry};
+    use devhub::devcard::{Self, Profile, ProfileRegistry};
     use devhub::project::{Self, Project, Application};
-    use devhub::proposal::{Self, Proposal};
+    use devhub::proposal::{Self, Proposal, PlatformStatistics, ProposalsByStatus, UserProposals, Deliverable, Milestone, TeamMember, Link};
     use devhub::escrow::{Self, Escrow};
     use devhub::review::{Self, Review};
-    use devhub::admin::{Self, SuperAdminCap, PlatformConfig};
+    use sui::clock::{Self, Clock};
+    use sui::table::{Self, Table};
+    use sui::balance::{Self, Balance};
+    use std::vector;
+    use std::option::{Self, Option};
+
+    use devhub::admin::{Self, SuperAdminCapability, PlatformConfig, AdminDirectory, AccruedFees, WithdrawalLog, ActivityLog};
     use devhub::connections::{Self, ConnectionStore};
-    use devhub::messaging;
+    use devhub::messaging::{Self, Conversation};
 
     public struct DevHub has key {
         id: UID,
@@ -28,105 +34,164 @@ module devhub::devhub {
         // Initialize DevCard registry
         let registry = devcard::init_registry(ctx);
         transfer::public_share_object(registry);
+
+        // Initialize Admin module
+        admin::create_super_admin_capability(ctx);
+        admin::create_admin_directory(ctx);
+        admin::create_platform_config(ctx);
+        admin::create_accrued_fees(ctx);
+        admin::create_withdrawal_log(ctx);
+        admin::create_activity_log(ctx);
+
+        // Initialize Proposal module
+        proposal::create_platform_statistics(ctx);
+        proposal::create_proposals_by_status(ctx);
     }
 
-    // DevCard functions
-     entry fun create_dev_card(
-        registry: &mut DevCardRegistry,
-        first_name: vector<u8>,
-        last_name: vector<u8>,
-        bio: vector<u8>,
-        title: vector<u8>,
+    // Profile functions
+    entry fun create_profile(
+        registry: &mut ProfileRegistry,
+        platform_config: &PlatformConfig,
+        accrued_fees: &mut AccruedFees,
+        payment: Coin<SUI>,
+        display_name: vector<u8>,
+        handle: vector<u8>,
+        role: vector<u8>,
         location: vector<u8>,
-        timezone: vector<u8>,
-        primary_language: vector<u8>,
-        hourly_rate: u64,
-        avatar_url: vector<u8>,
-        years_of_experience: u8,
-        skills: vector<vector<u8>>,
-        cv_link: vector<u8>,
-        expertise_level: vector<u8>,
-        collaboration_mode: vector<u8>,
-        portfolio_titles: vector<vector<u8>>,
-        portfolio_urls: vector<vector<u8>>,
-        portfolio_thumbnails: vector<vector<u8>>,
-        github_url: vector<u8>,
+        bio: vector<u8>,
+        profile_image_url: vector<u8>,
         website_url: vector<u8>,
+        github_username: vector<u8>,
+        twitter_handle: vector<u8>,
         email: vector<u8>,
-        twitter_url: vector<u8>,
-        // Walrus blob parameters
+        ens_handle: vector<u8>,
+        hourly_rate: u64,
+        availability_status: bool,
+        public_profile: bool,
+        terms_accepted: bool,
         avatar_walrus_blob_id: Option<vector<u8>>,
         cv_walrus_blob_id: Option<vector<u8>>,
-        portfolio_walrus_blob_ids: vector<vector<u8>>,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
+        admin::collect_profile_card_fee(payment, accrued_fees, platform_config, ctx);
         let owner = tx_context::sender(ctx);
-        let card = devcard::create_dev_card(
-            registry, owner, first_name, last_name, bio, title, location, timezone, 
-            primary_language, hourly_rate, avatar_url, years_of_experience, skills, 
-            cv_link, expertise_level, collaboration_mode, portfolio_titles, 
-            portfolio_urls, portfolio_thumbnails, github_url, website_url, email, twitter_url,
-            avatar_walrus_blob_id, cv_walrus_blob_id, portfolio_walrus_blob_ids, ctx
+        let profile = devcard::create_profile(
+            registry, display_name, handle, role, location, bio,
+            profile_image_url, website_url, github_username, twitter_handle,
+            email, ens_handle, hourly_rate, availability_status,
+            public_profile, terms_accepted, avatar_walrus_blob_id, cv_walrus_blob_id, clock, ctx
         );
-        transfer::public_transfer(card, owner);
+        transfer::public_transfer(profile, owner);
     }
 
     // Project functions
-     entry fun create_project(
+    entry fun create_project(
+        platform_config: &PlatformConfig,
+        accrued_fees: &mut AccruedFees,
+        payment: Coin<SUI>,
         title: vector<u8>,
+        short_summary: vector<u8>,
         description: vector<u8>,
-        skills: vector<vector<u8>>,
-        budget: u64,
-        timeline: vector<u8>,
-        milestones: vector<vector<u8>>,
-        project_type: vector<u8>,
-        file_hashes: vector<vector<u8>>,
-        walrus_file_blob_ids: vector<vector<u8>>,
+        category: vector<u8>,
+        experience_level: vector<u8>,
+        budget_min: u64,
+        budget_max: u64,
+        timeline_weeks: u64,
+        required_skills: vector<vector<u8>>,
+        attachments_count: u64,
+        escrow_enabled: bool,
+        visibility: vector<u8>,
+        applications_status: vector<u8>,
+        devhub_messages_enabled: bool,
+        attachments_walrus_blob_ids: vector<vector<u8>>,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let client = tx_context::sender(ctx);
+        admin::collect_project_posting_fee(payment, accrued_fees, platform_config, ctx);
         project::create_project(
-            client, title, description, skills, budget, timeline, milestones, 
-            project_type, file_hashes, walrus_file_blob_ids, ctx
+            title, short_summary, description, category, experience_level,
+            budget_min, budget_max, timeline_weeks, required_skills,
+            attachments_count, escrow_enabled, visibility, applications_status,
+            devhub_messages_enabled, attachments_walrus_blob_ids, clock, ctx
         );
     }
 
-     entry fun apply_to_project(
+    entry fun apply_to_project(
         project: &mut Project,
-        dev_card_id: ID,
-        cover_letter_hash: vector<u8>,
-        proposed_timeline: vector<u8>,
-        bid_amount: u64,
-        portfolio_references: vector<vector<u8>>,
+        your_role: vector<u8>,
+        availability_hrs_per_week: u64,
+        start_date: vector<u8>,
+        expected_duration_weeks: u64,
+        proposal_summary: vector<u8>,
+        requested_compensation: u64,
+        milestones_count: u64,
+        github_repo_link: vector<u8>,
+        on_chain_address: address,
+        team_members: vector<vector<u8>>,
         cover_letter_walrus_blob_id: Option<vector<u8>>,
         portfolio_walrus_blob_ids: vector<vector<u8>>,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
         project::apply_to_project(
-            project, dev_card_id, cover_letter_hash, proposed_timeline, 
-            bid_amount, portfolio_references, cover_letter_walrus_blob_id, 
-            portfolio_walrus_blob_ids, ctx
+            project, your_role, availability_hrs_per_week, start_date,
+            expected_duration_weeks, proposal_summary, requested_compensation,
+            milestones_count, github_repo_link, on_chain_address, team_members,
+            cover_letter_walrus_blob_id, portfolio_walrus_blob_ids, clock, ctx
         );
+    }
+
+    entry fun create_user_proposals_object(ctx: &mut TxContext) {
+        proposal::create_user_proposals_object(ctx);
     }
 
     // Proposal functions
-     entry fun create_proposal(
-        developer: address,
-        dev_card_id: ID,
-        title: vector<u8>,
-        timeline: vector<u8>,
-        milestones: vector<vector<u8>>,
+    entry fun create_proposal(
+        user_proposals: &mut UserProposals,
+        proposals_by_status: &mut ProposalsByStatus,
+        opportunity_title: vector<u8>,
+        proposal_title: vector<u8>,
+        team_name: vector<u8>,
+        contact_email: vector<u8>,
+        summary: vector<u8>,
+        budget: u64,
+        timeline_weeks: u64,
+        methodology: vector<u8>,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let client = tx_context::sender(ctx);
-        let proposal = proposal::create_proposal(
-            client, developer, dev_card_id, title, timeline, milestones, ctx
+        proposal::create_proposal(
+            user_proposals,
+            proposals_by_status,
+            opportunity_title,
+            proposal_title,
+            team_name,
+            contact_email,
+            summary,
+            budget,
+            timeline_weeks,
+            methodology,
+            clock,
+            ctx
         );
-        proposal::send_proposal(proposal, developer);
+    }
+
+    entry fun add_attachment(
+        proposal: &mut Proposal,
+        name: vector<u8>,
+        file_type: vector<u8>,
+        size_kb: u64,
+        url: vector<u8>,
+        walrus_blob_id: Option<vector<u8>>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        proposal::add_attachment(proposal, name, file_type, size_kb, url, walrus_blob_id, clock, ctx);
     }
 
     // Escrow functions
-     entry fun create_escrow(
+    entry fun create_escrow(
         project_id: ID,
         developer: address,
         milestone_descriptions: vector<vector<u8>>,
@@ -141,63 +206,111 @@ module devhub::devhub {
     }
 
     // Review functions
-     entry fun leave_review(
+    entry fun leave_review(
         project_id: ID,
-        dev_card: &mut DevCard,
+        profile: &mut Profile,
         rating: u8,
         comment: vector<u8>,
+        clock: &Clock,
         ctx: &mut TxContext
     ) {
-        review::leave_review(project_id, dev_card, rating, comment, ctx);
+        review::leave_review_for_project(project_id, profile, rating, comment, clock, ctx);
     }
 
     // Connection functions
-     entry fun send_connection_request(to: address, ctx: &mut TxContext) {
-        connections::send_connection_request(to, ctx);
+    entry fun create_connection_store(ctx: &mut TxContext) {
+        connections::create_connection_store(ctx);
     }
 
-     entry fun accept_connection_request(store: &mut ConnectionStore, req: connections::ConnectionRequest, ctx: &mut TxContext) {
+    entry fun send_connection_request(
+        to: address,
+        intro_message: vector<u8>,
+        shared_context: vector<u8>,
+        is_public: bool,
+        ctx: &mut TxContext
+    ) {
+        connections::send_connection_request(to, intro_message, shared_context, is_public, ctx);
+    }
+
+    entry fun accept_connection_request(
+        store: &mut ConnectionStore,
+        req: connections::ConnectionRequest,
+        ctx: &mut TxContext
+    ) {
         connections::accept_connection_request(store, req, ctx);
     }
 
+    entry fun decline_connection_request(req: connections::ConnectionRequest, ctx: &mut TxContext) {
+        connections::decline_connection_request(req, ctx);
+    }
+
+    entry fun update_connection_preferences(
+        store: &mut ConnectionStore,
+        connected_user: address,
+        notifications_enabled: bool,
+        profile_shared: bool,
+        messages_allowed: bool,
+        ctx: &mut TxContext
+    ) {
+        connections::update_connection_preferences(store, connected_user, notifications_enabled, profile_shared, messages_allowed, ctx);
+    }
+
+    entry fun update_connection_status(
+        store: &mut ConnectionStore,
+        connected_user: address,
+        new_status: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        connections::update_connection_status(store, connected_user, new_status, ctx);
+    }
+
     // Messaging functions
-     entry fun send_message_notification(to: address, message_hash: vector<u8>, ctx: &mut TxContext) {
-        messaging::send_message_notification(to, message_hash, ctx);
+    entry fun start_conversation(participant2: address, clock: &Clock, ctx: &mut TxContext) {
+        messaging::start_conversation(participant2, clock, ctx);
     }
 
-    // DevCard Walrus blob management functions
-     entry fun update_avatar_walrus_blob(
-        registry: &mut DevCardRegistry,
-        card: &mut DevCard,
+    entry fun send_message(
+        conversation: &mut Conversation,
+        content: vector<u8>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        messaging::send_message(conversation, content, clock, ctx);
+    }
+
+    // Profile Walrus blob management functions
+    entry fun update_avatar_walrus_blob(
+        profile: &mut Profile,
         new_blob_id: Option<vector<u8>>,
         ctx: &mut TxContext
     ) {
-        devcard::update_avatar_walrus_blob(registry, card, new_blob_id, ctx);
+        devcard::update_avatar_walrus_blob(profile, new_blob_id, ctx);
     }
 
-     entry fun update_cv_walrus_blob(
-        registry: &mut DevCardRegistry,
-        card: &mut DevCard,
+    entry fun update_cv_walrus_blob(
+        profile: &mut Profile,
         new_blob_id: Option<vector<u8>>,
         ctx: &mut TxContext
     ) {
-        devcard::update_cv_walrus_blob(registry, card, new_blob_id, ctx);
+        devcard::update_cv_walrus_blob(profile, new_blob_id, ctx);
     }
 
-     entry fun delete_dev_card(
-        registry: &mut DevCardRegistry,
-        card: DevCard,
+    entry fun update_project_cover_image_walrus_blob(
+        project: &mut devcard::Project,
+        profile: &Profile,
+        new_blob_id: Option<vector<u8>>,
         ctx: &mut TxContext
     ) {
-        devcard::delete_dev_card(registry, card, ctx);
+        devcard::update_project_cover_image_walrus_blob(project, profile, new_blob_id, ctx);
     }
 
     // View functions
-    public fun user_has_card(registry: &DevCardRegistry, user: address): bool {
-        devcard::user_has_card(registry, user)
+    public fun user_has_profile(registry: &ProfileRegistry, user: address): bool {
+        devcard::user_has_profile(registry, user)
     }
 
-    public fun get_user_card_id(registry: &DevCardRegistry, user: address): Option<ID> {
-        devcard::get_user_card_id(registry, user)
+    public fun get_user_profile_id(registry: &ProfileRegistry, user: address): Option<ID> {
+        devcard::get_user_profile_id(registry, user)
     }
+
 }
