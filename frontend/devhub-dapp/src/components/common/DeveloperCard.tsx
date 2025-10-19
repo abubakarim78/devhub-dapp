@@ -35,13 +35,14 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
 
   return (
     <motion.div
-      className="group relative bg-secondary/50 rounded-2xl p-6 border border-border overflow-hidden h-full flex flex-col"
+      className="group relative bg-secondary/25 rounded-2xl p-4 border border-border overflow-hidden h-full flex flex-col"
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
     >
-      <div className="absolute top-0 right-0 h-24 w-24 bg-primary/10 rounded-bl-full blur-2xl group-hover:bg-primary/20 transition-all duration-300"></div>
-      
-      <div className="flex-grow">
-        <div className="flex items-start justify-between mb-4">
+
+        <div className="absolute top-0 right-0 h-24 w-24 bg-primary/10 rounded-bl-full blur-2xl group-hover:bg-primary/20 transition-all duration-300"></div>
+        
+        <div className="flex-grow">
+          <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
             <img 
               src={developer.imageUrl} 

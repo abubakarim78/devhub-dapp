@@ -6,8 +6,8 @@ const Footer: React.FC = () => {
   
   return (
     <footer className="bg-background border-t border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-24 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <div className="p-2 bg-primary rounded-lg">

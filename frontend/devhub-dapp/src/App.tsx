@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { useContract } from './hooks/useContract';
-import Footer from './components/common/Footer';
-import Home from './pages/Home';
-import Browse from './pages/Browse';
-import CreateCard from './pages/CreateCard';
-import Dashboard from './pages/Dashboard';
-import CardDetails from './pages/CardDetails';
-import AdminPanel from './pages/AdminPanel';
-import Navbar from './components/common/Navbar';
-import { useGlowingCursor } from './hooks/useGlowingCursor';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useContract } from "./hooks/useContract";
+import Footer from "./components/common/Footer";
+import Home from "./pages/Home";
+import Browse from "./pages/Browse";
+import CreateCard from "./pages/CreateCard";
+import Dashboard from "./pages/Dashboard";
+import CardDetails from "./pages/CardDetails";
+import AdminPanel from "./pages/AdminPanel";
+import Projects from "./pages/Projects";
+import Proposals from "./pages/Proposals";
+import Collaborations from "./pages/Collaborations";
+import Navbar from "./components/common/Navbar";
+import { useGlowingCursor } from "./hooks/useGlowingCursor";
 import "./index.css";
-
 
 export interface DevCard {
   id: number;
@@ -43,14 +45,19 @@ const LoadingSpinner = ({ onTimeout }: { onTimeout?: () => void }) => {
       <div className="flex flex-col items-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         <p className="mt-4 text-muted-foreground">Checking admin status...</p>
-        <p className="mt-2 text-sm text-muted-foreground/80">This may take a few moments</p>
+        <p className="mt-2 text-sm text-muted-foreground/80">
+          This may take a few moments
+        </p>
       </div>
     </div>
   );
 };
 
 // Admin status cache
-const adminStatusCache = new Map<string, { status: boolean; timestamp: number }>();
+const adminStatusCache = new Map<
+  string,
+  { status: boolean; timestamp: number }
+>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 function App() {
@@ -61,64 +68,79 @@ function App() {
   const [adminCheckFailed, setAdminCheckFailed] = useState(false);
   useGlowingCursor();
   // Memoize the current account address
-  const currentAddress = useMemo(() => currentAccount?.address, [currentAccount]);
+  const currentAddress = useMemo(
+    () => currentAccount?.address,
+    [currentAccount],
+  );
 
   // Check cache for admin status
-  const getCachedAdminStatus = useCallback((address: string): boolean | null => {
-    const cached = adminStatusCache.get(address);
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      return cached.status;
-    }
-    return null;
-  }, []);
+  const getCachedAdminStatus = useCallback(
+    (address: string): boolean | null => {
+      const cached = adminStatusCache.get(address);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.status;
+      }
+      return null;
+    },
+    [],
+  );
 
   // Cache admin status
-  const setCachedAdminStatus = useCallback((address: string, status: boolean) => {
-    adminStatusCache.set(address, { status, timestamp: Date.now() });
-  }, []);
+  const setCachedAdminStatus = useCallback(
+    (address: string, status: boolean) => {
+      adminStatusCache.set(address, { status, timestamp: Date.now() });
+    },
+    [],
+  );
 
   // Debounced admin status check
-  const checkAdminStatus = useCallback(async (address: string) => {
-    // Check cache first
-    const cachedStatus = getCachedAdminStatus(address);
-    if (cachedStatus !== null) {
-      setIsAdminUser(cachedStatus);
-      return;
-    }
+  const checkAdminStatus = useCallback(
+    async (address: string) => {
+      // Check cache first
+      const cachedStatus = getCachedAdminStatus(address);
+      if (cachedStatus !== null) {
+        setIsAdminUser(cachedStatus);
+        return;
+      }
 
-    setLoading(true);
-    setAdminCheckFailed(false);
+      setLoading(true);
+      setAdminCheckFailed(false);
 
-    try {
-      // Add timeout to the admin check
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Admin check timeout')), 8000);
-      });
+      try {
+        // Add timeout to the admin check
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Admin check timeout")), 8000);
+        });
 
-      const adminStatusPromise = isAdmin(address);
+        const adminStatusPromise = isAdmin(address);
 
-      const adminStatus = await Promise.race([adminStatusPromise, timeoutPromise]);
+        const adminStatus = await Promise.race([
+          adminStatusPromise,
+          timeoutPromise,
+        ]);
 
-      setIsAdminUser(adminStatus);
-      setCachedAdminStatus(address, adminStatus);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdminUser(false);
-      setAdminCheckFailed(true);
+        setIsAdminUser(adminStatus);
+        setCachedAdminStatus(address, adminStatus);
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        setIsAdminUser(false);
+        setAdminCheckFailed(true);
 
-      // Cache failed result as false for shorter duration
-      setCachedAdminStatus(address, false);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAdmin, getCachedAdminStatus, setCachedAdminStatus]);
+        // Cache failed result as false for shorter duration
+        setCachedAdminStatus(address, false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAdmin, getCachedAdminStatus, setCachedAdminStatus],
+  );
 
   // Handle loading timeout
   const handleLoadingTimeout = useCallback(() => {
     setLoading(false);
     setAdminCheckFailed(true);
     setIsAdminUser(false);
-    console.warn('Admin status check timed out');
+    console.warn("Admin status check timed out");
   }, []);
 
   useEffect(() => {
@@ -145,7 +167,6 @@ function App() {
 
       <div className="min-h-screen flex flex-col">
         <Navbar isAdmin={isAdminUser} />
-
 
         {loading && <LoadingSpinner onTimeout={handleLoadingTimeout} />}
 
@@ -177,7 +198,13 @@ function App() {
             <Route path="/create" element={<CreateCard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/card/:id" element={<CardDetails />} />
-            <Route path="/admin" element={<AdminPanel isAdmin={isAdminUser} />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/proposals" element={<Proposals />} />
+            <Route path="/collaborations" element={<Collaborations />} />
+            <Route
+              path="/admin"
+              element={<AdminPanel isAdmin={isAdminUser} />}
+            />
           </Routes>
         </div>
 
