@@ -1,5 +1,6 @@
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 
 // Contract configuration
 export const PACKAGE_ID = '0xf16d929462dcc11dc507efd04091f400d82d7d4af92c581c8242efb2d42231ea';
@@ -23,7 +24,7 @@ export const CONTRACT_FUNCTIONS = {
   SET_PLATFORM_FEE: 'set_platform_fee',
   WITHDRAW_PLATFORM_FEES: 'withdraw_platform_fees',
   WITHDRAW_ALL_PLATFORM_FEES: 'withdraw_all_platform_fees',
-  TRANSFER_ADMIN: 'transfer_admin',
+  GRANT_ADMIN_ROLE: 'grant_admin_role',
   GET_CARD_INFO: 'get_card_info',
   GET_USER_CARD_ID: 'get_user_card_id',
   USER_HAS_CARD: 'user_has_card',
@@ -59,12 +60,23 @@ export function createCardTransaction(
   cardData: {
     name: string;
     title: string;
-    description: string; // Now required
     imageUrl: string;
     yearsOfExperience: number;
     technologies: string;
     portfolio: string;
+    about: string;
+    featured_projects: string[];
     contact: string;
+    github: string;
+    linkedin: string;
+    twitter: string;
+    personal_website: string;
+    work_types: string[];
+    hourly_rate: number | null;
+    location_preference: string;
+    availability: string;
+    languages: string[];
+    avatar_walrus_blob_id: string | null;
   },
   paymentCoinId: string
 ) {
@@ -74,14 +86,31 @@ export function createCardTransaction(
     target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
     arguments: [
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
-      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.description))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.title))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.imageUrl))),
       tx.pure.u8(cardData.yearsOfExperience),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.technologies))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.portfolio))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.about))),
+      tx.pure.vector('string', cardData.featured_projects),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.contact))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.github))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.linkedin))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.twitter))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.personal_website))),
+      tx.pure.vector('string', cardData.work_types),
+      tx.pure.option('u64', cardData.hourly_rate),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.location_preference))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.availability))),
+      tx.pure.vector('string', cardData.languages),
+      tx.pure.option(
+        'vector<u8>',
+        cardData.avatar_walrus_blob_id
+          ? Array.from(new TextEncoder().encode(cardData.avatar_walrus_blob_id))
+          : null
+      ),
       tx.object(paymentCoinId),
+      tx.object(SUI_CLOCK_OBJECT_ID),
       tx.object(DEVHUB_OBJECT_ID),
     ],
   });
@@ -238,12 +267,12 @@ export function withdrawAllFeesTransaction() {
   return tx;
 }
 
-// Helper function to transfer admin privileges (admin only)
-export function transferAdminTransaction(newAdmin: string) {
+// Helper function to grant admin privileges (super admin only)
+export function grantAdminRoleTransaction(newAdmin: string) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.TRANSFER_ADMIN}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GRANT_ADMIN_ROLE}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.address(newAdmin),

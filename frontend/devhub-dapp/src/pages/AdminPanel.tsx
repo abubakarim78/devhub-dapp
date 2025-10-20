@@ -3,7 +3,7 @@ import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-ki
 import { Shield, DollarSign, Users, TrendingUp, UserCheck, Settings, Loader2, RefreshCw, Edit, Save, X, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '../hooks/useContract';
-import { withdrawFeesTransaction, withdrawAllFeesTransaction, setPlatformFeeTransaction, transferAdminTransaction } from '../lib/suiClient';
+import { withdrawFeesTransaction, withdrawAllFeesTransaction, setPlatformFeeTransaction, grantAdminRoleTransaction } from '../lib/suiClient';
 import StarBackground from '@/components/common/StarBackground';
 
 interface AdminPanelProps {
@@ -302,7 +302,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ }) => {
     updateLoadingState('transferringAdmin', true);
     try {
       console.log('👑 Transferring admin privileges to:', newAdminAddress);
-      const tx = transferAdminTransaction(newAdminAddress);
+      const tx = grantAdminRoleTransaction(newAdminAddress);
 
       signAndExecute(
         { transaction: tx },

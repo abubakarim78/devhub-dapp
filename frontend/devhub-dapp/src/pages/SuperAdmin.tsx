@@ -3,7 +3,7 @@ import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-ki
 import { Shield, UserPlus, UserX, Loader2, RefreshCw, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '../hooks/useContract';
-import { transferAdminTransaction } from '../lib/suiClient';
+import { grantAdminRoleTransaction } from '../lib/suiClient';
 import StarBackground from '@/components/common/StarBackground';
 
 const SuperAdminSkeletonLoader: React.FC = () => (
@@ -86,7 +86,7 @@ const SuperAdmin: React.FC = () => {
 
     setAddingAdmin(true);
     try {
-      const tx = transferAdminTransaction(newAdminAddress);
+      const tx = grantAdminRoleTransaction(newAdminAddress);
       signAndExecute(
         { transaction: tx },
         {

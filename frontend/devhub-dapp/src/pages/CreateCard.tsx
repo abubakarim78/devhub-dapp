@@ -277,14 +277,25 @@ const CreateCard: React.FC = () => {
             }
 
             const cardDataForTransaction = {
-                ...formData,
+                name: formData.name,
+                title: formData.title,
                 imageUrl: walrusImageBlobId ? imagePreviewUrl : formData.imageUrl,
-                avatarWalrusBlobId: walrusImageBlobId || undefined,
-                featuredProjects: formData.featuredProjects.split(',').map(p => p.trim()).filter(p => p),
+                yearsOfExperience: formData.yearsOfExperience,
+                technologies: formData.technologies,
+                portfolio: formData.portfolio,
+                about: formData.about,
+                featured_projects: formData.featuredProjects.split(',').map(p => p.trim()).filter(p => p),
+                contact: formData.contact,
+                github: formData.github,
+                linkedin: formData.linkedin,
+                twitter: formData.twitter,
+                personal_website: formData.personalWebsite,
+                work_types: [formData.workTypes],
+                hourly_rate: formData.hourlyRate > 0 ? formData.hourlyRate : null,
+                location_preference: formData.locationPreference,
+                availability: formData.availability,
                 languages: formData.languages.split(',').map(l => l.trim()).filter(l => l),
-                workTypes: [formData.workTypes],
-                hourlyRate: formData.hourlyRate > 0 ? formData.hourlyRate : undefined,
-                // Removed invalid 'description' property as it's not present on formData's type
+                avatar_walrus_blob_id: walrusImageBlobId,
             };
             const tx = createCardTransaction(cardDataForTransaction, selectedCoins[0]);
             signAndExecute(
