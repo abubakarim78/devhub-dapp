@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useContract } from "@/hooks/useContract";
 
 interface NavbarProps {
   isAdmin?: boolean;
@@ -64,10 +65,18 @@ const ThemeSwitcher = () => {
 
 const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
   const currentAccount = useCurrentAccount();
+  const { isSuperAdmin } = useContract();
+  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const [isScrolling, setIsScrolling] = useState(false);
   const isActive = (path: string) => location.pathname === path;
+
+  useEffect(() => {
+    if (currentAccount) {
+      isSuperAdmin(currentAccount.address).then(setIsSuperAdminUser);
+    }
+  }, [currentAccount, isSuperAdmin]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -98,6 +107,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
         ]
       : []),
     ...(currentAccount && isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+    ...(currentAccount && isSuperAdminUser ? [{ href: "/super-admin", label: "Super Admin" }] : []),
   ];
 
   return (

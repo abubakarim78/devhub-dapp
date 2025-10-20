@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Mail, ExternalLink, Clock, Calendar, Code2, Loader2, Star } from 'lucide-react';
+import { ArrowLeft, Mail, ExternalLink, Clock, Calendar, Code2, Loader2 } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
 import { incrementView } from '../lib/analytics';
@@ -132,12 +132,6 @@ const CardDetails: React.FC = () => {
                   </div>
                 </div>
 
-                {card.description && (
-                  <div className="pt-6 border-t border-border">
-                    <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2"><Star className="h-5 w-5 text-yellow-400" />About</h3>
-                    <p className="text-muted-foreground leading-relaxed text-base">{card.description}</p>
-                  </div>
-                )}
               </motion.div>
 
               <motion.div

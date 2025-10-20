@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2, RefreshCw, AlertCircle, Shield, CheckCircle, Trash2, Power, PowerOff, Share2, Activity, X, Star, Code2, Calendar, Clock } from 'lucide-react';
+import { Edit3, Eye, Mail, ExternalLink, ToggleLeft, ToggleRight, Plus, User, Loader2, RefreshCw, AlertCircle, Shield, CheckCircle, Trash2, Power, PowerOff, Share2, Activity, X, Code2, Calendar, Clock } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
-import { DevCardData, updateDescriptionTransaction, setWorkAvailabilityTransaction, activateCardTransaction, deactivateCardTransaction, deleteCardTransaction, editDevCardTransaction } from '../lib/suiClient';
+import { DevCardData, setWorkAvailabilityTransaction, activateCardTransaction, deactivateCardTransaction, deleteCardTransaction, editDevCardTransaction } from '../lib/suiClient';
 import { getCardAnalytics, incrementShare, recordToggle } from '../lib/analytics';
 import StarBackground from '@/components/common/StarBackground';
 import { motion } from 'framer-motion';
@@ -110,7 +110,6 @@ interface EditCardModalProps {
 const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, isEditing }) => {
   const [formData, setFormData] = useState({
     name: card.name,
-    description: card.description,
     title: card.title,
     imageUrl: card.imageUrl,
     yearsOfExperience: card.yearsOfExperience,
@@ -200,20 +199,6 @@ const EditCardModal: React.FC<EditCardModalProps> = ({ card, onClose, onSave, is
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Description *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                rows={4}
-                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent text-foreground placeholder-muted-foreground"
-                required
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
                 Technologies
@@ -295,8 +280,6 @@ const Dashboard: React.FC = () => {
     userCards: false,
   });
 
-  const [editingDescription, setEditingDescription] = useState<number | null>(null);
-  const [newDescription, setNewDescription] = useState('');
   const [userCards, setUserCards] = useState<DevCardData[]>([]);
   const [updating, setUpdating] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -485,47 +468,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const updateDescription = async (cardId: number) => {
-    if (!currentAccount || !newDescription.trim()) return;
-
-    setUpdating(cardId);
-    try {
-      const tx = updateDescriptionTransaction(newDescription);
-
-      signAndExecute(
-        { transaction: tx },
-        {
-          onSuccess: () => {
-            const updatedCards = userCards.map(card =>
-              card.id === cardId
-                ? { ...card, description: newDescription }
-                : card
-            );
-            setUserCards(updatedCards);
-
-            const updatedCard = updatedCards.find(card => card.id === cardId);
-            if (updatedCard) {
-              updateCardInCache(cardId, updatedCard);
-            }
-
-            setEditingDescription(null);
-            setNewDescription('');
-            showToast('Description updated successfully!', 'success');
-            setUpdating(null);
-          },
-          onError: (error) => {
-            console.error('Error updating description:', error);
-            setUpdating(null);
-            showToast('Failed to update description', 'error');
-          },
-        }
-      );
-    } catch (error) {
-      console.error('Error in updateDescription:', error);
-      setUpdating(null);
-    }
-  };
-
   const deleteCard = async (cardId: number) => {
     if (!currentAccount) return;
 
@@ -591,15 +533,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const startEditingDescription = (card: DevCardData) => {
-    setEditingDescription(card.id);
-    setNewDescription(card.description || '');
-  };
-
-  const cancelEditingDescription = () => {
-    setEditingDescription(null);
-    setNewDescription('');
-  };
 
   const primaryCard: DevCardData | null = userCards.length > 0 ? userCards[0] : null;
   const analytics = useMemo(() => {
@@ -953,61 +886,6 @@ const Dashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
-
-                {/* Description */}
-                {(primaryCard.description || editingDescription === primaryCard.id) && (
-                  <div className="pt-6 border-t border-gray-700/50 mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-primary  flex items-center space-x-2">
-                        <Star className="h-5 w-5 text-yellow-400" />
-                        <span>About</span>
-                      </h3>
-                      {editingDescription !== primaryCard.id && primaryCard.isActive && (
-                        <button
-                          onClick={() => startEditingDescription(primaryCard)}
-                          className="p-2 text-primary hover:text-primary   transition-colors"
-                        >
-                          <Edit3 className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                    {editingDescription === primaryCard.id ? (
-                      <div className="space-y-3">
-                        <textarea
-                          value={newDescription}
-                          onChange={(e) => setNewDescription(e.target.value)}
-                          className="w-full p-4 bg-background/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-primary placeholder-gray-500"
-                          rows={4}
-                          placeholder="Enter description..."
-                        />
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => updateDescription(primaryCard.id)}
-                            disabled={updating === primaryCard.id || !newDescription.trim()}
-                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-primary   rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-semibold shadow-lg shadow-blue-500/25"
-                          >
-                            {updating === primaryCard.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <span>Save</span>
-                            )}
-                          </button>
-                          <button
-                            onClick={cancelEditingDescription}
-                            className="px-6 py-2.5 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-gray-700/70 font-semibold"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-gray-300 leading-relaxed text-lg">
-                        {primaryCard.description || 'No description provided'}
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {/* Technologies */}
                 {technologies.length > 0 && (
                   <div className="pt-6 border-t border-gray-700/50 mb-6">

@@ -2,8 +2,8 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
 // Contract configuration
-export const PACKAGE_ID = '0xffaa0a9a218543d69e761dfaf517fc9d4cba245483a344625b6d5c090b1ec6c3';
-export const DEVHUB_OBJECT_ID = '0xef16d03d71edd3ec7316416c51488555b923103f974eaffc30078702c7fb51ea';
+export const PACKAGE_ID = '0xf16d929462dcc11dc507efd04091f400d82d7d4af92c581c8242efb2d42231ea';
+export const DEVHUB_OBJECT_ID = '0xb87598e8ee41de740e1339fed633ddb30b12ce955e0b94ba6e8dc2f2c29e1339';
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
 
 // Initialize Sui client
@@ -29,9 +29,12 @@ export const CONTRACT_FUNCTIONS = {
   USER_HAS_CARD: 'user_has_card',
   GET_CARD_COUNT: 'get_card_count',
   GET_ADMIN: 'get_admin',
+  GET_SUPER_ADMIN: 'get_super_admin',
+  GET_ADMINS: 'get_admins',
   GET_PLATFORM_FEE_BALANCE: 'get_platform_fee_balance',
   GET_PLATFORM_FEE: 'get_platform_fee',
   IS_ADMIN: 'is_admin',
+  IS_SUPER_ADMIN: 'is_super_admin',
   IS_CARD_ACTIVE: 'is_card_active',
   IS_CARD_OPEN_TO_WORK: 'is_card_open_to_work',
 };
@@ -68,7 +71,7 @@ export function createCardTransaction(
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
     arguments: [
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.description))),
@@ -90,7 +93,7 @@ export function deleteCardTransaction() {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.DELETE_CARD}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.DELETE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
     ],
@@ -104,7 +107,7 @@ export function updateDescriptionTransaction(newDescription: string) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.UPDATE_DESCRIPTION}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_DESCRIPTION}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(newDescription))),
@@ -128,7 +131,7 @@ export function editDevCardTransaction(cardData: {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.EDIT_DEVCARD}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.EDIT_DEVCARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
@@ -150,7 +153,7 @@ export function activateCardTransaction() {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.ACTIVATE_CARD}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ACTIVATE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
     ],
@@ -164,7 +167,7 @@ export function deactivateCardTransaction() {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.DEACTIVATE_CARD}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.DEACTIVATE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
     ],
@@ -178,7 +181,7 @@ export function setWorkAvailabilityTransaction(available: boolean) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.SET_WORK_AVAILABILITY}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SET_WORK_AVAILABILITY}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.bool(available),
@@ -195,7 +198,7 @@ export function setPlatformFeeTransaction(newFee: number) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.SET_PLATFORM_FEE}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SET_PLATFORM_FEE}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(newFee),
@@ -210,7 +213,7 @@ export function withdrawFeesTransaction(recipient: string, amount: number) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.WITHDRAW_PLATFORM_FEES}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.WITHDRAW_PLATFORM_FEES}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.address(recipient),
@@ -226,7 +229,7 @@ export function withdrawAllFeesTransaction() {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.WITHDRAW_ALL_PLATFORM_FEES}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.WITHDRAW_ALL_PLATFORM_FEES}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
     ],
@@ -240,7 +243,7 @@ export function transferAdminTransaction(newAdmin: string) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.TRANSFER_ADMIN}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.TRANSFER_ADMIN}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.address(newAdmin),
@@ -281,7 +284,7 @@ export async function getCardInfo(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -323,7 +326,7 @@ export async function getUserCardId(userAddress: string): Promise<number | null>
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_USER_CARD_ID}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_USER_CARD_ID}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.address(userAddress),
@@ -352,7 +355,7 @@ export async function userHasCard(userAddress: string): Promise<boolean> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.USER_HAS_CARD}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.USER_HAS_CARD}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.address(userAddress),
@@ -380,7 +383,7 @@ export async function getCardCount(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -407,7 +410,7 @@ export async function getAdmin(): Promise<string | null> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_ADMIN}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_ADMIN}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -427,6 +430,61 @@ export async function getAdmin(): Promise<string | null> {
   }
 }
 
+// Get super admin address
+export async function getSuperAdmin(): Promise<string | null> {
+  try {
+    const result = await suiClient.devInspectTransactionBlock({
+      transactionBlock: (() => {
+        const tx = new Transaction();
+        tx.moveCall({
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_SUPER_ADMIN}`,
+          arguments: [
+            tx.object(DEVHUB_OBJECT_ID),
+          ],
+        });
+        return tx;
+      })(),
+      sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    });
+
+    if (result.results?.[0]?.returnValues?.[0]) {
+      return parseReturnValue(result.results[0].returnValues[0]) as string;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting super admin:', error);
+    return null;
+  }
+}
+
+// Get all admin addresses
+export async function getAdmins(): Promise<string[]> {
+  try {
+    const result = await suiClient.devInspectTransactionBlock({
+      transactionBlock: (() => {
+        const tx = new Transaction();
+        tx.moveCall({
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_ADMINS}`,
+          arguments: [
+            tx.object(DEVHUB_OBJECT_ID),
+          ],
+        });
+        return tx;
+      })(),
+      sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    });
+
+    if (result.results?.[0]?.returnValues?.[0]) {
+      // Assuming the return value is a vector of addresses
+      return (result.results[0].returnValues[0] as any).map((addr: any) => parseReturnValue(addr));
+    }
+    return [];
+  } catch (error) {
+    console.error('Error getting admins:', error);
+    return [];
+  }
+}
+
 // Get platform fee balance
 export async function getPlatformFeeBalance(): Promise<number> {
   try {
@@ -434,7 +492,7 @@ export async function getPlatformFeeBalance(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -461,7 +519,7 @@ export async function getPlatformFee(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -488,7 +546,7 @@ export async function isAdmin(address: string): Promise<boolean> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.IS_ADMIN}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_ADMIN}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.address(address),
@@ -509,6 +567,34 @@ export async function isAdmin(address: string): Promise<boolean> {
   }
 }
 
+// Check if address is super admin
+export async function isSuperAdmin(address: string): Promise<boolean> {
+  try {
+    const result = await suiClient.devInspectTransactionBlock({
+      transactionBlock: (() => {
+        const tx = new Transaction();
+        tx.moveCall({
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_SUPER_ADMIN}`,
+          arguments: [
+            tx.object(DEVHUB_OBJECT_ID),
+            tx.pure.address(address),
+          ],
+        });
+        return tx;
+      })(),
+      sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    });
+
+    if (result.results?.[0]?.returnValues?.[0]) {
+      return Boolean(parseReturnValue(result.results[0].returnValues[0]));
+    }
+    return false;
+  } catch (error) {
+    console.error('Error checking if super admin:', error);
+    return false;
+  }
+}
+
 // Check if card is active
 export async function isCardActive(cardId: number): Promise<boolean> {
   try {
@@ -516,7 +602,7 @@ export async function isCardActive(cardId: number): Promise<boolean> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.IS_CARD_ACTIVE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_CARD_ACTIVE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -544,7 +630,7 @@ export async function isCardOpenToWork(cardId: number): Promise<boolean> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devcard::${CONTRACT_FUNCTIONS.IS_CARD_OPEN_TO_WORK}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_CARD_OPEN_TO_WORK}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
