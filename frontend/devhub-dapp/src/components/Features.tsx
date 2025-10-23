@@ -1,6 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Users, Award, Layers } from 'lucide-react';
+import { Users, Award, Layers, FolderOpen, Handshake, FileText } from 'lucide-react';
 
 const Features = () => {
    const features = [
@@ -18,6 +18,21 @@ const Features = () => {
       icon: <Users className="h-8 w-8 text-primary" />,
       title: "Discover Top Talent",
       description: "Find the right developers for your project with powerful filtering and a transparent, verifiable talent pool."
+    },
+    {
+      icon: <FolderOpen className="h-8 w-8 text-primary" />,
+      title: "Project Management",
+      description: "Create, manage, and showcase your projects with full transparency. Track progress, contributions, and milestones on-chain."
+    },
+    {
+      icon: <Handshake className="h-8 w-8 text-primary" />,
+      title: "Collaborations",
+      description: "Connect with other developers, form teams, and collaborate on projects. Build lasting professional relationships in the decentralized ecosystem."
+    },
+    {
+      icon: <FileText className="h-8 w-8 text-primary" />,
+      title: "Proposals & Governance",
+      description: "Submit project proposals, participate in governance decisions, and contribute to the platform's evolution through transparent voting mechanisms."
     }
   ];
 
@@ -37,7 +52,7 @@ const Features = () => {
           </p>
         </motion.div>
         
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
             <motion.div
               key={index}

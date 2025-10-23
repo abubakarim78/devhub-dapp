@@ -9,6 +9,7 @@ import CreateCard from "./pages/CreateCard";
 import Dashboard from "./pages/Dashboard";
 import CardDetails from "./pages/CardDetails";
 import AdminPanel from "./pages/AdminPanel";
+import SuperAdmin from "./pages/SuperAdmin";
 import Projects from "./pages/Projects";
 import Proposals from "./pages/Proposals";
 import Collaborations from "./pages/Collaborations";
@@ -22,7 +23,6 @@ export interface DevCard {
   name: string;
   title: string;
   imageUrl: string;
-  description?: string;
   yearsOfExperience: number;
   technologies: string;
   portfolio: string;
@@ -109,7 +109,7 @@ function App() {
       try {
         // Add timeout to the admin check
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Admin check timeout")), 8000);
+          setTimeout(() => reject(new Error("Admin check timeout")), 15000);
         });
 
         const adminStatusPromise = isAdmin(address);
@@ -203,8 +203,9 @@ function App() {
             <Route path="/collaborations" element={<Collaborations />} />
             <Route
               path="/admin"
-              element={<AdminPanel isAdmin={isAdminUser} />}
+              element={<AdminPanel />}
             />
+            <Route path="/super-admin" element={<SuperAdmin />} />
           </Routes>
         </div>
 

@@ -36,6 +36,7 @@ const Toast: React.FC<{
       <button onClick={onClose} className="p-1 rounded-full hover:bg-accent/20 transition-colors">
         <X size={16} />
       </button>
+            dark: '#0066CC',
     </div>
   </motion.div>
 );
@@ -117,13 +118,23 @@ const CreateCard: React.FC = () => {
 
     const [formData, setFormData] = useState({
         name: '',
-        description: '',
         title: '',
+        about: '',
         imageUrl: '',
         yearsOfExperience: 0,
         technologies: '',
         portfolio: '',
         contact: '',
+        featuredProjects: '',
+        languages: '',
+        github: '',
+        linkedin: '',
+        twitter: '',
+        personalWebsite: '',
+        workTypes: 'Full-time',
+        hourlyRate: 0,
+        locationPreference: 'Remote',
+        availability: 'Immediately',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -141,21 +152,29 @@ const CreateCard: React.FC = () => {
 
     const validateStep = () => {
         const newErrors: Record<string, string> = {};
-        if (currentStep === 0) {
+        if (currentStep === 0) { // Personal Info
             if (!formData.name.trim()) newErrors.name = 'Full Name is required.';
             if (!formData.title.trim()) newErrors.title = 'Professional Title is required.';
-            if (!formData.description.trim()) newErrors.description = 'A professional description is required.';
-            if (formData.description.length > 500) newErrors.description = 'Description cannot exceed 500 characters.';
+            if (!formData.about.trim()) newErrors.about = 'An "about" section is required.';
             if (!formData.imageUrl.trim() && !imageFile && !walrusImageBlobId) {
                 newErrors.imageUrl = 'A profile image is required.';
             }
-        } else if (currentStep === 1) {
+        } else if (currentStep === 1) { // Professional Details
             if (formData.yearsOfExperience < 0) newErrors.yearsOfExperience = 'Years of experience must be a positive number.';
             if (!formData.technologies.trim()) newErrors.technologies = 'Please list your technologies/skills.';
-        } else if (currentStep === 2) {
-            try { new URL(formData.portfolio) } catch { newErrors.portfolio = 'A valid portfolio URL is required.' }
+            if (!formData.languages.trim()) newErrors.languages = 'Please list your spoken languages.';
+        } else if (currentStep === 2) { // Work Preferences
+            if (!formData.workTypes) newErrors.workTypes = 'Please select a work type.';
+            if (formData.hourlyRate < 0) newErrors.hourlyRate = 'Hourly rate cannot be negative.';
+            if (!formData.locationPreference) newErrors.locationPreference = 'Please select a location preference.';
+            if (!formData.availability) newErrors.availability = 'Please select your availability.';
+        } else if (currentStep === 3) { // Contact & Social
+            if (formData.portfolio && !formData.portfolio.startsWith('https://')) newErrors.portfolio = 'Portfolio URL must be valid and start with https://';
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(formData.contact)) newErrors.contact = 'A valid contact email is required.';
+            if (formData.github && !formData.github.startsWith('https://')) newErrors.github = 'GitHub URL must be valid and start with https://';
+            if (formData.linkedin && !formData.linkedin.startsWith('https://')) newErrors.linkedin = 'LinkedIn URL must be valid and start with https://';
+            if (formData.twitter && !formData.twitter.startsWith('https://')) newErrors.twitter = 'Twitter URL must be valid and start with https://';
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -257,12 +276,28 @@ const CreateCard: React.FC = () => {
                 throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1000000000).toFixed(3)} SUI.`);
             }
 
-            const cardDataWithWalrus = {
-                ...formData,
+            const cardDataForTransaction = {
+                name: formData.name,
+                title: formData.title,
                 imageUrl: walrusImageBlobId ? imagePreviewUrl : formData.imageUrl,
-                walrusImageBlobId,
+                yearsOfExperience: formData.yearsOfExperience,
+                technologies: formData.technologies,
+                portfolio: formData.portfolio,
+                about: formData.about,
+                featured_projects: formData.featuredProjects.split(',').map(p => p.trim()).filter(p => p),
+                contact: formData.contact,
+                github: formData.github,
+                linkedin: formData.linkedin,
+                twitter: formData.twitter,
+                personal_website: formData.personalWebsite,
+                work_types: [formData.workTypes],
+                hourly_rate: formData.hourlyRate > 0 ? formData.hourlyRate : null,
+                location_preference: formData.locationPreference,
+                availability: formData.availability,
+                languages: formData.languages.split(',').map(l => l.trim()).filter(l => l),
+                avatar_walrus_blob_id: walrusImageBlobId,
             };
-            const tx = createCardTransaction(cardDataWithWalrus, selectedCoins[0]);
+            const tx = createCardTransaction(cardDataForTransaction, selectedCoins[0]);
             signAndExecute(
                 { transaction: tx },
                 {
@@ -286,11 +321,11 @@ const CreateCard: React.FC = () => {
         }
     };
     
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === 'yearsOfExperience' ? parseInt(value) || 0 : value,
+            [name]: (name === 'yearsOfExperience' || name === 'hourlyRate') ? parseInt(value) || 0 : value,
         }));
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
@@ -305,7 +340,8 @@ const CreateCard: React.FC = () => {
     const steps = [
         "Personal Info",
         "Professional Details",
-        "Contact"
+        "Work Preferences",
+        "Contact & Socials"
     ];
 
     if (!currentAccount) {
@@ -376,7 +412,7 @@ const CreateCard: React.FC = () => {
                                         <InputField label="Full Name" name="name" value={formData.name} onChange={handleInputChange} error={errors.name} placeholder="e.g., Jane Doe" />
                                         <InputField label="Professional Title" name="title" value={formData.title} onChange={handleInputChange} error={errors.title} placeholder="e.g., Senior Frontend Developer" />
                                     </div>
-                                    <InputField label="Professional Description" name="description" value={formData.description} onChange={handleInputChange} error={errors.description} placeholder="A brief professional bio..." isTextArea maxLength={500} />
+                                    <InputField label="About You" name="about" value={formData.about} onChange={handleInputChange} error={errors.about} placeholder="Tell us a bit about yourself..." isTextArea />
                                     
                                     {/* --- [START] RE-INTEGRATED IMAGE UPLOAD SECTION --- */}
                                     <div>
@@ -427,15 +463,53 @@ const CreateCard: React.FC = () => {
                             {currentStep === 1 && (
                                 <FormStep title="Professional Details" icon={<Briefcase size={20} className="text-primary" />}>
                                     <InputField label="Years of Experience" name="yearsOfExperience" type="number" value={formData.yearsOfExperience} onChange={handleInputChange} error={errors.yearsOfExperience} placeholder="e.g., 5" />
-                                    <InputField label="Technologies & Skills" name="technologies" value={formData.technologies} onChange={handleInputChange} error={errors.technologies} placeholder="e.g., React, Node.js, Sui" />
-                                    <p className="text-muted-foreground text-xs -mt-4">Separate technologies with commas.</p>
+                                    <InputField label="Technologies & Skills" name="technologies" value={formData.technologies} onChange={handleInputChange} error={errors.technologies} placeholder="e.g., React, Node.js, Sui" isTextArea />
+                                    <p className="text-muted-foreground text-xs -mt-4">Separate with commas.</p>
+                                    <InputField label="Featured Projects" name="featuredProjects" value={formData.featuredProjects} onChange={handleInputChange} error={errors.featuredProjects} placeholder="e.g., Project A, Project B" />
+                                    <p className="text-muted-foreground text-xs -mt-4">Separate with commas.</p>
+                                    <InputField label="Languages" name="languages" value={formData.languages} onChange={handleInputChange} error={errors.languages} placeholder="e.g., English, Spanish" />
+                                    <p className="text-muted-foreground text-xs -mt-4">Separate with commas.</p>
                                 </FormStep>
                             )}
 
                             {currentStep === 2 && (
-                                <FormStep title="Contact Information" icon={<Mail size={20} className="text-primary" />}>
+                                <FormStep title="Work Preferences" icon={<DollarSign size={20} className="text-green-400" />}>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Work Types</label>
+                                        <select name="workTypes" value={formData.workTypes} onChange={handleInputChange} className="w-full px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
+                                            <option>Full-time</option>
+                                            <option>Contract</option>
+                                            <option>Freelance</option>
+                                        </select>
+                                    </div>
+                                    <InputField label="Hourly Rate (USD, optional)" name="hourlyRate" type="number" value={formData.hourlyRate} onChange={handleInputChange} error={errors.hourlyRate} placeholder="e.g., 75" />
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Location Preference</label>
+                                        <select name="locationPreference" value={formData.locationPreference} onChange={handleInputChange} className="w-full px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
+                                            <option>Remote</option>
+                                            <option>On-site</option>
+                                            <option>Hybrid</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Availability</label>
+                                        <select name="availability" value={formData.availability} onChange={handleInputChange} className="w-full px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
+                                            <option>Immediately</option>
+                                            <option>2 weeks</option>
+                                            <option>1 month</option>
+                                        </select>
+                                    </div>
+                                </FormStep>
+                            )}
+
+                            {currentStep === 3 && (
+                                <FormStep title="Contact & Socials" icon={<Mail size={20} className="text-primary" />}>
                                     <InputField label="Portfolio URL" name="portfolio" type="url" value={formData.portfolio} onChange={handleInputChange} error={errors.portfolio} placeholder="https://your-portfolio.com" />
                                     <InputField label="Contact Email" name="contact" type="email" value={formData.contact} onChange={handleInputChange} error={errors.contact} placeholder="your.email@example.com" />
+                                    <InputField label="GitHub URL (optional)" name="github" type="url" value={formData.github} onChange={handleInputChange} error={errors.github} placeholder="https://github.com/..." />
+                                    <InputField label="LinkedIn URL (optional)" name="linkedin" type="url" value={formData.linkedin} onChange={handleInputChange} error={errors.linkedin} placeholder="https://linkedin.com/in/..." />
+                                    <InputField label="Twitter URL (optional)" name="twitter" type="url" value={formData.twitter} onChange={handleInputChange} error={errors.twitter} placeholder="https://twitter.com/..." />
+                                    <InputField label="Personal Website (optional)" name="personalWebsite" type="url" value={formData.personalWebsite} onChange={handleInputChange} error={errors.personalWebsite} placeholder="https://your-site.com" />
                                 </FormStep>
                             )}
                         </motion.div>
