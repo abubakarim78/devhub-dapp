@@ -114,7 +114,7 @@ const Browse: React.FC = () => {
         <div className="text-center relative z-10">
           <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Loading Developers...</h2>
-          <p className="text-muted-foreground">Fetching the latest talent from the blockchain.</p>
+          <p className="text-muted-foreground">Fetching the latest talent from the blockchain</p>
         </div>
       </div>
     );

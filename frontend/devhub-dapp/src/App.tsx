@@ -203,7 +203,7 @@ function App() {
             <Route path="/collaborations" element={<Collaborations />} />
             <Route
               path="/admin"
-              element={<AdminPanel isAdmin={isAdminUser} />}
+              element={<AdminPanel />}
             />
             <Route path="/super-admin" element={<SuperAdmin />} />
           </Routes>
