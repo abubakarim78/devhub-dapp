@@ -119,6 +119,8 @@ const CreateCard: React.FC = () => {
     const [formData, setFormData] = useState({
         name: '',
         title: '',
+        niche: 'Developer',
+        customNiche: '',
         about: '',
         imageUrl: '',
         yearsOfExperience: 0,
@@ -139,6 +141,21 @@ const CreateCard: React.FC = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const [imageUploadMethod, setImageUploadMethod] = useState<'url' | 'file'>('url');
+
+    // Available niches from the contract
+    const availableNiches = [
+        'Developer',
+        'UI/UX Designer', 
+        'Content Creator',
+        'DevOps',
+        'Project Manager',
+        'Community Manager',
+        'Development Director',
+        'Product Manager',
+        'Marketing Specialist',
+        'Business Analyst',
+        'Custom'
+    ];
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [walrusImageBlobId, setWalrusImageBlobId] = useState<string | null>(null);
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
@@ -155,6 +172,10 @@ const CreateCard: React.FC = () => {
         if (currentStep === 0) { // Personal Info
             if (!formData.name.trim()) newErrors.name = 'Full Name is required.';
             if (!formData.title.trim()) newErrors.title = 'Professional Title is required.';
+            if (!formData.niche.trim()) newErrors.niche = 'Please select a professional niche.';
+            if (formData.niche === 'Custom' && !formData.customNiche.trim()) {
+                newErrors.customNiche = 'Please specify your custom niche.';
+            }
             if (!formData.about.trim()) newErrors.about = 'An "about" section is required.';
             if (!formData.imageUrl.trim() && !imageFile && !walrusImageBlobId) {
                 newErrors.imageUrl = 'A profile image is required.';
@@ -279,23 +300,25 @@ const CreateCard: React.FC = () => {
             const cardDataForTransaction = {
                 name: formData.name,
                 title: formData.title,
+                niche: formData.niche,
+                customNiche: formData.niche === 'Custom' ? formData.customNiche : undefined,
                 imageUrl: walrusImageBlobId ? imagePreviewUrl : formData.imageUrl,
                 yearsOfExperience: formData.yearsOfExperience,
                 technologies: formData.technologies,
                 portfolio: formData.portfolio,
                 about: formData.about,
-                featured_projects: formData.featuredProjects.split(',').map(p => p.trim()).filter(p => p),
+                featuredProjects: formData.featuredProjects.split(',').map(p => p.trim()).filter(p => p),
                 contact: formData.contact,
                 github: formData.github,
                 linkedin: formData.linkedin,
                 twitter: formData.twitter,
-                personal_website: formData.personalWebsite,
-                work_types: [formData.workTypes],
-                hourly_rate: formData.hourlyRate > 0 ? formData.hourlyRate : null,
-                location_preference: formData.locationPreference,
+                personalWebsite: formData.personalWebsite,
+                workTypes: [formData.workTypes],
+                hourlyRate: formData.hourlyRate > 0 ? formData.hourlyRate : null,
+                locationPreference: formData.locationPreference,
                 availability: formData.availability,
                 languages: formData.languages.split(',').map(l => l.trim()).filter(l => l),
-                avatar_walrus_blob_id: walrusImageBlobId,
+                avatarWalrusBlobId: walrusImageBlobId,
             };
             const tx = createCardTransaction(cardDataForTransaction, selectedCoins[0]);
             signAndExecute(
@@ -334,6 +357,10 @@ const CreateCard: React.FC = () => {
             setImagePreviewUrl(value);
             setWalrusImageBlobId(null);
             setImageFile(null);
+        }
+        // Clear custom niche when switching away from Custom
+        if (name === 'niche' && value !== 'Custom') {
+            setFormData(prev => ({ ...prev, customNiche: '' }));
         }
     };
 
@@ -412,6 +439,46 @@ const CreateCard: React.FC = () => {
                                         <InputField label="Full Name" name="name" value={formData.name} onChange={handleInputChange} error={errors.name} placeholder="e.g., Jane Doe" />
                                         <InputField label="Professional Title" name="title" value={formData.title} onChange={handleInputChange} error={errors.title} placeholder="e.g., Senior Frontend Developer" />
                                     </div>
+                                    
+                                    {/* Niche Selection */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Professional Niche</label>
+                                        <select 
+                                            name="niche" 
+                                            value={formData.niche} 
+                                            onChange={handleInputChange} 
+                                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 bg-input text-foreground ${
+                                                errors.niche ? 'border-destructive focus:ring-destructive/50' : 'border-border focus:ring-ring'
+                                            }`}
+                                        >
+                                            {availableNiches.map((niche) => (
+                                                <option key={niche} value={niche}>{niche}</option>
+                                            ))}
+                                        </select>
+                                        {errors.niche && (
+                                            <motion.p
+                                                initial={{ opacity: 0, y: -5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="text-destructive text-xs mt-1.5 flex items-center gap-1.5"
+                                            >
+                                                <AlertCircle size={14} />
+                                                {errors.niche}
+                                            </motion.p>
+                                        )}
+                                    </div>
+
+                                    {/* Custom Niche Input */}
+                                    {formData.niche === 'Custom' && (
+                                        <InputField 
+                                            label="Custom Niche" 
+                                            name="customNiche" 
+                                            value={formData.customNiche} 
+                                            onChange={handleInputChange} 
+                                            error={errors.customNiche} 
+                                            placeholder="e.g., Blockchain Developer, AI Engineer" 
+                                        />
+                                    )}
+
                                     <InputField label="About You" name="about" value={formData.about} onChange={handleInputChange} error={errors.about} placeholder="Tell us a bit about yourself..." isTextArea />
                                     
                                     {/* --- [START] RE-INTEGRATED IMAGE UPLOAD SECTION --- */}

@@ -7,12 +7,17 @@ import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import CreateCard from "./pages/CreateCard";
 import Dashboard from "./pages/Dashboard";
+import MyProfile from "./pages/MyProfile";
+import Messages from "./pages/Messages";
+import Connections from "./pages/Connections";
 import CardDetails from "./pages/CardDetails";
 import AdminPanel from "./pages/AdminPanel";
 import SuperAdmin from "./pages/SuperAdmin";
 import Projects from "./pages/Projects";
-import Proposals from "./pages/Proposals";
+import DashboardProjects from "./pages/DashboardProjects";
+import Proposals from "./pages/DashboardProposals";
 import Collaborations from "./pages/Collaborations";
+import DashboardSettings from "./pages/DashboardSettings";
 import Navbar from "./components/common/Navbar";
 import { useGlowingCursor } from "./hooks/useGlowingCursor";
 import "./index.css";
@@ -197,9 +202,14 @@ function App() {
             <Route path="/browse" element={<Browse />} />
             <Route path="/create" element={<CreateCard />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard-profile" element={<MyProfile />} />
+            <Route path="/dashboard-messages" element={<Messages />} />
+            <Route path="/dashboard-connections" element={<Connections />} />
             <Route path="/card/:id" element={<CardDetails />} />
             <Route path="/projects" element={<Projects />} />
-            <Route path="/proposals" element={<Proposals />} />
+            <Route path="/dashboard-projects" element={<DashboardProjects />} />
+            <Route path="/dashboard-proposals" element={<Proposals />} />
+            <Route path="/dashboard-settings" element={<DashboardSettings />} />
             <Route path="/collaborations" element={<Collaborations />} />
             <Route
               path="/admin"

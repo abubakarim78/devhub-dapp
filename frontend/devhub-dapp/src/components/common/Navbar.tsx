@@ -100,8 +100,6 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
     ...(currentAccount
       ? [
           { href: "/projects", label: "Projects", icon: FolderKanban },
-          { href: "/proposals", label: "Proposals", icon: FileText },
-          { href: "/collaborations", label: "Collaborations", icon: Users },
           { href: "/create", label: "Create Card" },
           { href: "/dashboard", label: "Dashboard" },
         ]

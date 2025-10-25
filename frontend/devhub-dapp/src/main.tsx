@@ -8,7 +8,7 @@ import { SuiClientProvider, WalletProvider } from "@mysten/dapp-kit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Theme } from "@radix-ui/themes";
 import App from "./App.tsx";
-import { ThemeProvider } from "./contexts/ThemeContext.tsx"; // 1. Import ThemeProvider
+import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import './index.css'; // Make sure your global CSS is imported
 
 const { networkConfig } = createNetworkConfig({
@@ -22,19 +22,19 @@ const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* Radix UI Theme can be configured or removed if you only use Tailwind */}
-    <Theme appearance="light"> 
-      <QueryClientProvider client={queryClient}>
-        <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-          <WalletProvider autoConnect>
-            {/* 2. Wrap your App with the ThemeProvider */}
+    <QueryClientProvider client={queryClient}>
+      <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+        <WalletProvider autoConnect
+        slushWallet={{
+          name: "DevHub dApp",
+          }}>
+          <Theme appearance="light">
             <ThemeProvider>
               <App />
-              {/* Note: It's better to put the glow cursor in your App.tsx or a layout component */}
             </ThemeProvider>
-          </WalletProvider>
-        </SuiClientProvider>
-      </QueryClientProvider>
-    </Theme>
+          </Theme>
+        </WalletProvider>
+      </SuiClientProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );

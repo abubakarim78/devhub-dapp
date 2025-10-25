@@ -1,0 +1,22 @@
+# Seal Key Server Configuration
+# This configuration sets up the key server in Open mode for development
+
+server_mode: !Open
+  key_server_object_id: "0xe9d816479cccdd917b7e30e140c593dce368b901b8c9885b341d7a247cdc93aa"
+network: !Testnet
+
+# CORS configuration for browser access
+cors:
+  allowed_origins: ["*"]
+  allowed_methods: ["GET", "POST", "OPTIONS"]
+  allowed_headers: ["Request-Id", "Client-Sdk-Type", "Client-Sdk-Version", "Content-Type"]
+  exposed_headers: ["x-keyserver-version"]
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 2024
+  metrics_port: 9184
+
+# Logging
+log_level: "info"
