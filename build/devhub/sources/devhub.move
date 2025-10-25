@@ -4,6 +4,7 @@ module devhub::devhub;
 use std::string::{Self, String};
 use std::option;
 use std::vector;
+use std::bcs;
 use sui::balance::{Self, Balance};
 use sui::coin::{Self, Coin};
 use sui::event;
@@ -19,6 +20,8 @@ use sui::transfer;
 const NOT_THE_OWNER: u64 = 0;
 const INSUFFICIENT_FUNDS: u64 = 1;
 const NOT_ADMIN: u64 = 2;
+const E_NOT_OWNER: u64 = 3;
+const E_CARD_INACTIVE: u64 = 4;
 const INVALID_SKILL_LEVEL: u64 = 3;
 const PROJECT_NOT_FOUND: u64 = 6;
 const CANNOT_DELETE_ACTIVE_CARD: u64 = 7;
@@ -35,6 +38,7 @@ const E_APPLICATIONS_ALREADY_OPEN: u64 = 18;
 const E_APPLICATIONS_ALREADY_CLOSED: u64 = 19;
 const E_INVALID_PROPOSAL_STATUS: u64 = 20;
 const NOT_SUPER_ADMIN: u64 = 21;
+const INVALID_CUSTOM_NICHE: u64 = 22;
 
 
 
@@ -62,6 +66,19 @@ const REJECTED: vector<u8> = b"Rejected";
 // Fee constants
 const PLATFORM_FEE: u64 = 100_000_000; // 0.1 SUI for card creation
 const PROJECT_POSTING_FEE: u64 = 200_000_000; // 0.2 SUI for project posting
+
+// Professional Niches
+const DEVELOPER: vector<u8> = b"Developer";
+const UI_UX_DESIGNER: vector<u8> = b"UI/UX Designer";
+const CONTENT_CREATOR: vector<u8> = b"Content Creator";
+const DEVOPS: vector<u8> = b"DevOps";
+const PROJECT_MANAGER: vector<u8> = b"Project Manager";
+const COMMUNITY_MANAGER: vector<u8> = b"Community Manager";
+const DEVELOPMENT_DIRECTOR: vector<u8> = b"Development Director";
+const PRODUCT_MANAGER: vector<u8> = b"Product Manager";
+const MARKETING_SPECIALIST: vector<u8> = b"Marketing Specialist";
+const BUSINESS_ANALYST: vector<u8> = b"Business Analyst";
+const CUSTOM_NICHE: vector<u8> = b"Custom";
 
 // Enhanced data structures
 public struct SkillLevel has store, copy, drop {
@@ -108,6 +125,7 @@ public struct DevCard has key, store {
     // Basic Info
     name: String,
     title: String,
+    niche: String, // Professional niche/category
     about: Option<String>,
     image_url: Url,
 
@@ -267,10 +285,11 @@ public struct ProposalsByStatus has key {
 }
 
 
-// from messaging.move
+// Enhanced messaging structures for Sui Stack Messaging SDK compatibility
 public struct Message has store {
     sender: address,
-    content: String, // or hash of content
+    encrypted_content: vector<u8>, // Seal-encrypted message content
+    content_hash: vector<u8>, // Hash of original content for verification
     timestamp: u64,
     is_read: bool,
 }
@@ -280,6 +299,30 @@ public struct Conversation has key, store {
     participant1: address,
     participant2: address,
     messages: vector<Message>,
+}
+
+// New channel management structures for SDK compatibility
+public struct Channel has key, store {
+    id: UID,
+    members: vector<address>,
+    encryption_key_history: vector<EncryptionKey>,
+    messages: vector<Message>,
+    created_at: u64,
+    last_activity: u64,
+}
+
+public struct MemberCap has key, store {
+    id: UID,
+    channel_id: ID,
+    member: address,
+    permissions: vector<String>,
+    created_at: u64,
+}
+
+public struct EncryptionKey has store, copy, drop {
+    version: u64,
+    encrypted_bytes: vector<u8>,
+    created_at: u64,
 }
 
 // from connections.move
@@ -424,6 +467,35 @@ public struct MessageRead has copy, drop {
     timestamp: u64,
 }
 
+// New channel events for SDK compatibility
+public struct ChannelCreated has copy, drop {
+    channel_id: ID,
+    creator: address,
+    members: vector<address>,
+    timestamp: u64,
+}
+
+public struct ChannelMessageSent has copy, drop {
+    channel_id: ID,
+    sender: address,
+    message_index: u64,
+    timestamp: u64,
+}
+
+public struct MemberAdded has copy, drop {
+    channel_id: ID,
+    member: address,
+    added_by: address,
+    timestamp: u64,
+}
+
+public struct MemberRemoved has copy, drop {
+    channel_id: ID,
+    member: address,
+    removed_by: address,
+    timestamp: u64,
+}
+
 // from connections.move
 public struct ConnectionRequestSent has copy, drop {
     from: address,
@@ -471,6 +543,8 @@ fun init(ctx: &mut TxContext) {
 public entry fun create_card(
     name: vector<u8>,
     title: vector<u8>,
+    niche: vector<u8>,
+    custom_niche: Option<vector<u8>>,
     image_url: vector<u8>,
     years_of_experience: u8,
     technologies: vector<u8>,
@@ -495,6 +569,18 @@ public entry fun create_card(
 ) {
     let value = coin::value(&payment);
     assert!(value >= PLATFORM_FEE, INSUFFICIENT_FUNDS);
+
+    // Validate and process niche
+    let final_niche = if (string::utf8(niche) == string::utf8(CUSTOM_NICHE)) {
+        // If custom niche is selected, validate the custom input
+        assert!(option::is_some(&custom_niche), INVALID_CUSTOM_NICHE);
+        let custom_niche_input = *option::borrow(&custom_niche);
+        assert!(validate_custom_niche(&custom_niche_input), INVALID_CUSTOM_NICHE);
+        string::utf8(custom_niche_input)
+    } else {
+        // Use predefined niche
+        string::utf8(niche)
+    };
 
     // Collect platform fee
     let platform_fee_coin = coin::split(&mut payment, PLATFORM_FEE, ctx);
@@ -550,6 +636,7 @@ public entry fun create_card(
         name: string::utf8(name),
         owner: tx_context::sender(ctx),
         title: string::utf8(title),
+        niche: final_niche,
         image_url: url::new_unsafe_from_bytes(image_url),
         about: option::some(string::utf8(about)),
         avatar_walrus_blob_id,
@@ -578,6 +665,8 @@ public entry fun update_card(
     card_id: u64,
     name: vector<u8>,
     title: vector<u8>,
+    niche: vector<u8>,
+    custom_niche: Option<vector<u8>>,
     about: vector<u8>,
     image_url: vector<u8>,
     technologies: vector<u8>,
@@ -601,8 +690,21 @@ public entry fun update_card(
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     assert!(card.owner == tx_context::sender(ctx), NOT_THE_OWNER);
 
+    // Validate and process niche
+    let final_niche = if (string::utf8(niche) == string::utf8(CUSTOM_NICHE)) {
+        // If custom niche is selected, validate the custom input
+        assert!(option::is_some(&custom_niche), INVALID_CUSTOM_NICHE);
+        let custom_niche_input = *option::borrow(&custom_niche);
+        assert!(validate_custom_niche(&custom_niche_input), INVALID_CUSTOM_NICHE);
+        string::utf8(custom_niche_input)
+    } else {
+        // Use predefined niche
+        string::utf8(niche)
+    };
+
     card.name = string::utf8(name);
     card.title = string::utf8(title);
+    card.niche = final_niche;
     option::swap_or_fill(&mut card.about, string::utf8(about));
     card.image_url = url::new_unsafe_from_bytes(image_url);
     card.technologies = string::utf8(technologies);
@@ -1151,6 +1253,7 @@ public fun get_card_info(
     String, // name
     address, // owner
     String, // title
+    String, // niche
     Url, // image_url
     Option<String>, // about
     u8, // years_of_experience
@@ -1167,6 +1270,7 @@ public fun get_card_info(
         card.name,
         card.owner,
         card.title,
+        card.niche,
         card.image_url,
         card.about,
         card.years_of_experience,
@@ -1322,6 +1426,169 @@ public fun get_available_developers(devhub: &DevHub): vector<u64> {
     };
     
     results
+}
+
+// Search functions for different niches
+public fun search_cards_by_niche(
+    devhub: &DevHub,
+    niche: String,
+): vector<u64> {
+    let mut results = vector::empty<u64>();
+    let mut card_id = 1;
+    
+    while (card_id <= devhub.card_counter) {
+        if (table::contains(&devhub.cards, card_id)) {
+            let card = table::borrow(&devhub.cards, card_id);
+            if (card.open_to_work && card.niche == niche) {
+                vector::push_back(&mut results, card_id);
+            };
+        };
+        card_id = card_id + 1;
+    };
+    
+    results
+}
+
+public fun get_ui_ux_designers(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(UI_UX_DESIGNER))
+}
+
+public fun get_content_creators(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(CONTENT_CREATOR))
+}
+
+public fun get_devops_professionals(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(DEVOPS))
+}
+
+public fun get_project_managers(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(PROJECT_MANAGER))
+}
+
+public fun get_community_managers(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(COMMUNITY_MANAGER))
+}
+
+public fun get_development_directors(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(DEVELOPMENT_DIRECTOR))
+}
+
+public fun get_product_managers(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(PRODUCT_MANAGER))
+}
+
+public fun get_marketing_specialists(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(MARKETING_SPECIALIST))
+}
+
+public fun get_business_analysts(devhub: &DevHub): vector<u64> {
+    search_cards_by_niche(devhub, string::utf8(BUSINESS_ANALYST))
+}
+
+// Get all custom niches that have been used
+public fun get_custom_niches(devhub: &DevHub): vector<String> {
+    let mut custom_niches = vector::empty<String>();
+    let mut card_id = 1;
+    
+    while (card_id <= devhub.card_counter) {
+        if (table::contains(&devhub.cards, card_id)) {
+            let card = table::borrow(&devhub.cards, card_id);
+            let niche = &card.niche;
+            // Check if this is a custom niche (not predefined)
+            if (!is_predefined_niche(niche)) {
+                // Check if we haven't already added this custom niche
+                let mut already_exists = false;
+                let mut i = 0;
+                while (i < vector::length(&custom_niches)) {
+                    if (*vector::borrow(&custom_niches, i) == *niche) {
+                        already_exists = true;
+                        break
+                    };
+                    i = i + 1;
+                };
+                if (!already_exists) {
+                    vector::push_back(&mut custom_niches, *niche);
+                };
+            };
+        };
+        card_id = card_id + 1;
+    };
+    
+    custom_niches
+}
+
+// Get all niches currently in use (predefined + custom)
+public fun get_all_niches_in_use(devhub: &DevHub): vector<String> {
+    let mut all_niches = vector::empty<String>();
+    let mut card_id = 1;
+    
+    while (card_id <= devhub.card_counter) {
+        if (table::contains(&devhub.cards, card_id)) {
+            let card = table::borrow(&devhub.cards, card_id);
+            let niche = &card.niche;
+            // Check if we haven't already added this niche
+            let mut already_exists = false;
+            let mut i = 0;
+            while (i < vector::length(&all_niches)) {
+                if (*vector::borrow(&all_niches, i) == *niche) {
+                    already_exists = true;
+                    break
+                };
+                i = i + 1;
+            };
+            if (!already_exists) {
+                vector::push_back(&mut all_niches, *niche);
+            };
+        };
+        card_id = card_id + 1;
+    };
+    
+    all_niches
+}
+
+// Get all available niches
+public fun get_available_niches(): vector<String> {
+    let mut niches = vector::empty<String>();
+    vector::push_back(&mut niches, string::utf8(DEVELOPER));
+    vector::push_back(&mut niches, string::utf8(UI_UX_DESIGNER));
+    vector::push_back(&mut niches, string::utf8(CONTENT_CREATOR));
+    vector::push_back(&mut niches, string::utf8(DEVOPS));
+    vector::push_back(&mut niches, string::utf8(PROJECT_MANAGER));
+    vector::push_back(&mut niches, string::utf8(COMMUNITY_MANAGER));
+    vector::push_back(&mut niches, string::utf8(DEVELOPMENT_DIRECTOR));
+    vector::push_back(&mut niches, string::utf8(PRODUCT_MANAGER));
+    vector::push_back(&mut niches, string::utf8(MARKETING_SPECIALIST));
+    vector::push_back(&mut niches, string::utf8(BUSINESS_ANALYST));
+    vector::push_back(&mut niches, string::utf8(CUSTOM_NICHE));
+    niches
+}
+
+// Helper function to validate custom niche input
+fun validate_custom_niche(niche_input: &vector<u8>): bool {
+    let length = vector::length(niche_input);
+    // Custom niche must be between 2 and 50 characters
+    length >= 2 && length <= 50
+}
+
+// Helper function to check if a niche is a predefined one
+fun is_predefined_niche(niche: &String): bool {
+    let niche_str = *niche;
+    niche_str == string::utf8(DEVELOPER) ||
+    niche_str == string::utf8(UI_UX_DESIGNER) ||
+    niche_str == string::utf8(CONTENT_CREATOR) ||
+    niche_str == string::utf8(DEVOPS) ||
+    niche_str == string::utf8(PROJECT_MANAGER) ||
+    niche_str == string::utf8(COMMUNITY_MANAGER) ||
+    niche_str == string::utf8(DEVELOPMENT_DIRECTOR) ||
+    niche_str == string::utf8(PRODUCT_MANAGER) ||
+    niche_str == string::utf8(MARKETING_SPECIALIST) ||
+    niche_str == string::utf8(BUSINESS_ANALYST) ||
+    niche_str == string::utf8(CUSTOM_NICHE)
+}
+
+// Helper function to check if a niche is custom (not predefined)
+public fun is_custom_niche(niche: &String): bool {
+    !is_predefined_niche(niche)
 }
 
 public fun search_projects_by_skill(
@@ -1519,7 +1786,7 @@ public fun get_social_links(devhub: &DevHub, card_id: u64): SocialLinks {
 }
 
 // Verification functions (admin only)
-public entry fun verify_developer(
+public entry fun verify_professional(
     devhub: &mut DevHub,
     card_id: u64,
     ctx: &mut TxContext,
@@ -1529,7 +1796,7 @@ public entry fun verify_developer(
     card.verified = true;
 }
 
-public entry fun unverify_developer(
+public entry fun unverify_professional(
     devhub: &mut DevHub,
     card_id: u64,
     ctx: &mut TxContext,
@@ -1539,22 +1806,23 @@ public entry fun unverify_developer(
     card.verified = false;
 }
 
+
 // Get platform statistics
 public fun get_platform_stats(devhub: &DevHub): (u64, u64, u64, u64) {
-    let mut active_developers = 0;
-    let mut verified_developers = 0;
+    let mut active_professionals = 0;
+    let mut verified_professionals = 0;
     let mut open_projects = 0;
     
-    // Count developers
+    // Count professionals (all niches)
     let mut card_id = 1;
     while (card_id <= devhub.card_counter) {
         if (table::contains(&devhub.cards, card_id)) {
             let card = table::borrow(&devhub.cards, card_id);
             if (card.open_to_work) {
-                active_developers = active_developers + 1;
+                active_professionals = active_professionals + 1;
             };
             if (card.verified) {
-                verified_developers = verified_developers + 1;
+                verified_professionals = verified_professionals + 1;
             };
         };
         card_id = card_id + 1;
@@ -1573,9 +1841,9 @@ public fun get_platform_stats(devhub: &DevHub): (u64, u64, u64, u64) {
     };
     
     (
-        devhub.card_counter, // total developers
-        active_developers,
-        verified_developers,
+        devhub.card_counter, // total professionals
+        active_professionals,
+        verified_professionals,
         open_projects,
     )
 }
@@ -1609,12 +1877,13 @@ public entry fun start_conversation(
         timestamp: clock::timestamp_ms(clock),
     });
 
-    transfer::transfer(conversation, participant1);
+    transfer::share_object(conversation);
 }
 
 public entry fun send_message(
     conversation: &mut Conversation,
-    content: vector<u8>,
+    encrypted_content: vector<u8>,
+    content_hash: vector<u8>,
     clock: &Clock,
     ctx: &mut TxContext
 ) {
@@ -1624,7 +1893,8 @@ public entry fun send_message(
     let timestamp = clock::timestamp_ms(clock);
     let message = Message {
         sender,
-        content: string::utf8(content),
+        encrypted_content,
+        content_hash,
         timestamp,
         is_read: false,
     };
@@ -1677,6 +1947,195 @@ public entry fun mark_as_read(
 
 public fun get_conversation_messages(conversation: &Conversation): &vector<Message> {
     &conversation.messages
+}
+
+// === New Channel Management Functions for SDK Compatibility ===
+
+public entry fun create_channel(
+    initial_members: vector<address>,
+    clock: &Clock,
+    ctx: &mut TxContext
+) {
+    let creator = tx_context::sender(ctx);
+    let current_time = clock::timestamp_ms(clock);
+    
+    // Create channel
+    let channel = Channel {
+        id: object::new(ctx),
+        members: initial_members,
+        encryption_key_history: vector::empty(),
+        messages: vector::empty(),
+        created_at: current_time,
+        last_activity: current_time,
+    };
+    
+    let channel_id = object::uid_to_inner(&channel.id);
+    
+    // Create member caps for all members
+    let mut i = 0;
+    while (i < vector::length(&initial_members)) {
+        let member = *vector::borrow(&initial_members, i);
+        let member_cap = MemberCap {
+            id: object::new(ctx),
+            channel_id,
+            member,
+            permissions: vector::empty(),
+            created_at: current_time,
+        };
+        transfer::transfer(member_cap, member);
+        i = i + 1;
+    };
+    
+    // Emit event
+    event::emit(ChannelCreated {
+        channel_id,
+        creator,
+        members: initial_members,
+        timestamp: current_time,
+    });
+    
+    transfer::share_object(channel);
+}
+
+public entry fun send_message_to_channel(
+    channel: &mut Channel,
+    member_cap: &MemberCap,
+    encrypted_content: vector<u8>,
+    content_hash: vector<u8>,
+    clock: &Clock,
+    ctx: &mut TxContext
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Verify sender owns the member cap
+    assert!(member_cap.member == sender, E_NOT_PARTICIPANT);
+    
+    // Verify sender is a channel member
+    assert!(
+        vector::contains(&channel.members, &sender),
+        E_NOT_PARTICIPANT
+    );
+    
+    let timestamp = clock::timestamp_ms(clock);
+    let message = Message {
+        sender,
+        encrypted_content,
+        content_hash,
+        timestamp,
+        is_read: false,
+    };
+    
+    // Add message to channel
+    vector::push_back(&mut channel.messages, message);
+    let message_index = vector::length(&channel.messages) - 1;
+    
+    // Update last activity
+    channel.last_activity = timestamp;
+    
+    // Emit event
+    event::emit(ChannelMessageSent {
+        channel_id: object::uid_to_inner(&channel.id),
+        sender,
+        message_index,
+        timestamp,
+    });
+}
+
+public entry fun add_member_to_channel(
+    channel: &mut Channel,
+    new_member: address,
+    clock: &Clock,
+    ctx: &mut TxContext
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Verify sender is a channel member
+    assert!(
+        vector::contains(&channel.members, &sender),
+        E_NOT_PARTICIPANT
+    );
+    
+    // Check if member is not already in channel
+    assert!(
+        !vector::contains(&channel.members, &new_member),
+        E_NOT_PARTICIPANT
+    );
+    
+    let current_time = clock::timestamp_ms(clock);
+    
+    // Add member to channel
+    vector::push_back(&mut channel.members, new_member);
+    
+    // Create member cap for new member
+    let member_cap = MemberCap {
+        id: object::new(ctx),
+        channel_id: object::uid_to_inner(&channel.id),
+        member: new_member,
+        permissions: vector::empty(),
+        created_at: current_time,
+    };
+    transfer::transfer(member_cap, new_member);
+    
+    // Update last activity
+    channel.last_activity = current_time;
+    
+    // Emit event
+    event::emit(MemberAdded {
+        channel_id: object::uid_to_inner(&channel.id),
+        member: new_member,
+        added_by: sender,
+        timestamp: current_time,
+    });
+}
+
+public entry fun remove_member_from_channel(
+    channel: &mut Channel,
+    member_to_remove: address,
+    clock: &Clock,
+    ctx: &mut TxContext
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Verify sender is a channel member
+    assert!(
+        vector::contains(&channel.members, &sender),
+        E_NOT_PARTICIPANT
+    );
+    
+    // Find and remove member
+    let mut i = 0;
+    let mut found = false;
+    while (i < vector::length(&channel.members)) {
+        if (*vector::borrow(&channel.members, i) == member_to_remove) {
+            vector::remove(&mut channel.members, i);
+            found = true;
+            break
+        };
+        i = i + 1;
+    };
+    
+    assert!(found, E_NOT_PARTICIPANT);
+    
+    let current_time = clock::timestamp_ms(clock);
+    
+    // Update last activity
+    channel.last_activity = current_time;
+    
+    // Emit event
+    event::emit(MemberRemoved {
+        channel_id: object::uid_to_inner(&channel.id),
+        member: member_to_remove,
+        removed_by: sender,
+        timestamp: current_time,
+    });
+}
+
+public fun get_channel_messages(channel: &Channel): &vector<Message> {
+    &channel.messages
+}
+
+public fun get_channel_members(channel: &Channel): &vector<address> {
+    &channel.members
 }
 
 // --- Functions from connections.move ---
@@ -2164,6 +2623,76 @@ public fun get_platform_statistics(stats: &PlatformStatistics): (u64, u64, u64, 
         stats.rejected_count,
         stats.declined_count,
     )
+}
+
+// ===== SEAL ACCESS CONTROL FUNCTIONS =====
+
+/// Seal access control function for conversation messages
+/// Only conversation participants can decrypt messages
+entry fun seal_approve_conversation(
+    id: vector<u8>,
+    conversation: &Conversation,
+    ctx: &TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if the sender is a participant in the conversation
+    assert!(
+        sender == conversation.participant1 || sender == conversation.participant2,
+        E_NOT_PARTICIPANT
+    );
+    
+    // For now, we'll approve access if the user is a participant
+    // In a more sophisticated implementation, you could verify the identity
+    // contains the correct conversation context
+}
+
+/// Seal access control function for channel messages
+/// Only channel members can decrypt messages
+entry fun seal_approve_channel_message(
+    id: vector<u8>,
+    channel: &Channel,
+    member_cap: &MemberCap,
+    ctx: &TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Verify the sender is a member of the channel
+    assert!(
+        vector::contains(&channel.members, &sender),
+        E_NOT_PARTICIPANT
+    );
+    
+    // Verify the member cap is valid for this channel
+    assert!(
+        member_cap.member == sender,
+        E_NOT_PARTICIPANT
+    );
+    
+    // Verify the member cap belongs to this channel
+    assert!(
+        member_cap.channel_id == object::uid_to_inner(&channel.id),
+        E_NOT_PARTICIPANT
+    );
+}
+
+/// Seal access control function for general devhub data
+/// Only registered users with active devcards can access encrypted data
+entry fun seal_approve_devhub_data(
+    id: vector<u8>,
+    devcard: &DevCard,
+    ctx: &TxContext,
+) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if the sender owns the devcard
+    assert!(
+        sender == devcard.owner,
+        E_NOT_OWNER
+    );
+    
+    // For now, we'll approve access if the user owns the devcard
+    // In a more sophisticated implementation, you could verify the devcard is active
 }
 
 }

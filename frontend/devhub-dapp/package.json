@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@mysten/dapp-kit": "^0.16.14",
+    "@mysten/messaging": "^0.0.2",
+    "@mysten/seal": "^0.9.1",
     "@mysten/sui": "^1.35.0",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/react-avatar": "^1.1.10",
