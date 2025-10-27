@@ -6,6 +6,8 @@ import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 // Contract configuration
 export const PACKAGE_ID = '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3';
 export const DEVHUB_OBJECT_ID = '0x5a86f0b9c8c6abfaa3fc55000339153b74c004fc610b2a8de4c0cf25dac01699';
+// ConnectionStore is a shared object - we'll query for it dynamically
+export const CONNECTION_STORE_ID = ''; // Will be fetched dynamically
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
 
 // Initialize Sui client with messaging SDK
@@ -2892,6 +2894,65 @@ export async function isConnected(connectionStoreId: string, user1: string, user
   } catch (error) {
     console.error('Error checking if connected:', error);
     return false;
+  }
+}
+
+// Get connection requests owned by user
+export async function getConnectionRequests(userAddress: string): Promise<ConnectionRequest[]> {
+  try {
+    const objects = await suiClient.getOwnedObjects({
+      owner: userAddress,
+      filter: {
+        StructType: `${PACKAGE_ID}::devhub::ConnectionRequest`,
+      },
+      options: {
+        showContent: true,
+        showType: true,
+      },
+    });
+
+    const requests: ConnectionRequest[] = [];
+    for (const obj of objects.data) {
+      if (obj.data?.content && 'fields' in obj.data.content) {
+        const fields = (obj.data.content as any).fields;
+        requests.push({
+          id: obj.data.objectId,
+          from: fields.from,
+          to: fields.to,
+          introMessage: fields.intro_message,
+          sharedContext: fields.shared_context,
+          isPublic: fields.is_public,
+        });
+      }
+    }
+
+    return requests;
+  } catch (error) {
+    console.error('Error getting connection requests:', error);
+    return [];
+  }
+}
+
+// Get or find connection store ID
+export async function getConnectionStoreId(): Promise<string | null> {
+  try {
+    // Try to query for existing ConnectionStore objects
+    const queryResult = await suiClient.queryObjects({
+      filter: { StructType: `${PACKAGE_ID}::devhub::ConnectionStore` },
+      options: {
+        showType: true,
+        showContent: false,
+      },
+    });
+
+    if (queryResult.data && queryResult.data.length > 0) {
+      return queryResult.data[0].data.objectId;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error finding connection store:', error);
+    return null;
   }
 }
 

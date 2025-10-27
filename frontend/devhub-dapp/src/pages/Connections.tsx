@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { 
   User, 
   Search, 
@@ -26,12 +26,12 @@ import DashboardSidebar from '@/components/DashboardSidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
 import { 
-  createConnectionStoreTransaction,
   sendConnectionRequestTransaction,
   acceptConnectionRequestTransaction,
   declineConnectionRequestTransaction,
-  updateConnectionPreferencesTransaction,
-  updateConnectionStatusTransaction
+  getConnectionRequests,
+  getConnectionStoreId,
+  getConnections
 } from '@/lib/suiClient';
 
 interface Developer {
@@ -69,18 +69,13 @@ interface ConnectionData {
   messagesAllowed: boolean;
 }
 
-interface ConnectionRequestData {
-  id: string;
-  from: string;
-  to: string;
-  introMessage: string;
-  sharedContext: string;
-  isPublic: boolean;
-}
+// ConnectionRequest type from blockchain matches the suiClient interface
 
 const Connections: React.FC = () => {
   const currentAccount = useCurrentAccount();
-  const { useConnections, useConversations } = useContract();
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const client = useSuiClient();
+  const { getAllCards } = useContract();
   
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedSkill, setSelectedSkill] = useState('any');
@@ -88,9 +83,102 @@ const Connections: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<ConnectionData[]>([]);
-  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequestData[]>([]);
+  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<ConnectionRequest[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [processing, setProcessing] = useState<string | null>(null);
+
+  const loadConnections = useCallback(async () => {
+    if (!currentAccount?.address) return;
+    
+    setLoading(true);
+    try {
+      // Query ConnectionAccepted events to get connections (event-based approach)
+      const events = await client.queryEvents({
+        query: {
+          MoveEventType: '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3::devhub::ConnectionAccepted'
+        },
+        limit: 100
+      });
+
+      const userConnections: ConnectionData[] = [];
+      for (const event of events.data) {
+        if (event.parsedJson) {
+          const { user1, user2 } = event.parsedJson as any;
+          if (user1 === currentAccount.address || user2 === currentAccount.address) {
+            const connectedUser = user1 === currentAccount.address ? user2 : user1;
+            userConnections.push({
+              user: connectedUser,
+              status: 'connected',
+              notificationsEnabled: true,
+              profileShared: true,
+              messagesAllowed: true
+            });
+          }
+        }
+      }
+      setConnections(userConnections);
+    } catch (error) {
+      console.error('Error loading connections:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentAccount?.address, client]);
+
+  const loadSuggestions = useCallback(async () => {
+    if (!currentAccount?.address) return;
+    
+    try {
+      // Load suggestions from real developer cards
+      const allCards = await getAllCards();
+      
+      // Query connections directly instead of using state dependency
+      // to avoid infinite loop
+      const events = await client.queryEvents({
+        query: {
+          MoveEventType: '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3::devhub::ConnectionAccepted'
+        },
+        limit: 100
+      });
+      
+      const connectedUsers = new Set<string>();
+      for (const event of events.data) {
+        if (event.parsedJson) {
+          const { user1, user2 } = event.parsedJson as any;
+          if (user1 === currentAccount.address || user2 === currentAccount.address) {
+            const connectedUser = user1 === currentAccount.address ? user2 : user1;
+            connectedUsers.add(connectedUser.toLowerCase());
+          }
+        }
+      }
+      
+      // Get pending requests to filter them out
+      const pendingRequests = await getConnectionRequests(currentAccount.address);
+      const usersWithPendingRequests = new Set(pendingRequests.map(r => r.from.toLowerCase()));
+      
+      const userSuggestions: Suggestion[] = allCards
+        .filter(card => {
+          const cardOwnerLower = card.owner.toLowerCase();
+          return (
+            cardOwnerLower !== currentAccount.address.toLowerCase() &&
+            !connectedUsers.has(cardOwnerLower) &&
+            !usersWithPendingRequests.has(cardOwnerLower)
+          );
+        })
+        .slice(0, 10)
+        .map(card => ({
+          id: card.owner,
+          name: card.name || `${card.owner.slice(0, 8)}...`,
+          avatar: card.name?.charAt(0).toUpperCase() || 'D',
+          skills: card.technologies || 'Developer',
+          skillsTags: card.niche ? [card.niche] : []
+        }));
+      
+      setSuggestions(userSuggestions);
+    } catch (error) {
+      console.error('Error loading suggestions:', error);
+    }
+  }, [currentAccount?.address, getAllCards, client]);
 
   // Load connections on component mount
   useEffect(() => {
@@ -98,77 +186,7 @@ const Connections: React.FC = () => {
       loadConnections();
       loadSuggestions();
     }
-  }, [currentAccount?.address]);
-
-  const loadConnections = useCallback(async () => {
-    if (!currentAccount?.address) return;
-    
-    setLoading(true);
-    try {
-      // For now, we'll use mock data since we need to implement
-      // the actual connection loading from the contract
-      // This would typically involve querying the connection store
-      const mockConnections: ConnectionData[] = [
-        {
-          user: '0x1234567890abcdef1234567890abcdef12345678',
-          status: 'connected',
-          notificationsEnabled: true,
-          profileShared: true,
-          messagesAllowed: true
-        },
-        {
-          user: '0x2345678901bcdef012345678901bcdef01234567',
-          status: 'connected',
-          notificationsEnabled: false,
-          profileShared: false,
-          messagesAllowed: true
-        }
-      ];
-      
-      setConnections(mockConnections);
-    } catch (error) {
-      console.error('Error loading connections:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentAccount?.address]);
-
-  const loadSuggestions = useCallback(async () => {
-    if (!currentAccount?.address) return;
-    
-    try {
-      // For now, we'll use mock data since we need to implement
-      // the actual suggestion loading from the contract
-      // This would typically involve querying available developers
-      const mockSuggestions: Suggestion[] = [
-        {
-          id: 'noah',
-          name: 'Noah',
-          avatar: 'N',
-          skills: 'Full-stack • Move • Grants',
-          skillsTags: ['Move', 'TypeScript', 'DeFi']
-        },
-        {
-          id: 'elena',
-          name: 'Elena',
-          avatar: 'E',
-          skills: 'Rust • Indexers',
-          skillsTags: ['Rust', 'WASM', 'Indexing']
-        },
-        {
-          id: 'hassan',
-          name: 'Hassan',
-          avatar: 'H',
-          skills: 'Security • Audits',
-          skillsTags: ['Move', 'Audits', 'ZK']
-        }
-      ];
-      
-      setSuggestions(mockSuggestions);
-    } catch (error) {
-      console.error('Error loading suggestions:', error);
-    }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, loadConnections, loadSuggestions]);
 
   // Convert connections to developers for display
   const developers: Developer[] = connections.map((conn, index) => ({
@@ -182,23 +200,90 @@ const Connections: React.FC = () => {
     skillsTags: ['Move', 'Sui', 'Developer']
   }));
 
-  // Mock data for connection requests (these would come from the contract)
-  const requests: ConnectionRequest[] = [
-    {
-      id: 'lin-zhao',
-      name: 'Lin Zhao',
-      avatar: 'LZ',
-      skills: 'Move • Wallets',
-      message: '"Let\'s collaborate on grants indexing"'
-    },
-    {
-      id: 'sofia',
-      name: 'Sofia',
-      avatar: 'S',
-      skills: 'Data Viz • TS',
-      message: '"Interested in your analytics work"'
-    }
-  ];
+  // Load connection requests from blockchain
+  useEffect(() => {
+    const loadRequests = async () => {
+      if (!currentAccount?.address) return;
+      
+      try {
+        const reqs = await getConnectionRequests(currentAccount.address);
+        const allCards = await getAllCards();
+        
+        const displayRequests: any[] = [];
+        for (const req of reqs) {
+          const senderCard = allCards.find(card => card.owner.toLowerCase() === req.from.toLowerCase());
+          displayRequests.push({
+            id: req.id,
+            name: senderCard?.name || `${req.from.slice(0, 8)}...`,
+            avatar: senderCard?.name?.charAt(0).toUpperCase() || 'U',
+            skills: senderCard?.technologies || 'Developer',
+            message: req.introMessage || 'Want to connect with you'
+          });
+        }
+        
+        setConnectionRequests(displayRequests);
+      } catch (error) {
+        console.error('Error loading connection requests:', error);
+      }
+    };
+    
+    loadRequests();
+  }, [currentAccount?.address, getAllCards]);
+
+  // Load sent connection requests (requests pending approval from others)
+  useEffect(() => {
+    const loadSentRequests = async () => {
+      if (!currentAccount?.address) return;
+      
+      try {
+        // Query ConnectionRequestSent events to find requests sent by current user
+        const events = await client.queryEvents({
+          query: {
+            MoveEventType: '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3::devhub::ConnectionRequestSent'
+          },
+          limit: 100,
+          order: 'descending'
+        });
+
+        const allCards = await getAllCards();
+        const sentRequestEvents: any[] = [];
+        
+        for (const event of events.data) {
+          if (event.parsedJson) {
+            const { from, to } = event.parsedJson as any;
+            // Only show events where current user sent the request
+            if (from.toLowerCase() === currentAccount.address.toLowerCase()) {
+              // Check if still pending (filter out accepted/declined later)
+              const recipientCard = allCards.find(card => card.owner.toLowerCase() === to.toLowerCase());
+              sentRequestEvents.push({
+                id: `sent-${to}`, // Use recipient address as ID
+                recipient: to,
+                name: recipientCard?.name || `${to.slice(0, 8)}...`,
+                avatar: recipientCard?.name?.charAt(0).toUpperCase() || 'U',
+                skills: recipientCard?.technologies || 'Developer',
+                timestamp: event.timestampMs
+              });
+            }
+          }
+        }
+        
+        setSentRequests(sentRequestEvents);
+      } catch (error) {
+        console.error('Error loading sent requests:', error);
+      }
+    };
+    
+    loadSentRequests();
+  }, [currentAccount?.address, client, getAllCards]);
+  
+  // Use loaded connection requests instead of mock data
+  const requests = connectionRequests.map(req => ({
+    id: req.id,
+    name: req.name,
+    avatar: req.avatar,
+    skills: req.skills,
+    message: req.message
+  }));
 
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter);
@@ -209,16 +294,21 @@ const Connections: React.FC = () => {
     
     setProcessing(id);
     try {
-      // TODO: Implement actual connection request acceptance
-      // This would involve calling acceptConnectionRequestTransaction
-      console.log('Accepting request:', id);
+      // Find the connection store ID dynamically
+      const connStoreId = await getConnectionStoreId();
+      if (!connStoreId) {
+        throw new Error('Connection store not found');
+      }
+
+      const tx = acceptConnectionRequestTransaction(connStoreId, id);
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Remove from requests and add to connections
-      setConnectionRequests(prev => prev.filter(req => req.id !== id));
-      // Add to connections (this would be handled by the contract)
+      await signAndExecute({
+        transaction: tx,
+      });
+
+      // Reload data - reset connection requests to empty array since we'll reload them via useEffect
+      setConnectionRequests([]);
+      loadConnections();
       
     } catch (error) {
       console.error('Error accepting request:', error);
@@ -232,15 +322,14 @@ const Connections: React.FC = () => {
     
     setProcessing(id);
     try {
-      // TODO: Implement actual connection request decline
-      // This would involve calling declineConnectionRequestTransaction
-      console.log('Declining request:', id);
+      const tx = declineConnectionRequestTransaction(id);
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Remove from requests
-      setConnectionRequests(prev => prev.filter(req => req.id !== id));
+      await signAndExecute({
+        transaction: tx,
+      });
+
+      // Reload requests - reset to empty array since we'll reload them via useEffect
+      setConnectionRequests([]);
       
     } catch (error) {
       console.error('Error declining request:', error);
@@ -254,22 +343,28 @@ const Connections: React.FC = () => {
     
     setProcessing(id);
     try {
-      // TODO: Implement actual connection request sending
-      // This would involve calling sendConnectionRequestTransaction
-      console.log('Connecting to:', id);
+      const tx = sendConnectionRequestTransaction(
+        id,
+        'I\'d like to connect with you',
+        'DevHub',
+        true
+      );
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Remove from suggestions (this would be handled by the contract)
+      await signAndExecute({
+        transaction: tx,
+      });
+
+      // Remove from suggestions and reload
       setSuggestions(prev => prev.filter(suggestion => suggestion.id !== id));
+      // Reload suggestions to get fresh filtered list
+      setTimeout(() => loadSuggestions(), 1000);
       
     } catch (error) {
       console.error('Error connecting:', error);
     } finally {
       setProcessing(null);
     }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, loadSuggestions]);
 
   const handleFollow = useCallback(async (id: string) => {
     if (!currentAccount?.address) return;
@@ -656,6 +751,60 @@ const Connections: React.FC = () => {
                                         'Accept'
                                       )}
                                     </motion.button>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+
+                    {/* Sent Requests Section */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ 
+                        duration: 0.7, 
+                        delay: 0.65,
+                        ease: [0.25, 0.46, 0.45, 0.94]
+                      }}
+                      whileHover={{ 
+                        scale: 1.01,
+                        transition: { duration: 0.3 }
+                      }}
+                      className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl"
+                    >
+                      <h3 className="text-xl font-bold text-foreground mb-2">Pending Approvals</h3>
+                      <p className="text-sm text-muted-foreground mb-6">Connection requests you've sent</p>
+                      
+                      <div className="space-y-4">
+                        {sentRequests.length === 0 ? (
+                          <div className="text-center py-8">
+                            <UserPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground">No pending approvals</p>
+                          </div>
+                        ) : (
+                          sentRequests.map((sentReq, index) => (
+                            <motion.div
+                              key={sentReq.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: 0.68 + index * 0.1 }}
+                              whileHover={{ scale: 1.02, y: -2 }}
+                              className="p-4 bg-accent/20 rounded-xl border border-border hover:bg-accent/30 transition-all"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {sentReq.avatar}
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-foreground">{sentReq.name}</h4>
+                                  <p className="text-sm text-muted-foreground mb-2">{sentReq.skills}</p>
+                                  <div className="flex items-center gap-2">
+                                    <div className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg border border-yellow-500/30 text-sm">
+                                      Pending Response
+                                    </div>
                                   </div>
                                 </div>
                               </div>
