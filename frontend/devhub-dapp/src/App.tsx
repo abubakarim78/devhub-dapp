@@ -9,6 +9,7 @@ import CreateCard from "./pages/CreateCard";
 import Dashboard from "./pages/Dashboard";
 import MyProfile from "./pages/MyProfile";
 import Messages from "./pages/Messages";
+import ChannelDashboard from "./pages/ChannelDashboard";
 import Connections from "./pages/Connections";
 import CardDetails from "./pages/CardDetails";
 import AdminPanel from "./pages/AdminPanel";
@@ -204,6 +205,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard-profile" element={<MyProfile />} />
             <Route path="/dashboard-messages" element={<Messages />} />
+            <Route path="/dashboard-channels" element={<ChannelDashboard />} />
             <Route path="/dashboard-connections" element={<Connections />} />
             <Route path="/card/:id" element={<CardDetails />} />
             <Route path="/projects" element={<Projects />} />
