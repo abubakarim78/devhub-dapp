@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, 
   Search, 
@@ -19,7 +20,9 @@ import {
   Code,
   Shield,
   Zap,
-  Loader2
+  Loader2,
+  Copy,
+  CheckCircle
 } from 'lucide-react';
 import StarBackground from '@/components/common/StarBackground';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -72,6 +75,7 @@ interface ConnectionData {
 // ConnectionRequest type from blockchain matches the suiClient interface
 
 const Connections: React.FC = () => {
+  const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const client = useSuiClient();
@@ -87,6 +91,9 @@ const Connections: React.FC = () => {
   const [sentRequests, setSentRequests] = useState<ConnectionRequest[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const loadConnections = useCallback(async () => {
     if (!currentAccount?.address) return;
@@ -289,6 +296,36 @@ const Connections: React.FC = () => {
     setActiveFilter(filter);
   };
 
+  // Generate invite link
+  const handleGenerateInviteLink = useCallback(() => {
+    if (!currentAccount?.address) return;
+    
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/browse?invite=${currentAccount.address}`;
+    setInviteLink(link);
+    setShowInviteModal(true);
+    
+    // Auto-copy to clipboard
+    navigator.clipboard.writeText(link).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 3000);
+    }).catch(err => {
+      console.error('Failed to copy link:', err);
+    });
+  }, [currentAccount?.address]);
+
+  // Copy link to clipboard
+  const handleCopyLink = useCallback(() => {
+    if (!inviteLink) return;
+    
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 3000);
+    }).catch(err => {
+      console.error('Failed to copy link:', err);
+    });
+  }, [inviteLink]);
+
   const handleAcceptRequest = useCallback(async (id: string) => {
     if (!currentAccount?.address) return;
     
@@ -486,6 +523,7 @@ const Connections: React.FC = () => {
                           boxShadow: "0 10px 25px rgba(168, 85, 247, 0.4)"
                         }}
                         whileTap={{ scale: 0.95 }}
+                        onClick={handleGenerateInviteLink}
                         className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2"
                       >
                         <LinkIcon className="h-4 w-4" />
@@ -501,6 +539,7 @@ const Connections: React.FC = () => {
                           boxShadow: "0 10px 25px rgba(34, 197, 94, 0.4)"
                         }}
                         whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate('/browse')}
                         className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2"
                       >
                         <UserPlus className="h-4 w-4" />
@@ -913,6 +952,85 @@ const Connections: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowInviteModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-border rounded-2xl p-8 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
+                  <LinkIcon className="h-6 w-6 text-primary" />
+                  Invite via Link
+                </h2>
+                <button
+                  onClick={() => setShowInviteModal(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <p className="text-muted-foreground mb-4">
+                Share this link to allow others to send you a connection request
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-3 bg-accent/20 rounded-lg border border-border">
+                  <input
+                    type="text"
+                    value={inviteLink}
+                    readOnly
+                    className="flex-1 bg-transparent text-foreground text-sm"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleCopyLink}
+                    className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 transition-colors"
+                  >
+                    {linkCopied ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-primary" />
+                    )}
+                  </motion.button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {linkCopied && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-sm text-green-500 text-center"
+                    >
+                      Link copied to clipboard!
+                    </motion.p>
+                  )}
+                  <button
+                    onClick={() => setShowInviteModal(false)}
+                    className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
+      )}
     </div>
   );
 };
