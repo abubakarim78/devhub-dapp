@@ -304,6 +304,7 @@ public struct Conversation has key, store {
 // New channel management structures for SDK compatibility
 public struct Channel has key, store {
     id: UID,
+    name: String,
     members: vector<address>,
     encryption_key_history: vector<EncryptionKey>,
     messages: vector<Message>,
@@ -1952,6 +1953,7 @@ public fun get_conversation_messages(conversation: &Conversation): &vector<Messa
 // === New Channel Management Functions for SDK Compatibility ===
 
 public entry fun create_channel(
+    name: vector<u8>,
     initial_members: vector<address>,
     clock: &Clock,
     ctx: &mut TxContext
@@ -1962,6 +1964,7 @@ public entry fun create_channel(
     // Create channel
     let channel = Channel {
         id: object::new(ctx),
+        name: string::utf8(name),
         members: initial_members,
         encryption_key_history: vector::empty(),
         messages: vector::empty(),

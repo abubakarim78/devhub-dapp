@@ -7,7 +7,8 @@ import {
   Users, 
   FileText, 
   FolderOpen, 
-  Settings
+  Settings,
+  Hash
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -40,6 +41,13 @@ const navItems: NavItem[] = [
     href: '/dashboard-messages',
     icon: MessageSquare,
     description: 'View and respond to your messages'
+  },
+  {
+    id: 'channels',
+    label: 'Channels',
+    href: '/dashboard-channels',
+    icon: Hash,
+    description: 'Manage group channels and team communication'
   },
   {
     id: 'connections',
