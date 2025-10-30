@@ -2,24 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { useNavigate } from 'react-router-dom';
 import { 
-  User, 
   Search, 
   Users, 
   UserPlus, 
-  MessageSquare, 
-  Eye, 
-  Check, 
   X,
-  Filter,
-  SortAsc,
   Link as LinkIcon,
-  MapPin,
-  Calendar,
-  Star,
-  Briefcase,
-  Code,
-  Shield,
-  Zap,
   Loader2,
   Copy,
   CheckCircle
@@ -34,8 +21,11 @@ import {
   declineConnectionRequestTransaction,
   getConnectionRequests,
   getConnectionStoreId,
-  getConnections
+  createConnectionStoreTransaction,
+  storeConnectionStoreId,
+  PACKAGE_ID
 } from '@/lib/suiClient';
+import { WalrusService } from '@/services/walrus';
 
 interface Developer {
   id: string;
@@ -44,8 +34,9 @@ interface Developer {
   skills: string;
   followers: string;
   description: string;
-  status: 'following' | 'connected' | 'suggested';
+  status: 'connected' | 'suggested';
   skillsTags: string[];
+  cardId?: number;
 }
 
 interface ConnectionRequest {
@@ -54,6 +45,9 @@ interface ConnectionRequest {
   avatar: string;
   skills: string;
   message: string;
+  status?: string;
+  cardId?: number;
+  recipient?: string;
 }
 
 interface Suggestion {
@@ -62,6 +56,7 @@ interface Suggestion {
   avatar: string;
   skills: string;
   skillsTags: string[];
+  cardId?: number;
 }
 
 interface ConnectionData {
@@ -87,13 +82,60 @@ const Connections: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<ConnectionData[]>([]);
-  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
+  const [connectionRequests, setConnectionRequests] = useState<any[]>([]);
   const [sentRequests, setSentRequests] = useState<ConnectionRequest[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+
+  // Normalize Sui addresses to 32-byte hex (lowercase) for reliable comparisons/keys
+  const normalizeAddr = useCallback((addr: string | undefined | null): string => {
+    if (!addr) return '';
+    let s = addr.toLowerCase();
+    // Remove 0x prefix if present
+    if (s.startsWith('0x')) {
+      s = s.slice(2);
+    }
+    // Pad/trim to exactly 64 hex characters
+    if (s.length < 64) {
+      s = s.padStart(64, '0');
+    } else if (s.length > 64) {
+      s = s.slice(-64);
+    }
+    return `0x${s}`;
+  }, []);
+  // Build an avatar URL from card data if available
+  const getAvatarUrlForCard = useCallback((card: any): string => {
+    if (!card) return '';
+    if (card.avatarWalrusBlobId) {
+      try {
+        return WalrusService.getBlobUrl(card.avatarWalrusBlobId);
+      } catch {
+        // ignore
+      }
+    }
+    return typeof card.imageUrl === 'string' && card.imageUrl ? card.imageUrl : '';
+  }, []);
+  const buildAvatarFor = useCallback((displayName: string, addr: string, card?: any): string => {
+    const url = getAvatarUrlForCard(card);
+    if (url) return url;
+    const nameForAvatar = displayName || `${addr.slice(0, 8)}...`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=random&color=fff&size=48`;
+  }, [getAvatarUrlForCard]);
+
+  // Format technologies string with ellipsis if more than 4 items
+  const formatTechnologies = useCallback((technologies: string): string => {
+    if (!technologies) return '';
+    const techArray = technologies.split(',').map(t => t.trim()).filter(Boolean);
+    if (techArray.length > 4) {
+      return techArray.slice(0, 4).join(', ') + ` +${techArray.length - 4} more`;
+    }
+    return technologies;
+  }, []);
+
   const [processing, setProcessing] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [allCards, setAllCards] = useState<any[]>([]);
 
   const loadConnections = useCallback(async () => {
     if (!currentAccount?.address) return;
@@ -103,7 +145,7 @@ const Connections: React.FC = () => {
       // Query ConnectionAccepted events to get connections (event-based approach)
       const events = await client.queryEvents({
         query: {
-          MoveEventType: '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3::devhub::ConnectionAccepted'
+          MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
         },
         limit: 100
       });
@@ -137,48 +179,138 @@ const Connections: React.FC = () => {
     
     try {
       // Load suggestions from real developer cards
-      const allCards = await getAllCards();
+      const cards = await getAllCards();
+      setAllCards(cards);
       
       // Query connections directly instead of using state dependency
       // to avoid infinite loop
       const events = await client.queryEvents({
         query: {
-          MoveEventType: '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3::devhub::ConnectionAccepted'
+          MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
         },
         limit: 100
       });
-      
       const connectedUsers = new Set<string>();
       for (const event of events.data) {
         if (event.parsedJson) {
           const { user1, user2 } = event.parsedJson as any;
           if (user1 === currentAccount.address || user2 === currentAccount.address) {
             const connectedUser = user1 === currentAccount.address ? user2 : user1;
-            connectedUsers.add(connectedUser.toLowerCase());
+            connectedUsers.add(normalizeAddr(connectedUser));
           }
         }
       }
       
-      // Get pending requests to filter them out
+      // Get pending requests to filter them out (requests received by current user)
       const pendingRequests = await getConnectionRequests(currentAccount.address);
-      const usersWithPendingRequests = new Set(pendingRequests.map(r => r.from.toLowerCase()));
+      const usersWithPendingRequests = new Set(pendingRequests.map(r => normalizeAddr(r.from)));
       
-      const userSuggestions: Suggestion[] = allCards
+      // Get sent requests to filter them out (requests sent by current user)
+      const sentRequestsState = await new Promise<ConnectionRequest[]>((resolve) => {
+        // We'll get this from the sentRequests state which is loaded in a separate useEffect
+        // For now, query it directly here
+        const checkSentRequests = async () => {
+          try {
+            const sentEvents = await client.queryEvents({
+              query: {
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent`
+              },
+              limit: 100,
+              order: 'descending'
+            });
+
+            const acceptedEvents = await client.queryEvents({
+              query: {
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
+              },
+              limit: 100,
+              order: 'descending'
+            });
+
+            const declinedEvents = await client.queryEvents({
+              query: {
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionDeclined`
+              },
+              limit: 100,
+              order: 'descending'
+            });
+
+            const acceptedConnections = new Map<string, number>();
+            const declinedConnections = new Map<string, number>();
+            
+            for (const event of acceptedEvents.data) {
+              if (event.parsedJson) {
+                const { user1, user2 } = event.parsedJson as any;
+                if (user1 === currentAccount.address || user2 === currentAccount.address) {
+                  const otherUser = user1 === currentAccount.address ? user2 : user1;
+                  const normalized = normalizeAddr(otherUser);
+                  const timestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+                  const existingTimestamp = acceptedConnections.get(normalized) || 0;
+                  if (timestamp > existingTimestamp) {
+                    acceptedConnections.set(normalized, timestamp);
+                  }
+                }
+              }
+            }
+            
+            for (const event of declinedEvents.data) {
+              if (event.parsedJson) {
+                const { from: _from, to } = event.parsedJson as any;
+                const normalized = normalizeAddr(to);
+                const timestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+                const existingTimestamp = declinedConnections.get(normalized) || 0;
+                if (timestamp > existingTimestamp) {
+                  declinedConnections.set(normalized, timestamp);
+                }
+              }
+            }
+            
+            const sent: ConnectionRequest[] = [];
+            for (const event of sentEvents.data) {
+              if (event.parsedJson) {
+                const { from, to } = event.parsedJson as any;
+                if (normalizeAddr(from) === normalizeAddr(currentAccount.address)) {
+                  const toNormalized = normalizeAddr(to);
+                  const acceptedTimestamp = acceptedConnections.get(toNormalized) || 0;
+                  const declinedTimestamp = declinedConnections.get(toNormalized) || 0;
+                  const sentTimestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+                  const isMostRecent = sentTimestamp > acceptedTimestamp && sentTimestamp > declinedTimestamp;
+                  if (isMostRecent || (acceptedTimestamp === 0 && declinedTimestamp === 0)) {
+                    sent.push({ id: `sent-${to}`, recipient: to } as ConnectionRequest);
+                  }
+                }
+              }
+            }
+            resolve(sent);
+          } catch (error) {
+            console.error('Error getting sent requests:', error);
+            resolve([]);
+          }
+        };
+        checkSentRequests();
+      });
+      
+      const usersWithSentRequests = new Set(sentRequestsState.map(r => normalizeAddr(r.recipient)));
+      
+      const userSuggestions: Suggestion[] = cards
         .filter(card => {
-          const cardOwnerLower = card.owner.toLowerCase();
+          const cardOwnerNormalized = normalizeAddr(card.owner);
+          const currentUserNormalized = normalizeAddr(currentAccount.address);
           return (
-            cardOwnerLower !== currentAccount.address.toLowerCase() &&
-            !connectedUsers.has(cardOwnerLower) &&
-            !usersWithPendingRequests.has(cardOwnerLower)
+            cardOwnerNormalized !== currentUserNormalized &&
+            !connectedUsers.has(cardOwnerNormalized) &&
+            !usersWithPendingRequests.has(cardOwnerNormalized) &&
+            !usersWithSentRequests.has(cardOwnerNormalized)
           );
         })
         .slice(0, 10)
         .map(card => ({
-          id: card.owner,
+          id: normalizeAddr(card.owner),
           name: card.name || `${card.owner.slice(0, 8)}...`,
-          avatar: card.name?.charAt(0).toUpperCase() || 'D',
+          avatar: buildAvatarFor(card.name || '', normalizeAddr(card.owner), card),
           skills: card.technologies || 'Developer',
-          skillsTags: card.niche ? [card.niche] : []
+          skillsTags: card.niche ? [card.niche] : [],
+          cardId: typeof card.id === 'number' ? card.id : undefined,
         }));
       
       setSuggestions(userSuggestions);
@@ -191,21 +323,33 @@ const Connections: React.FC = () => {
   useEffect(() => {
     if (currentAccount?.address) {
       loadConnections();
+    }
+  }, [currentAccount?.address, loadConnections]);
+
+  // Load suggestions
+  useEffect(() => {
+    if (currentAccount?.address) {
       loadSuggestions();
     }
-  }, [currentAccount?.address, loadConnections, loadSuggestions]);
+  }, [currentAccount?.address, loadSuggestions]);
 
-  // Convert connections to developers for display
-  const developers: Developer[] = connections.map((conn, index) => ({
-    id: conn.user,
-    name: `${conn.user.slice(0, 8)}...`,
-    avatar: conn.user.slice(0, 2).toUpperCase(),
-    skills: 'Move • Developer',
-    followers: '1k',
-    description: 'Sui Developer',
-    status: 'connected' as const,
-    skillsTags: ['Move', 'Sui', 'Developer']
-  }));
+  // Convert connections to developers for display using real card data when available
+  const developers: Developer[] = connections.map((conn) => {
+    const addr = normalizeAddr(conn.user);
+    const card = allCards.find(c => normalizeAddr(c.owner) === addr);
+    const avatarUrl = buildAvatarFor(card?.name || '', addr, card);
+    return {
+      id: addr,
+      name: card?.name || `${addr.slice(0, 8)}...`,
+      avatar: avatarUrl,
+      skills: card?.technologies || '',
+      followers: '',
+      description: card?.niche || '',
+      status: 'connected' as const,
+      skillsTags: card?.niche ? [card.niche] : [],
+      cardId: typeof card?.id === 'number' ? card.id : undefined,
+    };
+  });
 
   // Load connection requests from blockchain
   useEffect(() => {
@@ -213,21 +357,27 @@ const Connections: React.FC = () => {
       if (!currentAccount?.address) return;
       
       try {
+        console.log('Loading connection requests for user:', currentAccount.address);
         const reqs = await getConnectionRequests(currentAccount.address);
+        console.log('Raw connection requests:', reqs);
+        
         const allCards = await getAllCards();
         
         const displayRequests: any[] = [];
         for (const req of reqs) {
-          const senderCard = allCards.find(card => card.owner.toLowerCase() === req.from.toLowerCase());
+          console.log('Processing request:', req);
+          const senderCard = allCards.find(card => normalizeAddr(card.owner) === normalizeAddr(req.from));
           displayRequests.push({
             id: req.id,
             name: senderCard?.name || `${req.from.slice(0, 8)}...`,
-            avatar: senderCard?.name?.charAt(0).toUpperCase() || 'U',
+            avatar: buildAvatarFor(senderCard?.name || '', normalizeAddr(req.from), senderCard),
             skills: senderCard?.technologies || 'Developer',
-            message: req.introMessage || 'Want to connect with you'
+            message: req.introMessage || 'Want to connect with you',
+            cardId: typeof senderCard?.id === 'number' ? senderCard.id : undefined,
           });
         }
         
+        console.log('Display requests:', displayRequests);
         setConnectionRequests(displayRequests);
       } catch (error) {
         console.error('Error loading connection requests:', error);
@@ -244,32 +394,97 @@ const Connections: React.FC = () => {
       
       try {
         // Query ConnectionRequestSent events to find requests sent by current user
-        const events = await client.queryEvents({
+        const sentEvents = await client.queryEvents({
           query: {
-            MoveEventType: '0x1c9f232f66800bf35b6add40a2047fca8fe6f6d23c19e418a75aed661a3173a3::devhub::ConnectionRequestSent'
+            MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent`
+          },
+          limit: 100,
+          order: 'descending'
+        });
+
+        // Query ConnectionAccepted events to filter out accepted requests
+        const acceptedEvents = await client.queryEvents({
+          query: {
+            MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
+          },
+          limit: 100,
+          order: 'descending'
+        });
+
+        // Query ConnectionDeclined events to filter out declined requests
+        const declinedEvents = await client.queryEvents({
+          query: {
+            MoveEventType: `${PACKAGE_ID}::connections::ConnectionDeclined`
           },
           limit: 100,
           order: 'descending'
         });
 
         const allCards = await getAllCards();
+        
+        // Create sets to track the most recent status for each recipient
+        // Key: normalized recipient address, Value: most recent timestamp for that status
+        const acceptedConnections = new Map<string, number>();
+        const declinedConnections = new Map<string, number>();
+        
+        for (const event of acceptedEvents.data) {
+          if (event.parsedJson) {
+            const { user1, user2 } = event.parsedJson as any;
+            if (user1 === currentAccount.address || user2 === currentAccount.address) {
+              const otherUser = user1 === currentAccount.address ? user2 : user1;
+              const normalized = normalizeAddr(otherUser);
+              const timestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+              const existingTimestamp = acceptedConnections.get(normalized) || 0;
+              if (timestamp > existingTimestamp) {
+                acceptedConnections.set(normalized, timestamp);
+              }
+            }
+          }
+        }
+        
+        for (const event of declinedEvents.data) {
+          if (event.parsedJson) {
+            const { from: _from, to } = event.parsedJson as any;
+            const normalized = normalizeAddr(to);
+            const timestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+            const existingTimestamp = declinedConnections.get(normalized) || 0;
+            if (timestamp > existingTimestamp) {
+              declinedConnections.set(normalized, timestamp);
+            }
+          }
+        }
+        
         const sentRequestEvents: any[] = [];
         
-        for (const event of events.data) {
+        for (const event of sentEvents.data) {
           if (event.parsedJson) {
             const { from, to } = event.parsedJson as any;
             // Only show events where current user sent the request
-            if (from.toLowerCase() === currentAccount.address.toLowerCase()) {
-              // Check if still pending (filter out accepted/declined later)
-              const recipientCard = allCards.find(card => card.owner.toLowerCase() === to.toLowerCase());
-              sentRequestEvents.push({
-                id: `sent-${to}`, // Use recipient address as ID
-                recipient: to,
-                name: recipientCard?.name || `${to.slice(0, 8)}...`,
-                avatar: recipientCard?.name?.charAt(0).toUpperCase() || 'U',
-                skills: recipientCard?.technologies || 'Developer',
-                timestamp: event.timestampMs
-              });
+            if (normalizeAddr(from) === normalizeAddr(currentAccount.address)) {
+              const toNormalized = normalizeAddr(to);
+              const recipientCard = allCards.find(card => normalizeAddr(card.owner) === toNormalized);
+              
+              // Get the most recent timestamps for accepted/declined
+              const acceptedTimestamp = acceptedConnections.get(toNormalized) || 0;
+              const declinedTimestamp = declinedConnections.get(toNormalized) || 0;
+              const sentTimestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+              
+              // Only show if the sent event is the most recent action for this recipient
+              // OR if there's no prior accepted/declined event
+              const isMostRecent = sentTimestamp > acceptedTimestamp && sentTimestamp > declinedTimestamp;
+              
+              if (isMostRecent || (acceptedTimestamp === 0 && declinedTimestamp === 0)) {
+                sentRequestEvents.push({
+                  id: `sent-${to}`, // Use recipient address as ID
+                  recipient: to,
+                  name: recipientCard?.name || `${to.slice(0, 8)}...`,
+                  avatar: buildAvatarFor(recipientCard?.name || '', normalizeAddr(to), recipientCard),
+                  skills: recipientCard?.technologies || 'Developer',
+                  timestamp: event.timestampMs,
+                  status: 'Pending Response',
+                  cardId: typeof recipientCard?.id === 'number' ? recipientCard.id : undefined,
+                });
+              }
             }
           }
         }
@@ -331,17 +546,119 @@ const Connections: React.FC = () => {
     
     setProcessing(id);
     try {
+      console.log('Accepting connection request with ID:', id);
+      
       // Find the connection store ID dynamically
-      const connStoreId = await getConnectionStoreId();
+      let connStoreId = await getConnectionStoreId();
+      
+      // If ConnectionStore doesn't exist, create it first
       if (!connStoreId) {
-        throw new Error('Connection store not found');
+        console.log('ConnectionStore not found, creating it...');
+        const createTx = createConnectionStoreTransaction();
+        
+        const createResult: any = await signAndExecute({
+          transaction: createTx,
+        });
+        
+        console.log('ConnectionStore creation result:', createResult);
+        
+        // Check if the transaction was successful
+        if (!createResult) {
+          throw new Error('Transaction execution failed - no result returned');
+        }
+        
+        // Extract the ConnectionStore ID from the transaction result
+        if ((createResult as any)?.effects?.created) {
+          const createdObjects = (createResult as any).effects.created;
+          console.log('Created objects:', createdObjects);
+          
+          // Find the ConnectionStore object ID
+          for (const created of createdObjects) {
+            if (created.reference?.objectId) {
+              // Check if this is a ConnectionStore by querying its type
+              try {
+                const objectDetails = await client.getObject({
+                  id: created.reference.objectId,
+                  options: {
+                    showType: true,
+                    showContent: false,
+                  },
+                });
+                
+                if (objectDetails.data?.type?.includes('ConnectionStore')) {
+                  connStoreId = created.reference.objectId;
+                  console.log('Found ConnectionStore ID from creation result:', connStoreId);
+                  // Store the ID for future use
+                  storeConnectionStoreId(connStoreId!);
+                  break;
+                }
+              } catch (objError) {
+                console.log('Error checking object type:', objError);
+              }
+            }
+          }
+        }
+        
+        if (!connStoreId) {
+          // Wait a moment for the transaction to be processed and try to get from events
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Try to get ConnectionStore ID from events
+          try {
+            const events = await client.queryEvents({
+              query: {
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionStoreCreated`
+              },
+              limit: 1,
+              order: 'descending'
+            });
+            
+            console.log('ConnectionStoreCreated events:', events);
+            
+            if (events.data && events.data.length > 0) {
+              const eventData = events.data[0].parsedJson as any;
+              if (eventData && eventData.store_id) {
+                connStoreId = eventData.store_id;
+                console.log('Found ConnectionStore ID from events:', connStoreId);
+                storeConnectionStoreId(connStoreId!);
+              }
+            }
+          } catch (eventError) {
+            console.log('Error querying ConnectionStoreCreated events:', eventError);
+          }
+          
+          // Fallback to the old method
+          if (!connStoreId) {
+            connStoreId = await getConnectionStoreId();
+            if (connStoreId) {
+              // Store the ID for future use
+              storeConnectionStoreId(connStoreId!);
+            }
+          }
+        }
+        
+        if (!connStoreId) {
+          throw new Error('Failed to create or find ConnectionStore');
+        }
+      }
+      
+      console.log('Connection store ID:', connStoreId);
+
+      // Find the full connection request object by ID
+      const connectionRequest = connectionRequests.find(req => req.id === id);
+      if (!connectionRequest) {
+        throw new Error('Connection request not found');
       }
 
-      const tx = acceptConnectionRequestTransaction(connStoreId, id);
+      const tx = acceptConnectionRequestTransaction(connStoreId, connectionRequest);
       
-      await signAndExecute({
+      console.log('Transaction created, executing...');
+      
+      const result: any = await signAndExecute({
         transaction: tx,
       });
+      
+      console.log('Transaction executed successfully:', result);
 
       // Reload data - reset connection requests to empty array since we'll reload them via useEffect
       setConnectionRequests([]);
@@ -349,10 +666,19 @@ const Connections: React.FC = () => {
       
     } catch (error) {
       console.error('Error accepting request:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        connectionRequestId: id,
+        currentAccount: currentAccount?.address
+      });
+      
+      // Show user-friendly error message
+      alert(`Failed to accept connection request: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setProcessing(null);
     }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, loadConnections, signAndExecute, connectionRequests]);
 
   const handleDeclineRequest = useCallback(async (id: string) => {
     if (!currentAccount?.address) return;
@@ -403,43 +729,59 @@ const Connections: React.FC = () => {
     }
   }, [currentAccount?.address, loadSuggestions]);
 
-  const handleFollow = useCallback(async (id: string) => {
-    if (!currentAccount?.address) return;
+
+  const handleStartChat = useCallback(async (participant: string) => {
+    console.log('🔵 handleStartChat called in Connections page for:', participant);
     
-    setProcessing(id);
+    if (!currentAccount?.address) {
+      console.log('❌ No current account in Connections');
+      return;
+    }
+    
+    setProcessing(participant);
     try {
-      // TODO: Implement actual follow functionality
-      // This might involve updating user preferences or following status
-      console.log('Following:', id);
-      
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      console.log('📤 Navigating to Messages page with ?to=', participant);
+      // Navigate to messages and let the Messages page create/select the conversation
+      navigate(`/dashboard-messages?to=${participant}`);
     } catch (error) {
-      console.error('Error following:', error);
+      console.error('Error starting conversation:', error);
+      alert(`Failed to start conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setProcessing(null);
     }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, navigate]);
 
-  const handleSendConnectionRequest = useCallback(async (to: string, introMessage: string, sharedContext: string) => {
-    if (!currentAccount?.address) return;
-    
-    try {
-      // TODO: Implement actual connection request sending
-      // This would involve calling sendConnectionRequestTransaction
-      console.log('Sending connection request to:', to);
-      
-    } catch (error) {
-      console.error('Error sending connection request:', error);
+  const handleViewProfile = useCallback((dev: Developer) => {
+    if (dev.cardId !== undefined) {
+      navigate(`/card/${dev.cardId}`);
+    } else {
+      navigate(`/browse?owner=${dev.id}`);
     }
-  }, [currentAccount?.address]);
+  }, [navigate]);
 
-  const filteredDevelopers = developers.filter(dev => 
-    dev.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dev.skills.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dev.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
+  // Use developers list directly
+  const allDevelopers = developers;
+
+  const filteredDevelopers = allDevelopers.filter(dev => {
+    // Apply search filter
+    const matchesSearch = dev.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      dev.skills.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      dev.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Apply active filter
+    switch (activeFilter) {
+      case 'requests':
+        return dev.status === 'suggested';
+      case 'blocked':
+        return false; // No blocked users implemented yet
+      case 'all':
+      default:
+        return true;
+    }
+  });
 
   const filteredSuggestions = suggestions.filter(suggestion => 
     suggestion.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -589,7 +931,7 @@ const Connections: React.FC = () => {
 
                         {/* Filter Buttons */}
                         <div className="flex items-center gap-3 mb-4">
-                          {['All', 'Requests', 'Following', 'Blocked'].map((filter, index) => (
+                          {['All', 'Requests', 'Blocked'].map((filter, index) => (
                             <motion.button
                               key={filter}
                               initial={{ opacity: 0, scale: 0.8 }}
@@ -653,7 +995,7 @@ const Connections: React.FC = () => {
                         ) : (
                           filteredDevelopers.map((dev, index) => (
                             <motion.div
-                              key={dev.id}
+                              key={dev.id || `dev-${index}`}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: 0.7 + index * 0.1 }}
@@ -662,53 +1004,39 @@ const Connections: React.FC = () => {
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-                                    {dev.avatar}
+                                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center text-white font-semibold overflow-hidden">
+                                    {typeof dev.avatar === 'string' && (dev.avatar.startsWith('http://') || dev.avatar.startsWith('https://')) ? (
+                                      <img src={dev.avatar} alt={dev.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span>{dev.avatar}</span>
+                                    )}
                                   </div>
                                   <div>
                                     <h4 className="font-semibold text-foreground">{dev.name}</h4>
-                                    <p className="text-sm text-muted-foreground">{dev.skills}</p>
-                                    <p className="text-sm text-muted-foreground">{dev.description}</p>
+                                    <p className="text-sm text-muted-foreground">{formatTechnologies(dev.skills)}</p>
+                                    {dev.description && (
+                                      <div className="mt-1">
+                                        <span className="inline-flex items-center px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium">
+                                          {dev.description}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {dev.status === 'following' && (
-                                    <motion.button
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg border border-green-500/30 text-sm"
-                                    >
-                                      Following
-                                    </motion.button>
-                                  )}
-                                  {dev.status === 'connected' && (
-                                    <motion.button
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg border border-green-500/30 text-sm"
-                                    >
-                                      Connected
-                                    </motion.button>
-                                  )}
-                                  {dev.status === 'suggested' && (
-                                    <motion.button
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg border border-green-500/30 text-sm"
-                                    >
-                                      Suggested
-                                    </motion.button>
-                                  )}
                                   <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg border border-purple-500/30 text-sm"
+                                    onClick={() => handleStartChat(dev.id)}
+                                    disabled={processing === dev.id}
+                                    className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg border border-purple-500/30 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Message
                                   </motion.button>
                                   <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleViewProfile(dev)}
                                     className="px-4 py-2 bg-primary/20 text-primary rounded-lg border border-primary/30 text-sm"
                                   >
                                     View Profile
@@ -748,7 +1076,7 @@ const Connections: React.FC = () => {
                         ) : (
                           requests.map((request, index) => (
                             <motion.div
-                              key={request.id}
+                              key={request.id || `req-${index}`}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: 0.7 + index * 0.1 }}
@@ -756,12 +1084,16 @@ const Connections: React.FC = () => {
                               className="p-4 bg-accent/20 rounded-xl border border-border hover:bg-accent/30 transition-all"
                             >
                               <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                  {request.avatar}
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
+                                  {typeof request.avatar === 'string' && (request.avatar.startsWith('http://') || request.avatar.startsWith('https://')) ? (
+                                    <img src={request.avatar} alt={request.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span>{request.avatar}</span>
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <h4 className="font-semibold text-foreground">{request.name}</h4>
-                                  <p className="text-sm text-muted-foreground mb-2">{request.skills}</p>
+                                  <p className="text-sm text-muted-foreground mb-2">{formatTechnologies(request.skills)}</p>
                                   <p className="text-sm text-muted-foreground italic mb-3">{request.message}</p>
                                   <div className="flex gap-2">
                                     <motion.button
@@ -826,7 +1158,7 @@ const Connections: React.FC = () => {
                         ) : (
                           sentRequests.map((sentReq, index) => (
                             <motion.div
-                              key={sentReq.id}
+                              key={sentReq.id || `sent-${index}`}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: 0.68 + index * 0.1 }}
@@ -834,15 +1166,19 @@ const Connections: React.FC = () => {
                               className="p-4 bg-accent/20 rounded-xl border border-border hover:bg-accent/30 transition-all"
                             >
                               <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                  {sentReq.avatar}
+                                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
+                                  {typeof sentReq.avatar === 'string' && (sentReq.avatar.startsWith('http://') || sentReq.avatar.startsWith('https://')) ? (
+                                    <img src={sentReq.avatar} alt={sentReq.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span>{sentReq.avatar}</span>
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <h4 className="font-semibold text-foreground">{sentReq.name}</h4>
-                                  <p className="text-sm text-muted-foreground mb-2">{sentReq.skills}</p>
+                                  <p className="text-sm text-muted-foreground mb-2">{formatTechnologies(sentReq.skills)}</p>
                                   <div className="flex items-center gap-2">
                                     <div className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg border border-yellow-500/30 text-sm">
-                                      Pending Response
+                                      {sentReq.status || 'Pending Response'}
                                     </div>
                                   </div>
                                 </div>
@@ -880,7 +1216,7 @@ const Connections: React.FC = () => {
                         ) : (
                           filteredSuggestions.map((suggestion, index) => (
                             <motion.div
-                              key={suggestion.id}
+                              key={suggestion.id || `sug-${index}`}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: 0.8 + index * 0.1 }}
@@ -888,42 +1224,35 @@ const Connections: React.FC = () => {
                               className="p-4 bg-accent/20 rounded-xl border border-border hover:bg-accent/30 transition-all"
                             >
                               <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                  {suggestion.avatar}
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
+                                  {typeof suggestion.avatar === 'string' && (suggestion.avatar.startsWith('http://') || suggestion.avatar.startsWith('https://')) ? (
+                                    <img src={suggestion.avatar} alt={suggestion.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span>{suggestion.avatar}</span>
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <h4 className="font-semibold text-foreground">{suggestion.name}</h4>
-                                  <p className="text-sm text-muted-foreground mb-3">{suggestion.skills}</p>
+                                  <p className="text-sm text-muted-foreground mb-2">{formatTechnologies(suggestion.skills)}</p>
                                   
-                                  {/* Skill Tags */}
-                                  <div className="flex flex-wrap gap-2 mb-3">
-                                    {suggestion.skillsTags.map((tag, tagIndex) => (
-                                      <motion.span
-                                        key={tag}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.2, delay: 0.9 + tagIndex * 0.05 }}
-                                        className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium"
-                                      >
-                                        {tag}
-                                      </motion.span>
-                                    ))}
-                                  </div>
+                                  {/* Professional Niche Tags */}
+                                  {suggestion.skillsTags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                      {suggestion.skillsTags.map((tag, tagIndex) => (
+                                        <motion.span
+                                          key={tag || `tag-${tagIndex}`}
+                                          initial={{ opacity: 0, scale: 0.8 }}
+                                          animate={{ opacity: 1, scale: 1 }}
+                                          transition={{ duration: 0.2, delay: 0.9 + tagIndex * 0.05 }}
+                                          className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium"
+                                        >
+                                          {tag}
+                                        </motion.span>
+                                      ))}
+                                    </div>
+                                  )}
                                   
                                   <div className="flex gap-2">
-                                    <motion.button
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      onClick={() => handleFollow(suggestion.id)}
-                                      disabled={processing === suggestion.id}
-                                      className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-lg border border-purple-500/30 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      {processing === suggestion.id ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        'Follow'
-                                      )}
-                                    </motion.button>
                                     <motion.button
                                       whileHover={{ scale: 1.05 }}
                                       whileTap={{ scale: 0.95 }}

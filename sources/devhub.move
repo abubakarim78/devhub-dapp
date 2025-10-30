@@ -124,7 +124,6 @@ public struct DevCard has key, store {
 
     // Basic Info
     name: String,
-    title: String,
     niche: String, // Professional niche/category
     about: Option<String>,
     image_url: Url,
@@ -285,69 +284,11 @@ public struct ProposalsByStatus has key {
 }
 
 
-// Enhanced messaging structures for Sui Stack Messaging SDK compatibility
-public struct Message has store {
-    sender: address,
-    encrypted_content: vector<u8>, // Seal-encrypted message content
-    content_hash: vector<u8>, // Hash of original content for verification
-    timestamp: u64,
-    is_read: bool,
-}
+// Messaging moved to `devhub::messaging`
 
-public struct Conversation has key, store {
-    id: UID,
-    participant1: address,
-    participant2: address,
-    messages: vector<Message>,
-}
+// Channel types moved to `devhub::channels`
 
-// New channel management structures for SDK compatibility
-public struct Channel has key, store {
-    id: UID,
-    name: String,
-    members: vector<address>,
-    encryption_key_history: vector<EncryptionKey>,
-    messages: vector<Message>,
-    created_at: u64,
-    last_activity: u64,
-}
-
-public struct MemberCap has key, store {
-    id: UID,
-    channel_id: ID,
-    member: address,
-    permissions: vector<String>,
-    created_at: u64,
-}
-
-public struct EncryptionKey has store, copy, drop {
-    version: u64,
-    encrypted_bytes: vector<u8>,
-    created_at: u64,
-}
-
-// from connections.move
-public struct ConnectionStore has key, store {
-    id: UID,
-    connections: Table<address, vector<Connection>>,
-}
-
-public struct ConnectionRequest has key, store {
-    id: UID,
-    from: address,
-    to: address,
-    intro_message: String,
-    shared_context: String,
-    is_public: bool,
-}
-
-public struct Connection has store, copy, drop {
-    user: address,
-    status: String,
-    notifications_enabled: bool,
-    profile_shared: bool,
-    messages_allowed: bool,
-}
+// Connection types moved to `devhub::connections`
 
 
 // Enhanced DevHub with new features
@@ -368,7 +309,7 @@ public struct CardCreated has copy, drop {
     card_id: u64,
     owner: address,
     name: String,
-    title: String,
+    niche: String,
     contact: String,
     platform_fee_paid: u64,
     timestamp: u64,
@@ -420,7 +361,7 @@ public struct CardDeleted has copy, drop {
     card_id: u64,
     owner: address,
     name: String,
-    title: String,
+    niche: String,
 }
 
 public struct PlatformFeesWithdrawn has copy, drop {
@@ -444,85 +385,11 @@ public struct AvatarUpdated has copy, drop {
     timestamp: u64,
 }
 
-// from messaging.move
-public struct ConversationCreated has copy, drop {
-    conversation_id: ID,
-    participant1: address,
-    participant2: address,
-    timestamp: u64,
-}
+// Messaging events moved to `devhub::messaging`
 
-public struct MessageSent has copy, drop {
-    conversation_id: ID,
-    sender: address,
-    receiver: address,
-    message_index: u64,
-    timestamp: u64,
-}
+// Channel events moved to `devhub::channels`
 
-public struct MessageRead has copy, drop {
-    conversation_id: ID,
-    message_index: u64,
-    reader: address,
-    original_sender: address,
-    timestamp: u64,
-}
-
-// New channel events for SDK compatibility
-public struct ChannelCreated has copy, drop {
-    channel_id: ID,
-    creator: address,
-    members: vector<address>,
-    timestamp: u64,
-}
-
-public struct ChannelMessageSent has copy, drop {
-    channel_id: ID,
-    sender: address,
-    message_index: u64,
-    timestamp: u64,
-}
-
-public struct MemberAdded has copy, drop {
-    channel_id: ID,
-    member: address,
-    added_by: address,
-    timestamp: u64,
-}
-
-public struct MemberRemoved has copy, drop {
-    channel_id: ID,
-    member: address,
-    removed_by: address,
-    timestamp: u64,
-}
-
-// from connections.move
-public struct ConnectionRequestSent has copy, drop {
-    from: address,
-    to: address,
-}
-
-public struct ConnectionAccepted has copy, drop {
-    user1: address,
-    user2: address,
-}
-
-public struct ConnectionDeclined has copy, drop {
-    from: address,
-    to: address,
-}
-
-public struct ConnectionStatusUpdated has copy, drop {
-    user: address,
-    connected_user: address,
-    new_status: String,
-}
-
-public struct ConnectionPreferencesUpdated has copy, drop {
-    user: address,
-    connected_user: address,
-}
+// Connection events moved to `devhub::connections`
 
 
 // Initialization
@@ -543,7 +410,6 @@ fun init(ctx: &mut TxContext) {
 // Enhanced card creation with Walrus blob support
 public entry fun create_card(
     name: vector<u8>,
-    title: vector<u8>,
     niche: vector<u8>,
     custom_niche: Option<vector<u8>>,
     image_url: vector<u8>,
@@ -626,7 +492,7 @@ public entry fun create_card(
         card_id: devhub.card_counter,
         name: string::utf8(name),
         owner: tx_context::sender(ctx),
-        title: string::utf8(title),
+        niche: final_niche,
         contact: string::utf8(contact),
         platform_fee_paid: PLATFORM_FEE,
         timestamp: current_time,
@@ -636,7 +502,6 @@ public entry fun create_card(
         id: object::new(ctx),
         name: string::utf8(name),
         owner: tx_context::sender(ctx),
-        title: string::utf8(title),
         niche: final_niche,
         image_url: url::new_unsafe_from_bytes(image_url),
         about: option::some(string::utf8(about)),
@@ -665,7 +530,6 @@ public entry fun update_card(
     devhub: &mut DevHub,
     card_id: u64,
     name: vector<u8>,
-    title: vector<u8>,
     niche: vector<u8>,
     custom_niche: Option<vector<u8>>,
     about: vector<u8>,
@@ -704,7 +568,6 @@ public entry fun update_card(
     };
 
     card.name = string::utf8(name);
-    card.title = string::utf8(title);
     card.niche = final_niche;
     option::swap_or_fill(&mut card.about, string::utf8(about));
     card.image_url = url::new_unsafe_from_bytes(image_url);
@@ -1173,7 +1036,7 @@ public entry fun delete_card(devhub: &mut DevHub, id: u64, ctx: &mut TxContext) 
         id: card_uid,
         owner,
         name,
-        title,
+        niche,
         ..
     } = removed_card;
 
@@ -1181,7 +1044,7 @@ public entry fun delete_card(devhub: &mut DevHub, id: u64, ctx: &mut TxContext) 
         card_id: id,
         owner,
         name,
-        title,
+        niche,
     });
 
     object::delete(card_uid);
@@ -1253,7 +1116,6 @@ public fun get_card_info(
 ): (
     String, // name
     address, // owner
-    String, // title
     String, // niche
     Url, // image_url
     Option<String>, // about
@@ -1270,7 +1132,6 @@ public fun get_card_info(
     (
         card.name,
         card.owner,
-        card.title,
         card.niche,
         card.image_url,
         card.about,
@@ -1853,448 +1714,11 @@ public fun get_platform_stats(devhub: &DevHub): (u64, u64, u64, u64) {
 public fun get_platform_fee(): u64 { PLATFORM_FEE }
 public fun get_project_posting_fee(): u64 { PROJECT_POSTING_FEE }
 
-// --- Functions from messaging.move ---
+// Messaging functions moved to `devhub::messaging`
 
-public entry fun start_conversation(
-    participant2: address,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let participant1 = tx_context::sender(ctx);
-    let conversation = Conversation {
-        id: object::new(ctx),
-        participant1,
-        participant2,
-        messages: vector::empty(),
-    };
-    
-    let conversation_id = object::uid_to_inner(&conversation.id);
-    
-    // Emit event
-    event::emit(ConversationCreated {
-        conversation_id,
-        participant1,
-        participant2,
-        timestamp: clock::timestamp_ms(clock),
-    });
+// Channel functions moved to `devhub::channels`
 
-    transfer::share_object(conversation);
-}
-
-public entry fun send_message(
-    conversation: &mut Conversation,
-    encrypted_content: vector<u8>,
-    content_hash: vector<u8>,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    assert!(sender == conversation.participant1 || sender == conversation.participant2, E_NOT_PARTICIPANT);
-
-    let timestamp = clock::timestamp_ms(clock);
-    let message = Message {
-        sender,
-        encrypted_content,
-        content_hash,
-        timestamp,
-        is_read: false,
-    };
-    
-    vector::push_back(&mut conversation.messages, message);
-    let message_index = vector::length(&conversation.messages) - 1;
-
-    // Determine receiver
-    let receiver = if (sender == conversation.participant1) {
-        conversation.participant2
-    } else {
-        conversation.participant1
-    };
-
-    // Emit event
-    event::emit(MessageSent {
-        conversation_id: object::uid_to_inner(&conversation.id),
-        sender,
-        receiver,
-        message_index,
-        timestamp,
-    });
-}
-
-public entry fun mark_as_read(
-    conversation: &mut Conversation,
-    message_index: u64,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    assert!(sender == conversation.participant1 || sender == conversation.participant2, E_NOT_PARTICIPANT);
-
-    let message = vector::borrow_mut(&mut conversation.messages, message_index);
-    // only the receiver can mark as read
-    assert!(sender != message.sender, E_NOT_PARTICIPANT);
-    
-    let original_sender = message.sender;
-    message.is_read = true;
-
-    // Emit event
-    event::emit(MessageRead {
-        conversation_id: object::uid_to_inner(&conversation.id),
-        message_index,
-        reader: sender,
-        original_sender,
-        timestamp: clock::timestamp_ms(clock),
-    });
-}
-
-public fun get_conversation_messages(conversation: &Conversation): &vector<Message> {
-    &conversation.messages
-}
-
-// === New Channel Management Functions for SDK Compatibility ===
-
-public entry fun create_channel(
-    name: vector<u8>,
-    initial_members: vector<address>,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let creator = tx_context::sender(ctx);
-    let current_time = clock::timestamp_ms(clock);
-    
-    // Create channel
-    let channel = Channel {
-        id: object::new(ctx),
-        name: string::utf8(name),
-        members: initial_members,
-        encryption_key_history: vector::empty(),
-        messages: vector::empty(),
-        created_at: current_time,
-        last_activity: current_time,
-    };
-    
-    let channel_id = object::uid_to_inner(&channel.id);
-    
-    // Create member caps for all members
-    let mut i = 0;
-    while (i < vector::length(&initial_members)) {
-        let member = *vector::borrow(&initial_members, i);
-        let member_cap = MemberCap {
-            id: object::new(ctx),
-            channel_id,
-            member,
-            permissions: vector::empty(),
-            created_at: current_time,
-        };
-        transfer::transfer(member_cap, member);
-        i = i + 1;
-    };
-    
-    // Emit event
-    event::emit(ChannelCreated {
-        channel_id,
-        creator,
-        members: initial_members,
-        timestamp: current_time,
-    });
-    
-    transfer::share_object(channel);
-}
-
-public entry fun send_message_to_channel(
-    channel: &mut Channel,
-    member_cap: &MemberCap,
-    encrypted_content: vector<u8>,
-    content_hash: vector<u8>,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    
-    // Verify sender owns the member cap
-    assert!(member_cap.member == sender, E_NOT_PARTICIPANT);
-    
-    // Verify sender is a channel member
-    assert!(
-        vector::contains(&channel.members, &sender),
-        E_NOT_PARTICIPANT
-    );
-    
-    let timestamp = clock::timestamp_ms(clock);
-    let message = Message {
-        sender,
-        encrypted_content,
-        content_hash,
-        timestamp,
-        is_read: false,
-    };
-    
-    // Add message to channel
-    vector::push_back(&mut channel.messages, message);
-    let message_index = vector::length(&channel.messages) - 1;
-    
-    // Update last activity
-    channel.last_activity = timestamp;
-    
-    // Emit event
-    event::emit(ChannelMessageSent {
-        channel_id: object::uid_to_inner(&channel.id),
-        sender,
-        message_index,
-        timestamp,
-    });
-}
-
-public entry fun add_member_to_channel(
-    channel: &mut Channel,
-    new_member: address,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    
-    // Verify sender is a channel member
-    assert!(
-        vector::contains(&channel.members, &sender),
-        E_NOT_PARTICIPANT
-    );
-    
-    // Check if member is not already in channel
-    assert!(
-        !vector::contains(&channel.members, &new_member),
-        E_NOT_PARTICIPANT
-    );
-    
-    let current_time = clock::timestamp_ms(clock);
-    
-    // Add member to channel
-    vector::push_back(&mut channel.members, new_member);
-    
-    // Create member cap for new member
-    let member_cap = MemberCap {
-        id: object::new(ctx),
-        channel_id: object::uid_to_inner(&channel.id),
-        member: new_member,
-        permissions: vector::empty(),
-        created_at: current_time,
-    };
-    transfer::transfer(member_cap, new_member);
-    
-    // Update last activity
-    channel.last_activity = current_time;
-    
-    // Emit event
-    event::emit(MemberAdded {
-        channel_id: object::uid_to_inner(&channel.id),
-        member: new_member,
-        added_by: sender,
-        timestamp: current_time,
-    });
-}
-
-public entry fun remove_member_from_channel(
-    channel: &mut Channel,
-    member_to_remove: address,
-    clock: &Clock,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    
-    // Verify sender is a channel member
-    assert!(
-        vector::contains(&channel.members, &sender),
-        E_NOT_PARTICIPANT
-    );
-    
-    // Find and remove member
-    let mut i = 0;
-    let mut found = false;
-    while (i < vector::length(&channel.members)) {
-        if (*vector::borrow(&channel.members, i) == member_to_remove) {
-            vector::remove(&mut channel.members, i);
-            found = true;
-            break
-        };
-        i = i + 1;
-    };
-    
-    assert!(found, E_NOT_PARTICIPANT);
-    
-    let current_time = clock::timestamp_ms(clock);
-    
-    // Update last activity
-    channel.last_activity = current_time;
-    
-    // Emit event
-    event::emit(MemberRemoved {
-        channel_id: object::uid_to_inner(&channel.id),
-        member: member_to_remove,
-        removed_by: sender,
-        timestamp: current_time,
-    });
-}
-
-public fun get_channel_messages(channel: &Channel): &vector<Message> {
-    &channel.messages
-}
-
-public fun get_channel_members(channel: &Channel): &vector<address> {
-    &channel.members
-}
-
-// --- Functions from connections.move ---
-public entry fun create_connection_store(ctx: &mut TxContext) {
-    transfer::share_object(ConnectionStore {
-        id: object::new(ctx),
-        connections: table::new(ctx),
-    });
-}
-
-public entry fun send_connection_request(
-    to: address,
-    intro_message: vector<u8>,
-    shared_context: vector<u8>,
-    is_public: bool,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    let req = ConnectionRequest {
-        id: object::new(ctx),
-        from: sender,
-        to: to,
-        intro_message: string::utf8(intro_message),
-        shared_context: string::utf8(shared_context),
-        is_public,
-    };
-    event::emit(ConnectionRequestSent { from: sender, to });
-    transfer::transfer(req, to);
-}
-
-public entry fun accept_connection_request(store: &mut ConnectionStore, req: ConnectionRequest, ctx: &mut TxContext) {
-    let ConnectionRequest { id, from, to, is_public, .. } = req;
-    object::delete(id);
-
-    let sender = tx_context::sender(ctx);
-    assert!(sender == to, E_INVALID_RECIPIENT);
-
-    // Add connection for 'from' user
-    if (!table::contains(&store.connections, from)) {
-        table::add(&mut store.connections, from, vector::empty<Connection>());
-    };
-    let from_connections = table::borrow_mut(&mut store.connections, from);
-    vector::push_back(from_connections, Connection {
-        user: to,
-        status: string::utf8(CONNECTED),
-        notifications_enabled: true,
-        profile_shared: is_public,
-        messages_allowed: true,
-    });
-
-    // Add connection for 'to' user
-    if (!table::contains(&store.connections, to)) {
-        table::add(&mut store.connections, to, vector::empty<Connection>());
-    };
-    let to_connections = table::borrow_mut(&mut store.connections, to);
-    vector::push_back(to_connections, Connection {
-        user: from,
-        status: string::utf8(CONNECTED),
-        notifications_enabled: true,
-        profile_shared: is_public,
-        messages_allowed: true,
-    });
-
-    event::emit(ConnectionAccepted { user1: from, user2: to });
-}
-
-public entry fun decline_connection_request(req: ConnectionRequest, ctx: &mut TxContext) {
-    let ConnectionRequest { id, from, to, .. } = req;
-    object::delete(id);
-    event::emit(ConnectionDeclined { from, to });
-}
-
-public entry fun update_connection_preferences(
-    store: &mut ConnectionStore,
-    connected_user: address,
-    notifications_enabled: bool,
-    profile_shared: bool,
-    messages_allowed: bool,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    assert!(table::contains(&store.connections, sender), E_NOT_CONNECTED);
-
-    let connections = table::borrow_mut(&mut store.connections, sender);
-    let mut i = 0;
-    let len = vector::length(connections);
-    let mut found = false;
-    while (i < len) {
-        let conn = vector::borrow_mut(connections, i);
-        if (conn.user == connected_user) {
-            conn.notifications_enabled = notifications_enabled;
-            conn.profile_shared = profile_shared;
-            conn.messages_allowed = messages_allowed;
-            found = true;
-            break
-        };
-        i = i + 1;
-    };
-    assert!(found, E_NOT_CONNECTED);
-    event::emit(ConnectionPreferencesUpdated { user: sender, connected_user });
-}
-
-public entry fun update_connection_status(
-    store: &mut ConnectionStore,
-    connected_user: address,
-    new_status: vector<u8>,
-    ctx: &mut TxContext
-) {
-    let sender = tx_context::sender(ctx);
-    assert!(table::contains(&store.connections, sender), E_NOT_CONNECTED);
-    let new_status_str = string::utf8(new_status);
-    assert!(new_status_str == string::utf8(UNFOLLOWED) || new_status_str == string::utf8(MUTED), E_INVALID_STATUS);
-
-    let connections = table::borrow_mut(&mut store.connections, sender);
-    let mut i = 0;
-    let len = vector::length(connections);
-    let mut found = false;
-    while (i < len) {
-        let conn = vector::borrow_mut(connections, i);
-        if (conn.user == connected_user) {
-            conn.status = new_status_str;
-            found = true;
-            break
-        };
-        i = i + 1;
-    };
-    assert!(found, E_NOT_CONNECTED);
-    event::emit(ConnectionStatusUpdated { user: sender, connected_user, new_status: new_status_str });
-}
-
-// View functions
-public fun is_connected(store: &ConnectionStore, user1: address, user2: address): bool {
-    if (table::contains(&store.connections, user1)) {
-        let connections = table::borrow(&store.connections, user1);
-        let mut i = 0;
-        while (i < vector::length(connections)) {
-            let conn = vector::borrow(connections, i);
-            if (conn.user == user2 && conn.status == string::utf8(CONNECTED)) {
-                return true
-            };
-            i = i + 1;
-        };
-    };
-    false
-}
-
-public fun get_connections(store: &ConnectionStore, user: address): &vector<Connection> {
-    assert!(table::contains(&store.connections, user), E_NOT_CONNECTED);
-    table::borrow(&store.connections, user)
-}
-
-public fun recommend_related_people(_store: &ConnectionStore, _user: address): vector<address> {
-    // Placeholder for recommendation logic.
-    // This would be implemented off-chain by indexing the graph.
-    vector::empty<address>()
-}
+// Connection functions moved to `devhub::connections`
 
 // --- Functions from proposal.move ---
 
@@ -2629,56 +2053,6 @@ public fun get_platform_statistics(stats: &PlatformStatistics): (u64, u64, u64, 
 }
 
 // ===== SEAL ACCESS CONTROL FUNCTIONS =====
-
-/// Seal access control function for conversation messages
-/// Only conversation participants can decrypt messages
-entry fun seal_approve_conversation(
-    id: vector<u8>,
-    conversation: &Conversation,
-    ctx: &TxContext,
-) {
-    let sender = tx_context::sender(ctx);
-    
-    // Check if the sender is a participant in the conversation
-    assert!(
-        sender == conversation.participant1 || sender == conversation.participant2,
-        E_NOT_PARTICIPANT
-    );
-    
-    // For now, we'll approve access if the user is a participant
-    // In a more sophisticated implementation, you could verify the identity
-    // contains the correct conversation context
-}
-
-/// Seal access control function for channel messages
-/// Only channel members can decrypt messages
-entry fun seal_approve_channel_message(
-    id: vector<u8>,
-    channel: &Channel,
-    member_cap: &MemberCap,
-    ctx: &TxContext,
-) {
-    let sender = tx_context::sender(ctx);
-    
-    // Verify the sender is a member of the channel
-    assert!(
-        vector::contains(&channel.members, &sender),
-        E_NOT_PARTICIPANT
-    );
-    
-    // Verify the member cap is valid for this channel
-    assert!(
-        member_cap.member == sender,
-        E_NOT_PARTICIPANT
-    );
-    
-    // Verify the member cap belongs to this channel
-    assert!(
-        member_cap.channel_id == object::uid_to_inner(&channel.id),
-        E_NOT_PARTICIPANT
-    );
-}
-
 /// Seal access control function for general devhub data
 /// Only registered users with active devcards can access encrypted data
 entry fun seal_approve_devhub_data(

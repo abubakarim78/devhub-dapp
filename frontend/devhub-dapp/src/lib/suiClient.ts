@@ -4,8 +4,8 @@ import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 
 
 // Contract configuration
-export const PACKAGE_ID = '0x0929df9f70ce6fbc85b1e6a23de2d4db0ee473f8907183acf8a360fd42ca2345';
-export const DEVHUB_OBJECT_ID = '0x4ce23328c46cb20ba5db0887397810733c2cc3c4c7dc6fcba485b5c19b3c3aa7';
+export const PACKAGE_ID = '0x6b1b012e5c7ab40e58aebb60213064a3fb45c7fdd0bf9f964503d1318c38919d';
+export const DEVHUB_OBJECT_ID = '0x67c35f531f6a2f89fa15ef8001edb16d52297991db0befbfb007a6aff6747a9a';
 // ConnectionStore is a shared object - we'll query for it dynamically
 export const CONNECTION_STORE_ID = ''; // Will be fetched dynamically
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
@@ -152,7 +152,6 @@ export interface DevCardData {
   id: number;
   owner: string;
   name: string;
-  title: string;
   niche: string;
   about?: string;
   description: string;
@@ -341,6 +340,7 @@ export interface ConnectionRequest {
   introMessage: string;
   sharedContext: string;
   isPublic: boolean;
+  status: string;
 }
 
 export interface PlatformStatistics {
@@ -368,7 +368,6 @@ export interface ProposalsByStatus {
 export function createCardTransaction(
   cardData: {
     name: string;
-    title: string;
     niche: string;
     customNiche?: string;
     imageUrl: string;
@@ -397,7 +396,6 @@ export function createCardTransaction(
     target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
     arguments: [
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
-      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.title))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.niche))),
       tx.pure.option('vector<u8>', cardData.customNiche ? Array.from(new TextEncoder().encode(cardData.customNiche)) : null),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.imageUrl))),
@@ -450,7 +448,6 @@ export function updateCardTransaction(
   cardId: number,
   cardData: {
     name: string;
-    title: string;
     niche: string;
     customNiche?: string;
     about: string;
@@ -480,7 +477,6 @@ export function updateCardTransaction(
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
-      tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.title))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.niche))),
       tx.pure.option('vector<u8>', cardData.customNiche ? Array.from(new TextEncoder().encode(cardData.customNiche)) : null),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.about))),
@@ -1366,7 +1362,7 @@ export function startConversationTransaction(participant2: string) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.START_CONVERSATION}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.START_CONVERSATION}`,
     arguments: [
       tx.pure.address(participant2),
       tx.object(SUI_CLOCK_OBJECT_ID),
@@ -1419,7 +1415,7 @@ export async function sendEncryptedMessageTransaction(
     const tx = new Transaction();
     
     tx.moveCall({
-      target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
       arguments: [
         tx.object(conversationId),
         tx.pure.vector('u8', Array.from(encryptedBytes)), // This is the full BCS-encoded encrypted object
@@ -1451,7 +1447,7 @@ export function sendMessageTransaction(
   console.log('Encoded content length:', encodedContent.length);
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
     arguments: [
       tx.object(conversationId),
       tx.pure.vector('u8', encodedContent),
@@ -1470,7 +1466,7 @@ export function markAsReadTransaction(
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.MARK_AS_READ}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.MARK_AS_READ}`,
     arguments: [
       tx.object(conversationId),
       tx.pure.u64(messageIndex),
@@ -1487,7 +1483,7 @@ export function createConnectionStoreTransaction() {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CONNECTION_STORE}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.CREATE_CONNECTION_STORE}`,
     arguments: [],
   });
 
@@ -1504,7 +1500,7 @@ export function sendConnectionRequestTransaction(
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEND_CONNECTION_REQUEST}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.SEND_CONNECTION_REQUEST}`,
     arguments: [
       tx.pure.address(to),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(introMessage))),
@@ -1519,15 +1515,15 @@ export function sendConnectionRequestTransaction(
 // Helper function to accept connection request
 export function acceptConnectionRequestTransaction(
   connectionStoreId: string,
-  connectionRequestId: string
+  connectionRequest: ConnectionRequest
 ) {
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ACCEPT_CONNECTION_REQUEST}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.ACCEPT_CONNECTION_REQUEST}`,
     arguments: [
       tx.object(connectionStoreId),
-      tx.object(connectionRequestId),
+      tx.object(connectionRequest.id), // Pass the ConnectionRequest object ID
     ],
   });
 
@@ -1541,7 +1537,7 @@ export function declineConnectionRequestTransaction(
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.DECLINE_CONNECTION_REQUEST}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.DECLINE_CONNECTION_REQUEST}`,
     arguments: [
       tx.object(connectionRequestId),
     ],
@@ -1561,7 +1557,7 @@ export function updateConnectionPreferencesTransaction(
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_PREFERENCES}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_PREFERENCES}`,
     arguments: [
       tx.object(connectionStoreId),
       tx.pure.address(connectedUser),
@@ -1583,7 +1579,7 @@ export function updateConnectionStatusTransaction(
   const tx = new Transaction();
   
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_STATUS}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_STATUS}`,
     arguments: [
       tx.object(connectionStoreId),
       tx.pure.address(connectedUser),
@@ -1734,15 +1730,6 @@ function bytesToHexAddress(bytes: any): string {
     byteArray = byteArray.slice(1);
   }
 
-  // Ensure we have exactly 32 bytes for a Sui address
-  if (byteArray.length !== 32) {
-    console.warn(`Unexpected address length: ${byteArray.length} bytes. Expected 32 bytes.`);
-    // If it's longer than 32 bytes, take the last 32 bytes
-    if (byteArray.length > 32) {
-      byteArray = byteArray.slice(-32);
-    }
-  }
-
   // Convert byte array to hex string
   const hexString = byteArray
     .map((byte) => {
@@ -1752,7 +1739,16 @@ function bytesToHexAddress(bytes: any): string {
     })
     .join("");
 
-  return `0x${hexString}`;
+  // Always pad/trim to exactly 64 hex characters (32 bytes) to match Sui address format
+  // If shorter, pad with zeros; if longer, take the last 64 characters
+  let normalizedHex = hexString;
+  if (normalizedHex.length < 64) {
+    normalizedHex = normalizedHex.padStart(64, '0');
+  } else if (normalizedHex.length > 64) {
+    normalizedHex = normalizedHex.slice(-64);
+  }
+
+  return `0x${normalizedHex}`;
 }
 
 // Helper function to safely parse return values
@@ -1865,50 +1861,48 @@ export async function getCardInfo(cardId: number) {
       console.log('Raw decoded data for card', cardId, ':', {
         name: parseReturnValue(returnValues[0]),
         owner: bytesToHexAddress(returnValues[1]),
-        title: parseReturnValue(returnValues[2]),
-        niche: parseReturnValue(returnValues[3]),
-        imageUrl: parseReturnValue(returnValues[4]),
-        about: parseReturnValue(returnValues[5]),
-        yearsOfExperience: parseReturnValue(returnValues[6]),
-        technologies: parseReturnValue(returnValues[7]),
-        portfolio: parseReturnValue(returnValues[8]),
-        contact: parseReturnValue(returnValues[9]),
-        openToWork: parseReturnValue(returnValues[10]),
-        featuredProjects: parseReturnValue(returnValues[11]),
-        totalViews: parseReturnValue(returnValues[12]),
-        avatarWalrusBlobId: parseReturnValue(returnValues[13])
+        niche: parseReturnValue(returnValues[2]),
+        imageUrl: parseReturnValue(returnValues[3]),
+        about: parseReturnValue(returnValues[4]),
+        yearsOfExperience: parseReturnValue(returnValues[5]),
+        technologies: parseReturnValue(returnValues[6]),
+        portfolio: parseReturnValue(returnValues[7]),
+        contact: parseReturnValue(returnValues[8]),
+        openToWork: parseReturnValue(returnValues[9]),
+        featuredProjects: parseReturnValue(returnValues[10]),
+        totalViews: parseReturnValue(returnValues[11]),
+        avatarWalrusBlobId: parseReturnValue(returnValues[12])
       });
       // Parse the returned values according to the contract's return structure
       const cardData: DevCardData = {
         id: cardId,
         name: parseReturnValue(returnValues[0]) as string,
         owner: bytesToHexAddress(returnValues[1]),
-        title: parseReturnValue(returnValues[2]) as string,
-        niche: parseReturnValue(returnValues[3]) as string,
-        about: parseReturnValue(returnValues[5]) as string,
-        description: parseReturnValue(returnValues[5]) as string, // Using about as description
-        imageUrl: parseReturnValue(returnValues[4]) as string,
-        avatarWalrusBlobId: parseReturnValue(returnValues[13]) as string,
+        niche: parseReturnValue(returnValues[2]) as string,
+        about: parseReturnValue(returnValues[4]) as string,
+        description: parseReturnValue(returnValues[4]) as string, // Using about as description
+        imageUrl: parseReturnValue(returnValues[3]) as string,
+        avatarWalrusBlobId: parseReturnValue(returnValues[12]) as string,
         skills: [], // Will be fetched separately if needed
-        yearsOfExperience: Number(parseReturnValue(returnValues[6])),
-        technologies: parseReturnValue(returnValues[7]) as string,
+        yearsOfExperience: Number(parseReturnValue(returnValues[5])),
+        technologies: parseReturnValue(returnValues[6]) as string,
         workPreferences: {
           workTypes: [],
           hourlyRate: undefined,
           locationPreference: '',
           availability: '',
         },
-        contact: parseReturnValue(returnValues[9]) as string,
+        contact: parseReturnValue(returnValues[8]) as string,
         socialLinks: {
           github: undefined,
           linkedin: undefined,
           twitter: undefined,
           personalWebsite: undefined,
         },
-        portfolio: parseReturnValue(returnValues[8]) as string,
-        featuredProjects: parseReturnValue(returnValues[11]) as string[],
+        portfolio: parseReturnValue(returnValues[7]) as string,
+        featuredProjects: parseReturnValue(returnValues[10]) as string[],
         languages: [],
-        openToWork: Boolean(parseReturnValue(returnValues[10])),
+        openToWork: Boolean(parseReturnValue(returnValues[9])),
         isActive: true, // Default to active for existing cards
         verified: false,
         reviews: [],
@@ -2900,10 +2894,13 @@ export async function isConnected(connectionStoreId: string, user1: string, user
 // Get connection requests owned by user
 export async function getConnectionRequests(userAddress: string): Promise<ConnectionRequest[]> {
   try {
+    console.log('Querying connection requests for user:', userAddress);
+    console.log('Using package ID:', PACKAGE_ID);
+    
     const objects = await suiClient.getOwnedObjects({
       owner: userAddress,
       filter: {
-        StructType: `${PACKAGE_ID}::devhub::ConnectionRequest`,
+        StructType: `${PACKAGE_ID}::connections::ConnectionRequest`,
       },
       options: {
         showContent: true,
@@ -2911,10 +2908,15 @@ export async function getConnectionRequests(userAddress: string): Promise<Connec
       },
     });
 
+    console.log('Raw objects response:', objects);
+    console.log('Number of objects found:', objects.data.length);
+
     const requests: ConnectionRequest[] = [];
     for (const obj of objects.data) {
+      console.log('Processing object:', obj);
       if (obj.data?.content && 'fields' in obj.data.content) {
         const fields = (obj.data.content as any).fields;
+        console.log('Object fields:', fields);
         requests.push({
           id: obj.data.objectId,
           from: fields.from,
@@ -2922,10 +2924,12 @@ export async function getConnectionRequests(userAddress: string): Promise<Connec
           introMessage: fields.intro_message,
           sharedContext: fields.shared_context,
           isPublic: fields.is_public,
+          status: fields.status,
         });
       }
     }
 
+    console.log('Processed connection requests:', requests);
     return requests;
   } catch (error) {
     console.error('Error getting connection requests:', error);
@@ -2936,24 +2940,67 @@ export async function getConnectionRequests(userAddress: string): Promise<Connec
 // Get or find connection store ID
 export async function getConnectionStoreId(): Promise<string | null> {
   try {
-    // Try to query for existing ConnectionStore objects
-    const queryResult = await suiClient.queryObjects({
-      filter: { StructType: `${PACKAGE_ID}::devhub::ConnectionStore` },
-      options: {
-        showType: true,
-        showContent: false,
-      },
-    });
-
-    if (queryResult.data && queryResult.data.length > 0) {
-      return queryResult.data[0].data.objectId;
+    console.log('Querying for ConnectionStore objects...');
+    console.log('Using package ID:', PACKAGE_ID);
+    
+    // Check if we have a stored ConnectionStore ID
+    const storedId = localStorage.getItem('devhub_connection_store_id');
+    if (storedId) {
+      console.log('Found stored ConnectionStore ID:', storedId);
+      try {
+        const obj = await suiClient.getObject({
+          id: storedId,
+          options: { showType: true },
+        });
+        const type = obj.data?.type || '';
+        if (typeof type === 'string' && type.includes('::connections::ConnectionStore')) {
+          return storedId;
+        }
+        console.warn('Stored ConnectionStore ID is invalid type:', type, 'clearing cache');
+        localStorage.removeItem('devhub_connection_store_id');
+      } catch (e) {
+        console.warn('Failed to validate stored ConnectionStore ID, clearing cache', e);
+        localStorage.removeItem('devhub_connection_store_id');
+      }
     }
-
+    
+    // Try to query for ConnectionStoreCreated events
+    try {
+      const events = await suiClient.queryEvents({
+        query: {
+          MoveEventType: `${PACKAGE_ID}::connections::ConnectionStoreCreated`
+        },
+        limit: 1,
+        order: 'descending'
+      });
+      
+      console.log('ConnectionStoreCreated events:', events);
+      
+      if (events.data && events.data.length > 0) {
+        const eventData = events.data[0].parsedJson as any;
+        if (eventData && eventData.store_id) {
+          console.log('Found ConnectionStore ID from events:', eventData.store_id);
+          // Store it for future use
+          storeConnectionStoreId(eventData.store_id);
+          return eventData.store_id;
+        }
+      }
+    } catch (eventError) {
+      console.log('Error querying ConnectionStoreCreated events:', eventError);
+    }
+    
+    console.log('No ConnectionStore found - will be created if needed');
     return null;
   } catch (error) {
     console.error('Error finding connection store:', error);
     return null;
   }
+}
+
+// Store connection store ID
+export function storeConnectionStoreId(storeId: string): void {
+  localStorage.setItem('devhub_connection_store_id', storeId);
+  console.log('Stored ConnectionStore ID:', storeId);
 }
 
 // Proposal view functions
@@ -3763,7 +3810,7 @@ export async function getActivityStats(): Promise<{
 export async function createChannelTransaction(channelName: string, initialMembers: string[]) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.CREATE_CHANNEL}`,
     arguments: [
       tx.pure.string(channelName),
       tx.pure.vector('address', initialMembers),
@@ -3781,7 +3828,7 @@ export async function sendMessageToChannelTransaction(
 ) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEND_MESSAGE_TO_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.SEND_MESSAGE_TO_CHANNEL}`,
     arguments: [
       tx.object(channelId),
       tx.object(memberCapId),
@@ -3799,7 +3846,7 @@ export async function addMemberToChannelTransaction(
 ) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_MEMBER_TO_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.ADD_MEMBER_TO_CHANNEL}`,
     arguments: [
       tx.object(channelId),
       tx.pure.address(newMember),
@@ -3815,7 +3862,7 @@ export async function removeMemberFromChannelTransaction(
 ) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.REMOVE_MEMBER_FROM_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.REMOVE_MEMBER_FROM_CHANNEL}`,
     arguments: [
       tx.object(channelId),
       tx.pure.address(memberToRemove),
@@ -3831,7 +3878,7 @@ export async function removeMemberFromChannelTransaction(
 export async function getChannelMessagesTransaction(channelId: string) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::get_channel_messages`,
+    target: `${PACKAGE_ID}::channels::get_channel_messages`,
     arguments: [tx.object(channelId)],
   });
   return tx;
@@ -3841,7 +3888,7 @@ export async function getChannelMessagesTransaction(channelId: string) {
 export async function getChannelMembersTransaction(channelId: string) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::get_channel_members`,
+    target: `${PACKAGE_ID}::channels::get_channel_members`,
     arguments: [tx.object(channelId)],
   });
   return tx;
@@ -3857,7 +3904,7 @@ export async function getUserChannelMemberships(userAddress: string) {
     const ownedObjects = await client.getOwnedObjects({
       owner: userAddress,
       filter: {
-        StructType: `${PACKAGE_ID}::devhub::MemberCap`
+        StructType: `${PACKAGE_ID}::channels::MemberCap`
       },
       options: {
         showContent: true,
@@ -4135,8 +4182,7 @@ export async function getChannelMembers(channelId: string) {
     let addressToNameMap: Record<string, { name: string; title: string; imageUrl: string }> = {};
     
     try {
-      // Import the getAllActiveCards function dynamically to avoid circular imports
-      const { getAllActiveCards } = await import('./suiClient');
+      // Call directly to avoid dynamic self-import loops
       const activeCards = await getAllActiveCards();
       
       // Create mapping from address to user info
@@ -4144,7 +4190,7 @@ export async function getChannelMembers(channelId: string) {
         if (card.owner && card.name) {
           addressToNameMap[card.owner] = {
             name: card.name,
-            title: card.title || 'Developer',
+            title: card.niche || 'Developer',
             imageUrl: card.imageUrl || '/api/placeholder/40/40'
           };
         }

@@ -205,6 +205,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard-profile" element={<MyProfile />} />
             <Route path="/dashboard-messages" element={<Messages />} />
+            <Route path="/dashboard-messages/:id" element={<Messages />} />
             <Route path="/dashboard-channels" element={<ChannelDashboard />} />
             <Route path="/dashboard-connections" element={<Connections />} />
             <Route path="/card/:id" element={<CardDetails />} />

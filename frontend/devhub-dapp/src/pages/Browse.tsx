@@ -73,7 +73,7 @@ const Browse: React.FC = () => {
       const lowerSearchTerm = searchTerm.toLowerCase();
       const matchesSearch = 
         card.name.toLowerCase().includes(lowerSearchTerm) ||
-        card.title.toLowerCase().includes(lowerSearchTerm) ||
+        card.niche.toLowerCase().includes(lowerSearchTerm) ||
         card.description?.toLowerCase().includes(lowerSearchTerm);
       const matchesTech = !selectedTech || card.technologies.split(',').map(t => t.trim()).includes(selectedTech);
       const matchesAvailability = !showAvailableOnly || card.openToWork;

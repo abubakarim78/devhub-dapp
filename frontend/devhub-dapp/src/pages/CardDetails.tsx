@@ -112,7 +112,7 @@ const CardDetails: React.FC = () => {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <h1 className="text-4xl font-bold text-foreground mb-1">{card.name}</h1>
-                        <p className="text-xl text-primary font-semibold">{card.title}</p>
+                        <p className="text-xl text-primary font-semibold">{card.niche}</p>
                       </div>
                     </div>
                     
