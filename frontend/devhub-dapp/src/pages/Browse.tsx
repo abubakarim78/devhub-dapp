@@ -5,6 +5,7 @@ import { DevCardData } from '../lib/suiClient';
 import StarBackground from '@/components/common/StarBackground';
 import DeveloperCard from '@/components/common/DeveloperCard';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 
 const CARDS_PER_PAGE = 9;
 
@@ -24,13 +25,16 @@ const itemVariants: Variants = {
 };
 
 const Browse: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const inviteAddress = searchParams.get('invite');
+  
   // --- STATE MANAGEMENT ---
   const [allCards, setAllCards] = useState<DevCardData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filter States
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(inviteAddress || '');
   const [selectedTech, setSelectedTech] = useState<string>('');
   const [showAvailableOnly, setShowAvailableOnly] = useState<boolean>(false);
   const [minExperience, setMinExperience] = useState<number>(0);
@@ -69,7 +73,7 @@ const Browse: React.FC = () => {
       const lowerSearchTerm = searchTerm.toLowerCase();
       const matchesSearch = 
         card.name.toLowerCase().includes(lowerSearchTerm) ||
-        card.title.toLowerCase().includes(lowerSearchTerm) ||
+        card.niche.toLowerCase().includes(lowerSearchTerm) ||
         card.description?.toLowerCase().includes(lowerSearchTerm);
       const matchesTech = !selectedTech || card.technologies.split(',').map(t => t.trim()).includes(selectedTech);
       const matchesAvailability = !showAvailableOnly || card.openToWork;

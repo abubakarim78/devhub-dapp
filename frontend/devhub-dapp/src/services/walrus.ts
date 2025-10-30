@@ -71,6 +71,9 @@ export class WalrusService {
     } catch (error) {
       console.error('Walrus upload failed:', error);
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 413) {
+          throw new Error('File too large for Walrus publisher (HTTP 413). Max ~5 MB. Please compress or choose a smaller file.');
+        }
         // Check for specific error types
         if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
           throw new Error('Network error: Unable to connect to Walrus. Please check your internet connection and try again.');

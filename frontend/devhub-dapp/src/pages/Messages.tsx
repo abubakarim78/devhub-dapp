@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { 
   Search, 
@@ -68,6 +69,15 @@ interface ConversationData {
 const Messages: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const [searchParams] = useSearchParams();
+  const { id: routeConversationId } = useParams();
+  const navigate = useNavigate();
+  const normalizeAddress = useCallback((addr?: string): string => {
+    if (!addr) return '';
+    let a = addr.trim().toLowerCase();
+    if (!a.startsWith('0x')) a = `0x${a}`;
+    return a;
+  }, []);
   const { 
     useMessages, 
     useConversations, 
@@ -93,6 +103,8 @@ const Messages: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const processedConversationRef = useRef<Set<string>>(new Set());
 
   // Function to handle emoji selection
   const handleEmojiSelect = useCallback((emojiObject: { emoji: string }) => {
@@ -161,7 +173,7 @@ const Messages: React.FC = () => {
         if (card.owner && card.name) {
           developerMap[card.owner] = {
             name: card.name,
-            title: card.title || 'Developer',
+            title: card.niche || 'Developer',
             imageUrl: card.imageUrl || '/api/placeholder/40/40'
           };
         }
@@ -231,6 +243,11 @@ const Messages: React.FC = () => {
       });
     });
   }, [currentAccount?.address, addressToDeveloperMap]);
+
+  // Clear processed conversations ref on component mount
+  useEffect(() => {
+    processedConversationRef.current.clear();
+  }, []);
 
   // Load conversations on component mount
   useEffect(() => {
@@ -310,6 +327,72 @@ const Messages: React.FC = () => {
     }
   }, [conversations.length, addressToNameMap, addressToDeveloperMap, currentAccount?.address]);
 
+  // Handle deep-link from Connections: /dashboard-messages?to=<address>
+  useEffect(() => {
+    const to = searchParams.get('to');
+    if (!to || !currentAccount?.address) return;
+    
+    console.log('🔥 useEffect triggered for ?to= deep link:', to);
+    
+    // Create a unique key for this conversation attempt
+    const conversationKey = `${currentAccount.address}-${to}`;
+    
+    // Check if we've already processed this conversation
+    if (processedConversationRef.current.has(conversationKey)) {
+      console.log('🚫 Conversation already processed, skipping...', conversationKey);
+      return;
+    }
+    
+    console.log('✅ Processing new conversation request:', conversationKey);
+    
+    // Mark as processed
+    processedConversationRef.current.add(conversationKey);
+    
+    // Try to find or create conversation, then select it
+    (async () => {
+      try {
+        const existing = await useConversations(currentAccount.address, true);
+        const me = normalizeAddress(currentAccount.address);
+        const target = normalizeAddress(to);
+        const existingConv = existing.find(conv =>
+          (normalizeAddress(conv.participant1) === me && normalizeAddress(conv.participant2) === target) ||
+          (normalizeAddress(conv.participant2) === me && normalizeAddress(conv.participant1) === target)
+        );
+        if (existingConv) {
+          console.log('📋 Found existing conversation:', existingConv.id);
+          setSelectedMessage(existingConv.id);
+          await loadMessages(existingConv.id, true);
+          return;
+        }
+        console.log('🚀 No existing conversation found, calling handleStartConversation...');
+        await handleStartConversation(target);
+      } catch (e) {
+        console.error('Failed to open or create conversation from link:', e);
+        // Remove from processed set on error so it can be retried
+        processedConversationRef.current.delete(conversationKey);
+      }
+    })();
+    // Only run on mount or when ?to changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get('to'), currentAccount?.address]);
+
+  // Handle deep-link by conversation id: /dashboard-messages/:id
+  useEffect(() => {
+    if (routeConversationId) {
+      setSelectedMessage(routeConversationId);
+      loadMessages(routeConversationId, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeConversationId]);
+
+  // Keep URL in sync when selecting a conversation in UI
+  useEffect(() => {
+    if (selectedMessage) {
+      navigate(`/dashboard-messages/${selectedMessage}`, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMessage]);
+
   // Load messages when a conversation is selected (consolidated)
   useEffect(() => {
     console.log('Selected message changed:', selectedMessage);
@@ -328,7 +411,7 @@ const Messages: React.FC = () => {
       // since the SDK has compatibility issues
       console.log('Using legacy conversation loading due to SDK compatibility issues');
       
-      let contractConversations = [];
+      let contractConversations: any[] = [];
       try {
         contractConversations = await useConversations(currentAccount.address);
         console.log('Loaded legacy conversations:', contractConversations);
@@ -425,7 +508,8 @@ const Messages: React.FC = () => {
       
       setConversations(uiConversations);
       
-      if (uiConversations.length > 0 && !selectedMessage) {
+      const hasToParam = Boolean(searchParams.get('to'));
+      if (uiConversations.length > 0 && !selectedMessage && !hasToParam) {
         setSelectedMessage(uiConversations[0].id);
         console.log('Auto-selected first conversation:', uiConversations[0].id);
       }
@@ -434,7 +518,7 @@ const Messages: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentAccount?.address, useConversations, addressToNameMap]);
+  }, [currentAccount?.address, useConversations, addressToNameMap, searchParams]);
 
 
   const loadMessages = useCallback(async (conversationId: string, forceRefresh: boolean = false) => {
@@ -662,11 +746,11 @@ const Messages: React.FC = () => {
       // Send message with file attachment
       const messageWithFile = `📎 ${selectedFile.name}\n${blobUrl}`;
       
-      // Add file message to current messages immediately
+      // Add file message to current messages immediately (include URL so media renders)
       const fileMessage: ChatMessage = {
         id: Date.now().toString(),
         sender: 'You',
-        message: `📎 ${selectedFile.name}`,
+        message: messageWithFile,
         timestamp: 'now',
         isOutgoing: true
       };
@@ -695,8 +779,7 @@ const Messages: React.FC = () => {
 
       console.log('File message sent successfully:', result);
 
-      // Clear and reload messages
-      setCurrentMessages([]);
+      // Optionally refresh from chain shortly after to replace optimistic state
       setShowFileUpload(false);
       setSelectedFile(null);
       
@@ -891,13 +974,43 @@ const Messages: React.FC = () => {
   }, [newMessage, selectedMessage, sending, currentAccount?.address, loadMessages, conversations]);
 
   const handleStartConversation = useCallback(async (participant2: string) => {
-    if (!currentAccount?.address) return;
+    console.log('🎯 handleStartConversation called for:', participant2);
+    
+    if (!currentAccount?.address) {
+      console.log('❌ No current account, aborting');
+      return;
+    }
+    
+    // Prevent multiple simultaneous conversation creation attempts
+    if (isCreatingConversation) {
+      console.log('⚠️ Conversation creation already in progress, skipping...');
+      return;
+    }
+    
+    console.log('✅ Starting conversation creation process...');
     
     try {
+      setIsCreatingConversation(true);
+      
+      // First, check if a conversation already exists with this participant
+      const existing = await useConversations(currentAccount.address, true);
+      const existingConv = existing.find(conv => 
+        (conv.participant1 === currentAccount.address && conv.participant2 === participant2) ||
+        (conv.participant2 === currentAccount.address && conv.participant1 === participant2)
+      );
+      if (existingConv) {
+        console.log('📋 Existing conversation found, selecting it:', existingConv.id);
+        setSelectedMessage(existingConv.id);
+        await loadMessages(existingConv.id);
+        setIsCreatingConversation(false);
+        return;
+      }
+
       // For now, skip the new SDK and go directly to legacy conversation creation
       // since the SDK has compatibility issues
-      console.log('Using legacy conversation creation due to SDK compatibility issues');
+      console.log('🚀 Using legacy conversation creation due to SDK compatibility issues');
       const tx = startConversationTransaction(participant2);
+      console.log('📝 Transaction created, executing signAndExecute...');
       signAndExecute(
         { transaction: tx as any },
         {
@@ -942,18 +1055,22 @@ const Messages: React.FC = () => {
                 }
               } catch (error) {
                 console.error('Error selecting new conversation:', error);
+              } finally {
+                setIsCreatingConversation(false);
               }
             }, 2000); // Wait 2 seconds for indexing
           },
           onError: (error) => {
             console.error('Error starting conversation:', error);
+            setIsCreatingConversation(false);
           }
         }
       );
     } catch (error) {
       console.error('Error starting conversation:', error);
+      setIsCreatingConversation(false);
     }
-  }, [currentAccount?.address, loadConversations, useConversations, loadMessages]);
+  }, [currentAccount?.address, loadConversations, useConversations, loadMessages, isCreatingConversation]);
 
   const loadAvailableDevelopers = useCallback(async () => {
     setLoadingDevelopers(true);
@@ -967,7 +1084,7 @@ const Messages: React.FC = () => {
         .map(card => ({
           id: card.id,
           name: card.name,
-          title: card.title,
+          title: card.niche,
           owner: card.owner,
           imageUrl: card.imageUrl,
           technologies: card.technologies,
@@ -1008,7 +1125,7 @@ const Messages: React.FC = () => {
     const developerInfo = addressToDeveloperMap[conv.participant2];
     const nameMatch = developerInfo?.name?.toLowerCase().includes(query) || false;
     
-    // Search by developer title
+    // Search by developer niche
     const titleMatch = developerInfo?.title?.toLowerCase().includes(query) || false;
     
     // Search by last message content
@@ -1694,7 +1811,7 @@ const Messages: React.FC = () => {
                               id="file-upload"
                               className="hidden"
                               onChange={handleFileSelect}
-                              accept="image/*,application/pdf,text/*"
+                              accept="image/*,video/*,application/pdf,text/*"
                             />
                             
                             <div className="flex items-center gap-3">

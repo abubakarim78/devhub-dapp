@@ -118,7 +118,6 @@ const CreateCard: React.FC = () => {
 
     const [formData, setFormData] = useState({
         name: '',
-        title: '',
         niche: 'Developer',
         customNiche: '',
         about: '',
@@ -171,7 +170,6 @@ const CreateCard: React.FC = () => {
         const newErrors: Record<string, string> = {};
         if (currentStep === 0) { // Personal Info
             if (!formData.name.trim()) newErrors.name = 'Full Name is required.';
-            if (!formData.title.trim()) newErrors.title = 'Professional Title is required.';
             if (!formData.niche.trim()) newErrors.niche = 'Please select a professional niche.';
             if (formData.niche === 'Custom' && !formData.customNiche.trim()) {
                 newErrors.customNiche = 'Please specify your custom niche.';
@@ -299,7 +297,6 @@ const CreateCard: React.FC = () => {
 
             const cardDataForTransaction = {
                 name: formData.name,
-                title: formData.title,
                 niche: formData.niche,
                 customNiche: formData.niche === 'Custom' ? formData.customNiche : undefined,
                 imageUrl: walrusImageBlobId ? imagePreviewUrl : formData.imageUrl,
@@ -435,10 +432,7 @@ const CreateCard: React.FC = () => {
                         >
                             {currentStep === 0 && (
                                 <FormStep title="Personal Information" icon={<User size={20} className="text-blue-400" />}>
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <InputField label="Full Name" name="name" value={formData.name} onChange={handleInputChange} error={errors.name} placeholder="e.g., Jane Doe" />
-                                        <InputField label="Professional Title" name="title" value={formData.title} onChange={handleInputChange} error={errors.title} placeholder="e.g., Senior Frontend Developer" />
-                                    </div>
+                                    <InputField label="Full Name" name="name" value={formData.name} onChange={handleInputChange} error={errors.name} placeholder="e.g., Jane Doe" />
                                     
                                     {/* Niche Selection */}
                                     <div>

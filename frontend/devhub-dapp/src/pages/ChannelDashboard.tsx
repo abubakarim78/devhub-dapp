@@ -196,7 +196,7 @@ const ChannelDashboard: React.FC = () => {
         .map(card => ({
           id: card.id,
           name: card.name,
-          title: card.title,
+          title: card.niche,
           owner: card.owner,
           imageUrl: card.imageUrl,
           technologies: card.technologies,
@@ -290,7 +290,7 @@ const ChannelDashboard: React.FC = () => {
         .map(card => ({
           id: card.id,
           name: card.name,
-          title: card.title,
+          title: card.niche,
           owner: card.owner,
           imageUrl: card.imageUrl,
           technologies: card.technologies,
@@ -507,27 +507,53 @@ const ChannelDashboard: React.FC = () => {
     try {
       const allMembers = [currentAccount.address, ...selectedMembers];
       const tx = await createChannelTransaction(channelName, allMembers);
-      
+
+      // Optimistic UI: add a temporary channel and select it immediately
+      const tempId = `temp_${Date.now()}`;
+      const optimisticChannel: Channel = {
+        id: tempId,
+        name: channelName,
+        members: allMembers,
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+        isActive: true,
+        unreadCount: 0,
+      };
+      setChannels(prev => [optimisticChannel, ...prev]);
+      setSelectedChannel(tempId);
+
       const result = await signAndExecute({
         transaction: tx,
       });
-      
+
       console.log('Channel created:', result);
-      
-      // Show success toast
+
+      // Success toast
       setToast({ message: 'Channel created successfully!', type: 'success' });
-      
+
       // Reset form and close modal
       setChannelName('');
       setSelectedMembers([]);
       setShowCreateChannel(false);
-      
-      // Reload channels
-      await loadChannels();
-      
+
+      // Background refresh: replace optimistic with real channel and reselect
+      setTimeout(async () => {
+        await loadChannels();
+        // Try to find the newly created channel by name and membership overlap
+        setChannels(prev => {
+          const found = prev.find(c => c.name === channelName);
+          if (found) {
+            setSelectedChannel(found.id);
+          }
+          return prev;
+        });
+      }, 1200);
+
     } catch (error) {
       console.error('Error creating channel:', error);
       setToast({ message: 'Failed to create channel. Please try again.', type: 'error' });
+      // Roll back optimistic channel if any
+      setChannels(prev => prev.filter(c => !c.id.startsWith('temp_')));
     } finally {
       setCreatingChannel(false);
     }

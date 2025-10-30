@@ -51,7 +51,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
             />
             <div>
               <h3 className="font-bold text-lg text-foreground">{developer.name}</h3>
-              <p className="text-sm text-primary">{developer.title}</p>
+              <p className="text-sm text-primary">{developer.niche}</p>
             </div>
           </div>
           <div className={`text-xs font-medium px-3 py-1 rounded-full flex-shrink-0 ${

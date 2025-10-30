@@ -465,7 +465,7 @@ const MyProfile: React.FC = () => {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.5, delay: 0.8 }}
                         >
-                          {primaryCard.title} • {primaryCard.niche}
+                          {primaryCard.niche}
                         </motion.p>
                         <motion.div 
                           className="flex items-center gap-4 text-sm text-muted-foreground"
