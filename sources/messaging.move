@@ -1,11 +1,7 @@
 module devhub::messaging {
 
-use std::vector;
 use sui::event;
 use sui::clock::{Self, Clock};
-use sui::object::{Self, UID, ID};
-use sui::tx_context::{Self, TxContext};
-use sui::transfer;
 
 const E_NOT_PARTICIPANT: u64 = 10;
 

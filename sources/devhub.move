@@ -2,9 +2,6 @@ module devhub::devhub;
 
 
 use std::string::{Self, String};
-use std::option;
-use std::vector;
-use std::bcs;
 use sui::balance::{Self, Balance};
 use sui::coin::{Self, Coin};
 use sui::event;
@@ -12,22 +9,14 @@ use sui::sui::SUI;
 use sui::table::{Self, Table};
 use sui::url::{Self, Url};
 use sui::clock::{Self, Clock};
-use sui::object::{Self, ID, UID};
-use sui::tx_context::{Self, TxContext};
-use sui::transfer;
 
 // Error codes
 const NOT_THE_OWNER: u64 = 0;
 const INSUFFICIENT_FUNDS: u64 = 1;
 const NOT_ADMIN: u64 = 2;
 const E_NOT_OWNER: u64 = 3;
-const E_CARD_INACTIVE: u64 = 4;
 const INVALID_SKILL_LEVEL: u64 = 3;
-const PROJECT_NOT_FOUND: u64 = 6;
 const CANNOT_DELETE_ACTIVE_CARD: u64 = 7;
-const INVALID_APPLICATION: u64 = 9;
-const E_NOT_PARTICIPANT: u64 = 10;
-const E_INVALID_RECIPIENT: u64 = 11;
 const E_NOT_CONNECTED: u64 = 12;
 const E_INVALID_STATUS: u64 = 13;
 const INVALID_RATING: u64 = 14;
@@ -39,6 +28,7 @@ const E_APPLICATIONS_ALREADY_CLOSED: u64 = 19;
 const E_INVALID_PROPOSAL_STATUS: u64 = 20;
 const NOT_SUPER_ADMIN: u64 = 21;
 const INVALID_CUSTOM_NICHE: u64 = 22;
+const USER_ALREADY_HAS_CARD: u64 = 23;
 
 
 
@@ -172,7 +162,6 @@ public struct Project has key, store {
     required_skills: vector<String>,
     attachments_count: u64,
     owner: address,
-    escrow_enabled: bool,
     visibility: String,
     applications_status: String,
     devhub_messages_enabled: bool,
@@ -302,6 +291,7 @@ public struct DevHub has key, store {
     projects: Table<u64, Project>,
     project_applications: Table<u64, vector<ProjectApplication>>,
     platform_fees: Balance<SUI>,
+    user_cards: Table<address, u64>, // Maps user address to their card ID
 }
 
 // Events
@@ -404,6 +394,7 @@ fun init(ctx: &mut TxContext) {
         projects: table::new(ctx),
         project_applications: table::new(ctx),
         platform_fees: balance::zero(),
+        user_cards: table::new(ctx),
     });
 }
 
@@ -434,6 +425,11 @@ public entry fun create_card(
     devhub: &mut DevHub,
     ctx: &mut TxContext,
 ) {
+    let sender = tx_context::sender(ctx);
+    
+    // Check if user already has a card
+    assert!(!table::contains(&devhub.user_cards, sender), USER_ALREADY_HAS_CARD);
+    
     let value = coin::value(&payment);
     assert!(value >= PLATFORM_FEE, INSUFFICIENT_FUNDS);
 
@@ -524,6 +520,9 @@ public entry fun create_card(
     };
 
     table::add(&mut devhub.cards, devhub.card_counter, devcard);
+    
+    // Map user address to their card ID
+    table::add(&mut devhub.user_cards, sender, devhub.card_counter);
 }
 
 public entry fun update_card(
@@ -740,14 +739,29 @@ public entry fun create_project(
     timeline_weeks: u64,
     required_skills: vector<vector<u8>>,
     attachments_count: u64,
-    escrow_enabled: bool,
     visibility: vector<u8>,
     applications_status: vector<u8>,
     devhub_messages_enabled: bool,
     attachments_walrus_blob_ids: vector<vector<u8>>,
+    mut payment: Coin<SUI>,
     clock: &Clock,
     ctx: &mut TxContext
 ) {
+    let value = coin::value(&payment);
+    assert!(value >= PROJECT_POSTING_FEE, INSUFFICIENT_FUNDS);
+
+    // Collect project posting fee
+    let project_fee_coin = coin::split(&mut payment, PROJECT_POSTING_FEE, ctx);
+    let project_fee_balance = coin::into_balance(project_fee_coin);
+    balance::join(&mut devhub.platform_fees, project_fee_balance);
+
+    // Return excess payment
+    if (coin::value(&payment) > 0) {
+        transfer::public_transfer(payment, tx_context::sender(ctx));
+    } else {
+        coin::destroy_zero(payment);
+    };
+
     let owner = tx_context::sender(ctx);
     let mut skills_str = vector::empty<String>();
     let num_skills = vector::length(&required_skills);
@@ -781,7 +795,6 @@ public entry fun create_project(
         required_skills: skills_str,
         attachments_count,
         owner,
-        escrow_enabled,
         visibility: string::utf8(visibility),
         applications_status: string::utf8(applications_status),
         devhub_messages_enabled,
@@ -1028,17 +1041,22 @@ public entry fun deactivate_card(devhub: &mut DevHub, id: u64, ctx: &mut TxConte
 // Delete card
 public entry fun delete_card(devhub: &mut DevHub, id: u64, ctx: &mut TxContext) {
     let card = table::borrow(&devhub.cards, id);
-    assert!(card.owner == tx_context::sender(ctx), NOT_THE_OWNER);
+    let owner = card.owner;
+    assert!(owner == tx_context::sender(ctx), NOT_THE_OWNER);
     assert!(!card.open_to_work, CANNOT_DELETE_ACTIVE_CARD);
 
     let removed_card = table::remove(&mut devhub.cards, id);
     let DevCard {
         id: card_uid,
-        owner,
         name,
         niche,
         ..
     } = removed_card;
+
+    // Remove user-to-card mapping
+    if (table::contains(&devhub.user_cards, owner)) {
+        table::remove(&mut devhub.user_cards, owner);
+    };
 
     event::emit(CardDeleted {
         card_id: id,
@@ -1109,6 +1127,20 @@ public entry fun change_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mu
 }
 
 // === View Functions ===
+
+// Get user's card ID if they have one
+public fun get_user_card_id(devhub: &DevHub, user_address: address): Option<u64> {
+    if (table::contains(&devhub.user_cards, user_address)) {
+        option::some(*table::borrow(&devhub.user_cards, user_address))
+    } else {
+        option::none()
+    }
+}
+
+// Check if user has a card
+public fun user_has_card(devhub: &DevHub, user_address: address): bool {
+    table::contains(&devhub.user_cards, user_address)
+}
 
 public fun get_card_info(
     devhub: &DevHub,
@@ -1504,6 +1536,51 @@ public entry fun update_project_status(
     assert!(project.owner == tx_context::sender(ctx), NOT_THE_OWNER);
     
     project.applications_status = string::utf8(new_status);
+}
+
+// Update project details
+public entry fun update_project(
+    devhub: &mut DevHub,
+    project_id: u64,
+    title: vector<u8>,
+    short_summary: vector<u8>,
+    description: vector<u8>,
+    category: vector<u8>,
+    experience_level: vector<u8>,
+    budget_min: u64,
+    budget_max: u64,
+    timeline_weeks: u64,
+    required_skills: vector<vector<u8>>,
+    applications_status: vector<u8>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let project = table::borrow_mut(&mut devhub.projects, project_id);
+    assert!(project.owner == tx_context::sender(ctx), NOT_THE_OWNER);
+    
+    // Convert skills from vector<u8> to vector<String>
+    let mut skills_str = vector::empty<String>();
+    let num_skills = vector::length(&required_skills);
+    let mut i = 0;
+    while (i < num_skills) {
+        vector::push_back(&mut skills_str, string::utf8(*vector::borrow(&required_skills, i)));
+        i = i + 1;
+    };
+    
+    // Update project fields
+    project.title = string::utf8(title);
+    project.short_summary = string::utf8(short_summary);
+    project.description = string::utf8(description);
+    project.category = string::utf8(category);
+    project.experience_level = string::utf8(experience_level);
+    project.budget_min = budget_min;
+    project.budget_max = budget_max;
+    project.timeline_weeks = timeline_weeks;
+    project.required_skills = skills_str;
+    project.applications_status = string::utf8(applications_status);
+    
+    // Note: creation_timestamp and owner remain unchanged
+    // attachments_walrus_blob_ids and attachments_count remain unchanged
 }
 
 // Update social links

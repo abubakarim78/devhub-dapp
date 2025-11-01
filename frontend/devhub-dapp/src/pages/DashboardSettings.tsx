@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, 
@@ -7,16 +9,10 @@ import {
   Bell, 
   Shield, 
   Palette, 
-  Globe, 
   Key, 
   Trash2, 
   Save, 
-  Eye, 
-  EyeOff,
-  Check,
-  X,
   AlertTriangle,
-  Info,
   Loader2
 } from 'lucide-react';
 import StarBackground from '@/components/common/StarBackground';
@@ -24,10 +20,11 @@ import DashboardSidebar from '@/components/DashboardSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContract } from '@/hooks/useContract';
 import { 
-  updateConnectionPreferencesTransaction,
-  updateConnectionStatusTransaction,
-  getWorkPreferences
+  getWorkPreferences,
+  // We will build the transaction inline here
 } from '@/lib/suiClient';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '@/lib/suiClient';
+import { getSocialLinks } from '@/lib/suiClient';
 
 interface UserSettings {
   profile: {
@@ -37,6 +34,7 @@ interface UserSettings {
     website: string;
     github: string;
     twitter: string;
+    linkedin: string;
   };
   notifications: {
     emailNotifications: boolean;
@@ -66,16 +64,21 @@ interface UserSettings {
 
 const DashboardSettings: React.FC = () => {
   const currentAccount = useCurrentAccount();
-  const { theme, setTheme } = useTheme();
-  const { useConnections, getUserCards } = useContract();
+  const { setTheme } = useTheme();
+  const { getUserCards } = useContract();
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userCards, setUserCards] = useState<any[]>([]);
-  const [connections, setConnections] = useState<any[]>([]);
+  const [workPrefs, setWorkPrefs] = useState<{ workTypes: string[]; hourlyRate: number | null; locationPreference: string; availability: string }>({
+    workTypes: [],
+    hourlyRate: null,
+    locationPreference: '',
+    availability: ''
+  });
 
   const [settings, setSettings] = useState<UserSettings>({
     profile: {
@@ -84,7 +87,8 @@ const DashboardSettings: React.FC = () => {
       location: '',
       website: '',
       github: '',
-      twitter: ''
+      twitter: '',
+      linkedin: ''
     },
     notifications: {
       emailNotifications: true,
@@ -134,17 +138,52 @@ const DashboardSettings: React.FC = () => {
           ...prev,
           profile: {
             displayName: firstCard.name || '',
-            bio: firstCard.bio || '',
-            location: firstCard.location || '',
-            website: firstCard.website || '',
-            github: firstCard.github || '',
-            twitter: firstCard.twitter || ''
+            bio: firstCard.about || '',
+            location: '',
+            website: firstCard.socialLinks?.personalWebsite || '',
+            github: firstCard.socialLinks?.github || '',
+            twitter: firstCard.socialLinks?.twitter || '',
+            linkedin: firstCard.socialLinks?.linkedin || ''
           }
         }));
+
+        // Load work preferences from chain
+        try {
+          const prefs = await getWorkPreferences(firstCard.id);
+          if (prefs) {
+            setWorkPrefs({
+              workTypes: prefs.workTypes || [],
+              hourlyRate: prefs.hourlyRate ?? null,
+              locationPreference: prefs.locationPreference || '',
+              availability: prefs.availability || ''
+            });
+            // reflect location in profile from work preferences
+            setSettings(prev => ({
+              ...prev,
+              profile: { ...prev.profile, location: prefs.locationPreference || '' }
+            }));
+          }
+        } catch {}
+
+        // Load social links explicitly if available
+        try {
+          const socials = await getSocialLinks(firstCard.id);
+          if (socials) {
+            setSettings(prev => ({
+              ...prev,
+              profile: {
+                ...prev.profile,
+                github: socials.github || prev.profile.github,
+                twitter: socials.twitter || prev.profile.twitter,
+                linkedin: socials.linkedin || prev.profile.linkedin,
+                website: socials.personalWebsite || prev.profile.website,
+              }
+            }));
+          }
+        } catch {}
       }
       
-      // TODO: Load connection preferences from the contract
-      // This would involve querying the connection store
+      // Note: connection preferences UI removed for now to reduce clutter
       
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -158,22 +197,116 @@ const DashboardSettings: React.FC = () => {
     
     setSaving(true);
     try {
-      // TODO: Implement real settings saving
-      // This would involve updating user cards and connection preferences
-      console.log('Saving settings:', settings);
+      if (userCards.length === 0) {
+        console.warn('No user card found; cannot save profile settings.');
+        return;
+      }
+      const firstCard = userCards[0];
+      const cardId: number = typeof firstCard.id === 'number' ? firstCard.id : Number(firstCard.id);
+      if (!Number.isFinite(cardId)) {
+        console.warn('Invalid card id; cannot save profile settings. value:', firstCard.id);
+        return;
+      }
+      const tx = new Transaction();
+      // Update work preferences
+      tx.moveCall({
+        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_WORK_PREFERENCES}`,
+        arguments: [
+          tx.object(DEVHUB_OBJECT_ID),
+          tx.pure.u64(cardId),
+          tx.pure.vector('string', workPrefs.workTypes || []),
+          tx.pure.option('u64', workPrefs.hourlyRate ?? null),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(workPrefs.locationPreference || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(workPrefs.availability || ''))),
+          tx.object(SUI_CLOCK_OBJECT_ID),
+        ],
+      });
+
+      // Update core card profile fields using update_card
+      const card = firstCard || {} as any;
+      const niche = card.niche || 'Developer';
+      const customNiche = card.customNiche || null;
+      const imageUrl = card.imageUrl || '';
+      const technologies = card.technologies || '';
+      const contact = card.contact || '';
+      const portfolio = card.portfolio || '';
+      const featuredProjects: string[] = card.featuredProjects || [];
+      const languages: string[] = card.languages || [];
+      const openToWork: boolean = !!card.openToWork;
+      const yearsOfExperience: number = Number(card.yearsOfExperience ?? 0);
+
+      tx.moveCall({
+        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CARD}`,
+        arguments: [
+          tx.object(DEVHUB_OBJECT_ID),
+          tx.pure.u64(cardId),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(settings.profile.displayName || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(niche))),
+          tx.pure.option('vector<u8>', customNiche ? Array.from(new TextEncoder().encode(customNiche)) : null),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(settings.profile.bio || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(imageUrl))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(technologies))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(contact))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(portfolio))),
+          tx.pure.vector('string', featuredProjects),
+          tx.pure.vector('string', languages),
+          tx.pure.bool(openToWork),
+          tx.pure.u8(yearsOfExperience),
+          tx.pure.vector('string', workPrefs.workTypes || []),
+          tx.pure.option('u64', workPrefs.hourlyRate ?? null),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(workPrefs.locationPreference || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(workPrefs.availability || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(settings.profile.github || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(settings.profile.linkedin || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(settings.profile.twitter || ''))),
+          tx.pure.vector('u8', Array.from(new TextEncoder().encode(settings.profile.website || ''))),
+          tx.object(SUI_CLOCK_OBJECT_ID),
+        ],
+      });
+ 
+      await new Promise<void>((resolve, reject) => {
+        signAndExecute(
+          {
+            transaction: tx,
+          },
+          {
+            onSuccess: () => resolve(),
+            onError: (e) => reject(e),
+          }
+        );
+      });
       
-      // For now, we'll simulate the save operation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Optimistically update local state so UI reflects saved values immediately
+      setUserCards(prev => {
+        if (!prev || prev.length === 0) return prev;
+        const updated = [...prev];
+        const updatedFirst = {
+          ...updated[0],
+          name: settings.profile.displayName || updated[0].name,
+          about: settings.profile.bio || updated[0].about,
+          socialLinks: {
+            ...(updated[0]?.socialLinks || {}),
+            github: settings.profile.github || '',
+            twitter: settings.profile.twitter || '',
+            linkedin: settings.profile.linkedin || '',
+            personalWebsite: settings.profile.website || '',
+          },
+        };
+        updated[0] = updatedFirst;
+        return updated;
+      });
+
+      // Refresh from chain to ensure latest data is displayed (handles caches)
+      await loadUserData();
       
-      // Show success message
-      console.log('Settings saved successfully');
+      console.log('Settings saved on-chain');
       
     } catch (error) {
       console.error('Error saving settings:', error);
     } finally {
       setSaving(false);
     }
-  }, [currentAccount?.address, settings]);
+  }, [currentAccount?.address, settings, userCards, workPrefs, signAndExecute]);
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
     setSettings(prev => ({
@@ -183,47 +316,7 @@ const DashboardSettings: React.FC = () => {
     setTheme(newTheme);
   };
 
-  const handleUpdateConnectionPreferences = useCallback(async (
-    connectedUser: string,
-    notificationsEnabled: boolean,
-    profileShared: boolean,
-    messagesAllowed: boolean
-  ) => {
-    if (!currentAccount?.address) return;
-    
-    try {
-      // TODO: Implement real connection preferences update
-      // This would involve calling updateConnectionPreferencesTransaction
-      console.log('Updating connection preferences:', {
-        connectedUser,
-        notificationsEnabled,
-        profileShared,
-        messagesAllowed
-      });
-      
-    } catch (error) {
-      console.error('Error updating connection preferences:', error);
-    }
-  }, [currentAccount?.address]);
-
-  const handleUpdateConnectionStatus = useCallback(async (
-    connectedUser: string,
-    newStatus: string
-  ) => {
-    if (!currentAccount?.address) return;
-    
-    try {
-      // TODO: Implement real connection status update
-      // This would involve calling updateConnectionStatusTransaction
-      console.log('Updating connection status:', {
-        connectedUser,
-        newStatus
-      });
-      
-    } catch (error) {
-      console.error('Error updating connection status:', error);
-    }
-  }, [currentAccount?.address]);
+  // Connection preferences handlers removed (not used)
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User, description: 'Manage your profile information' },
@@ -434,33 +527,39 @@ const DashboardSettings: React.FC = () => {
                                   placeholder="username"
                                 />
                               </div>
+                              <div>
+                                <label className="block text-sm font-medium text-foreground mb-2">
+                                  Twitter
+                                </label>
+                                <input
+                                  type="text"
+                                  value={settings.profile.twitter}
+                                  onChange={(e) => setSettings(prev => ({
+                                    ...prev,
+                                    profile: { ...prev.profile, twitter: e.target.value }
+                                  }))}
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder="@handle"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-foreground mb-2">
+                                  LinkedIn
+                                </label>
+                                <input
+                                  type="text"
+                                  value={settings.profile.linkedin}
+                                  onChange={(e) => setSettings(prev => ({
+                                    ...prev,
+                                    profile: { ...prev.profile, linkedin: e.target.value }
+                                  }))}
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  placeholder="profile url or handle"
+                                />
+                              </div>
                             </div>
                             )}
-                            
-                            {/* User Cards Information */}
-                            {userCards.length > 0 && (
-                              <div className="mt-8 p-6 bg-secondary/30 rounded-lg">
-                                <h4 className="text-lg font-semibold text-foreground mb-4">Your Developer Cards</h4>
-                                <div className="space-y-3">
-                                  {userCards.map((card, index) => (
-                                    <div key={index} className="p-4 bg-background/50 rounded-lg border border-border">
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <h5 className="font-medium text-foreground">{card.name || 'Untitled Card'}</h5>
-                                          <p className="text-sm text-muted-foreground">
-                                            {card.bio || 'No description available'}
-                                          </p>
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                          {card.isActive ? 'Active' : 'Inactive'}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                       </div>
                         )}
 
                         {/* Notification Settings */}
@@ -574,36 +673,7 @@ const DashboardSettings: React.FC = () => {
                               </div>
                             </div>
                             
-                            {/* Connection Preferences */}
-                            {connections.length > 0 && (
-                              <div className="mt-8 p-6 bg-secondary/30 rounded-lg">
-                                <h4 className="text-lg font-semibold text-foreground mb-4">Connection Preferences</h4>
-                                <div className="space-y-4">
-                                  {connections.map((connection, index) => (
-                                    <div key={index} className="p-4 bg-background/50 rounded-lg border border-border">
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <h5 className="font-medium text-foreground">
-                                            {connection.user.slice(0, 8)}...
-                                          </h5>
-                                          <p className="text-sm text-muted-foreground">
-                                            Status: {connection.status}
-                                          </p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs text-muted-foreground">
-                                            {connection.notificationsEnabled ? 'Notifications On' : 'Notifications Off'}
-                                          </span>
-                                          <span className="text-xs text-muted-foreground">
-                                            {connection.messagesAllowed ? 'Messages Allowed' : 'Messages Blocked'}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            {/* Connection Preferences section removed */}
                           </div>
                         )}
 

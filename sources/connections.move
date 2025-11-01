@@ -1,16 +1,11 @@
 module devhub::connections {
 
-use std::vector;
 use std::string::{Self, String};
 use sui::event;
-use sui::object::{Self, UID, ID};
 use sui::table::{Self, Table};
-use sui::tx_context::{Self, TxContext};
-use sui::transfer;
 
 // Error codes (scoped to this module)
 const E_INVALID_RECIPIENT: u64 = 11;
-const E_NOT_PARTICIPANT: u64 = 10;
 const E_NOT_CONNECTED: u64 = 12;
 
 // Status constants

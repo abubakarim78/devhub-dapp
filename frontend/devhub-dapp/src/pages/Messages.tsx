@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { 
   Search, 
   Mail, 
@@ -69,6 +69,7 @@ interface ConversationData {
 const Messages: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const suiClient = useSuiClient();
   const [searchParams] = useSearchParams();
   const { id: routeConversationId } = useParams();
   const navigate = useNavigate();
@@ -106,6 +107,16 @@ const Messages: React.FC = () => {
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const processedConversationRef = useRef<Set<string>>(new Set());
 
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const closeToast = useCallback(() => setToast(null), []);
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
   // Function to handle emoji selection
   const handleEmojiSelect = useCallback((emojiObject: { emoji: string }) => {
     setNewMessage(prev => prev + emojiObject.emoji);
@@ -125,6 +136,20 @@ const Messages: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showEmojiPicker]);
+
+  // Toast component
+  const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => (
+    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+      <div className={`flex items-center space-x-3 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl border ${
+        type === 'success' ? 'bg-green-500/20 border-green-500/40 text-green-100' : 'bg-red-500/20 border-red-500/40 text-red-100'
+      }`}>
+        <span className="font-medium text-sm">{message}</span>
+        <button onClick={onClose} className={type === 'success' ? 'text-green-300 hover:text-green-100' : 'text-red-300 hover:text-red-100'}>
+          ×
+        </button>
+      </div>
+    </div>
+  );
 
   // Function to update last seen timestamp for a conversation
   const updateLastSeen = useCallback((conversationId: string, timestamp: number = Date.now()) => {
@@ -746,16 +771,7 @@ const Messages: React.FC = () => {
       // Send message with file attachment
       const messageWithFile = `📎 ${selectedFile.name}\n${blobUrl}`;
       
-      // Add file message to current messages immediately (include URL so media renders)
-      const fileMessage: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'You',
-        message: messageWithFile,
-        timestamp: 'now',
-        isOutgoing: true
-      };
-      
-      setCurrentMessages(prev => [...prev, fileMessage]);
+      // Do not append optimistically; wait for on-chain confirmation
       
       // Get the current conversation
       const currentConversation = conversations.find(conv => conv.id === selectedMessage);
@@ -773,27 +789,38 @@ const Messages: React.FC = () => {
         participants
       );
 
-      const result = await signAndExecute({
-        transaction: tx,
+      const digest = await new Promise<string>((resolve, reject) => {
+        signAndExecute(
+          { transaction: tx as any },
+          {
+            onSuccess: async (res: any) => {
+              try {
+                await suiClient.waitForTransaction({ digest: res.digest });
+                resolve(res.digest);
+              } catch (e) {
+                reject(e);
+              }
+            },
+            onError: reject,
+          },
+        );
       });
 
-      console.log('File message sent successfully:', result);
+      console.log('File message sent successfully:', digest);
 
-      // Optionally refresh from chain shortly after to replace optimistic state
       setShowFileUpload(false);
       setSelectedFile(null);
-      
-      setTimeout(async () => {
-        await loadMessages(selectedMessage, true);
-      }, 1000);
+      await loadMessages(selectedMessage, true);
+      setToast({ message: 'File sent successfully', type: 'success' });
       
     } catch (error) {
       console.error('Error uploading file:', error);
-      setCurrentMessages(prev => prev.slice(0, -1));
+      // No optimistic UI to rollback
+      setToast({ message: 'Failed to send file', type: 'error' });
     } finally {
       setUploading(false);
     }
-  }, [selectedFile, currentAccount?.address, selectedMessage, conversations, loadMessages]);
+  }, [selectedFile, currentAccount?.address, selectedMessage, conversations, loadMessages, uploadToWalrus, sendEncryptedMessageTransaction, signAndExecute, suiClient]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !selectedMessage || sending || !currentAccount?.address) return;
@@ -802,18 +829,7 @@ const Messages: React.FC = () => {
     const messageContent = newMessage; // Store the message content before clearing
     setNewMessage(''); // Clear input immediately for better UX
     
-    // Create the message object for optimistic UI
-    const optimisticMessage: ChatMessage = {
-      id: `temp_${Date.now()}`,
-      sender: currentAccount.address, // Use full address for developer card lookup
-      message: messageContent,
-      timestamp: 'now',
-      rawTimestamp: Date.now(), // Store current timestamp for sorting
-      isOutgoing: true
-    };
-    
-    // Add to current messages immediately for optimistic UI
-    setCurrentMessages(prev => [...prev, optimisticMessage]);
+    // Do not append optimistically; wait for on-chain confirmation
     
     try {
       
@@ -845,11 +861,24 @@ const Messages: React.FC = () => {
           const createTx = startConversationTransaction(participants[1]); // participant2
 
           // Execute the conversation creation transaction
-          const createResult = await signAndExecute({
-            transaction: createTx,
+          const createdDigest = await new Promise<string>((resolve, reject) => {
+            signAndExecute(
+              { transaction: createTx as any },
+              {
+                onSuccess: async (res: any) => {
+                  try {
+                    await suiClient.waitForTransaction({ digest: res.digest });
+                    resolve(res.digest);
+                  } catch (e) {
+                    reject(e);
+                  }
+                },
+                onError: reject,
+              },
+            );
           });
 
-          console.log('Conversation created successfully:', createResult);
+          console.log('Conversation created successfully:', createdDigest);
           
           // For now, we'll use a mock conversation ID since we can't extract it from the result
           // In a real implementation, you would need to parse the transaction result
@@ -881,11 +910,24 @@ const Messages: React.FC = () => {
           );
 
           // Execute the message transaction
-          const messageResult = await signAndExecute({
-            transaction: messageTx,
+          const sentDigest = await new Promise<string>((resolve, reject) => {
+            signAndExecute(
+              { transaction: messageTx as any },
+              {
+                onSuccess: async (res: any) => {
+                  try {
+                    await suiClient.waitForTransaction({ digest: res.digest });
+                    resolve(res.digest);
+                  } catch (e) {
+                    reject(e);
+                  }
+                },
+                onError: reject,
+              },
+            );
           });
 
-          console.log('Message sent successfully:', messageResult);
+          console.log('Message sent successfully:', sentDigest);
 
           // Update the conversation list to show the new message
           setConversations(prev => {
@@ -905,16 +947,12 @@ const Messages: React.FC = () => {
           // Update last seen timestamp
           updateLastSeen(newConversationId);
 
-          // Keep the optimistic message and reload after transaction confirmation
-          // Wait a moment for the blockchain to update, then reload
-          setTimeout(async () => {
-            await loadMessages(newConversationId, true);
-          }, 2000); // Wait 2 seconds for blockchain processing
+          await loadMessages(newConversationId, true);
+          setToast({ message: 'Message sent', type: 'success' });
           
         } catch (error) {
           console.error('Error creating conversation and sending message:', error);
-          // Remove the optimistic message on error
-          setCurrentMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+          setToast({ message: 'Failed to send message', type: 'error' });
         }
       } else {
         // This is a real conversation, send message directly
@@ -934,11 +972,24 @@ const Messages: React.FC = () => {
         );
 
         // Execute the transaction
-        const result = await signAndExecute({
-          transaction: tx,
+        const digest = await new Promise<string>((resolve, reject) => {
+          signAndExecute(
+            { transaction: tx as any },
+            {
+              onSuccess: async (res: any) => {
+                try {
+                  await suiClient.waitForTransaction({ digest: res.digest });
+                  resolve(res.digest);
+                } catch (e) {
+                  reject(e);
+                }
+              },
+              onError: reject,
+            },
+          );
         });
 
-        console.log('Message sent successfully:', result);
+        console.log('Message sent successfully:', digest);
 
         // Update the conversation list to show the new message
         setConversations(prev => {
@@ -958,16 +1009,12 @@ const Messages: React.FC = () => {
         // Update last seen timestamp
         updateLastSeen(selectedMessage);
 
-        // Keep the optimistic message and reload after transaction confirmation
-        // Wait a moment for the blockchain to update, then reload
-        setTimeout(async () => {
-          await loadMessages(selectedMessage, true);
-        }, 2000); // Wait 2 seconds for blockchain processing
+        await loadMessages(selectedMessage, true);
+        setToast({ message: 'Message sent', type: 'success' });
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Remove the optimistic message on error
-      setCurrentMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      setToast({ message: 'Failed to send message', type: 'error' });
     } finally {
       setSending(false);
     }
@@ -1181,6 +1228,7 @@ const Messages: React.FC = () => {
 
   return (
     <div className="bg-background min-h-screen text-foreground relative">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
       <StarBackground />
 
       <div className="relative z-10 pt-32 pb-16">

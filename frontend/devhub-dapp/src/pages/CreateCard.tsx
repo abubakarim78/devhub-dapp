@@ -4,11 +4,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import {
   User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle,
-  X, CloudUpload, ArrowRight, ArrowLeft
+  X, CloudUpload, ArrowRight, ArrowLeft, Plus, Trash2
 } from 'lucide-react';
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
 import { useContract } from '../hooks/useContract';
 import StarBackground from '@/components/common/StarBackground';
+
+interface FeaturedProject {
+  title: string;
+  shortDescription: string;
+  sourceLink: string;
+  thumbnail?: string;
+}
 
 // --- Re-designed Components (Toast, FormStep, InputField) ---
 // (These components remain the same as the previous response)
@@ -123,11 +130,11 @@ const CreateCard: React.FC = () => {
         about: '',
         imageUrl: '',
         yearsOfExperience: 0,
-        technologies: '',
+        technologies: [] as string[],
         portfolio: '',
         contact: '',
-        featuredProjects: '',
-        languages: '',
+        featuredProjects: [] as FeaturedProject[],
+        languages: [] as string[],
         github: '',
         linkedin: '',
         twitter: '',
@@ -138,8 +145,19 @@ const CreateCard: React.FC = () => {
         availability: 'Immediately',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    
+    // Input states for adding new items
+    const [newTechnology, setNewTechnology] = useState('');
+    const [newLanguage, setNewLanguage] = useState('');
+    const [newFeaturedProject, setNewFeaturedProject] = useState<FeaturedProject>({
+        title: '',
+        shortDescription: '',
+        sourceLink: '',
+        thumbnail: '',
+    });
 
     const [imageUploadMethod, setImageUploadMethod] = useState<'url' | 'file'>('url');
+    const [thumbnailUploadMethod, setThumbnailUploadMethod] = useState<'url' | 'file'>('url');
 
     // Available niches from the contract
     const availableNiches = [
@@ -158,6 +176,9 @@ const CreateCard: React.FC = () => {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [walrusImageBlobId, setWalrusImageBlobId] = useState<string | null>(null);
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
+    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+    const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string>('');
+    const [thumbnailUploading, setThumbnailUploading] = useState(false);
 
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
@@ -180,8 +201,8 @@ const CreateCard: React.FC = () => {
             }
         } else if (currentStep === 1) { // Professional Details
             if (formData.yearsOfExperience < 0) newErrors.yearsOfExperience = 'Years of experience must be a positive number.';
-            if (!formData.technologies.trim()) newErrors.technologies = 'Please list your technologies/skills.';
-            if (!formData.languages.trim()) newErrors.languages = 'Please list your spoken languages.';
+            if (formData.technologies.length === 0) newErrors.technologies = 'Please add at least one technology/skill.';
+            if (formData.languages.length === 0) newErrors.languages = 'Please add at least one language.';
         } else if (currentStep === 2) { // Work Preferences
             if (!formData.workTypes) newErrors.workTypes = 'Please select a work type.';
             if (formData.hourlyRate < 0) newErrors.hourlyRate = 'Hourly rate cannot be negative.';
@@ -252,6 +273,58 @@ const CreateCard: React.FC = () => {
         }
     };
 
+    const handleThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select a valid image file', 'error');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image file must be less than 5MB', 'error');
+                return;
+            }
+            setThumbnailFile(file);
+            setThumbnailPreviewUrl(URL.createObjectURL(file));
+            updateFeaturedProjectField('thumbnail', '');
+        }
+    };
+
+    const handleThumbnailUploadToWalrus = async () => {
+        if (!currentAccount) {
+            showToast('Please connect your wallet first', 'error');
+            return;
+        }
+
+        if (!thumbnailFile && !(newFeaturedProject.thumbnail?.trim() || '')) {
+            showToast('Please provide a thumbnail file or URL first', 'error');
+            return;
+        }
+
+        setThumbnailUploading(true);
+        try {
+            let result;
+            if (thumbnailUploadMethod === 'file' && thumbnailFile) {
+                result = await uploadToWalrus(thumbnailFile);
+            } else if (thumbnailUploadMethod === 'url' && newFeaturedProject.thumbnail?.trim()) {
+                result = await uploadUrlToWalrus(newFeaturedProject.thumbnail);
+            } else {
+                showToast('Please provide a thumbnail file or URL first', 'error');
+                setThumbnailUploading(false);
+                return;
+            }
+            updateFeaturedProjectField('thumbnail', result.blob.walrusUrl);
+            setThumbnailPreviewUrl(result.blob.walrusUrl);
+            setThumbnailFile(null);
+            showToast('Thumbnail uploaded to Walrus successfully!', 'success');
+        } catch (error) {
+            console.error('Thumbnail upload error:', error);
+            showToast('Failed to upload thumbnail to Walrus. Please try again.', 'error');
+        } finally {
+            setThumbnailUploading(false);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!currentAccount) {
@@ -301,10 +374,17 @@ const CreateCard: React.FC = () => {
                 customNiche: formData.niche === 'Custom' ? formData.customNiche : undefined,
                 imageUrl: walrusImageBlobId ? imagePreviewUrl : formData.imageUrl,
                 yearsOfExperience: formData.yearsOfExperience,
-                technologies: formData.technologies,
+                technologies: formData.technologies.join(', '),
                 portfolio: formData.portfolio,
                 about: formData.about,
-                featuredProjects: formData.featuredProjects.split(',').map(p => p.trim()).filter(p => p),
+                featuredProjects: formData.featuredProjects.map(fp => 
+                    JSON.stringify({
+                        title: fp.title,
+                        description: fp.shortDescription,
+                        source: fp.sourceLink,
+                        thumbnail: fp.thumbnail || '',
+                    })
+                ),
                 contact: formData.contact,
                 github: formData.github,
                 linkedin: formData.linkedin,
@@ -314,7 +394,7 @@ const CreateCard: React.FC = () => {
                 hourlyRate: formData.hourlyRate > 0 ? formData.hourlyRate : null,
                 locationPreference: formData.locationPreference,
                 availability: formData.availability,
-                languages: formData.languages.split(',').map(l => l.trim()).filter(l => l),
+                languages: formData.languages,
                 avatarWalrusBlobId: walrusImageBlobId,
             };
             const tx = createCardTransaction(cardDataForTransaction, selectedCoins[0]);
@@ -355,10 +435,91 @@ const CreateCard: React.FC = () => {
             setWalrusImageBlobId(null);
             setImageFile(null);
         }
+        if (name === 'thumbnail' && thumbnailUploadMethod === 'url') {
+            setThumbnailPreviewUrl(value);
+            setThumbnailFile(null);
+        }
         // Clear custom niche when switching away from Custom
         if (name === 'niche' && value !== 'Custom') {
             setFormData(prev => ({ ...prev, customNiche: '' }));
         }
+    };
+
+    // Technology/Skills handlers
+    const addTechnology = () => {
+        if (newTechnology.trim() && !formData.technologies.includes(newTechnology.trim())) {
+            setFormData(prev => ({
+                ...prev,
+                technologies: [...prev.technologies, newTechnology.trim()],
+            }));
+            setNewTechnology('');
+            if (errors.technologies) {
+                setErrors(prev => ({ ...prev, technologies: '' }));
+            }
+        }
+    };
+
+    const removeTechnology = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            technologies: prev.technologies.filter((_, i) => i !== index),
+        }));
+    };
+
+    // Language handlers
+    const addLanguage = () => {
+        if (newLanguage.trim() && !formData.languages.includes(newLanguage.trim())) {
+            setFormData(prev => ({
+                ...prev,
+                languages: [...prev.languages, newLanguage.trim()],
+            }));
+            setNewLanguage('');
+            if (errors.languages) {
+                setErrors(prev => ({ ...prev, languages: '' }));
+            }
+        }
+    };
+
+    const removeLanguage = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            languages: prev.languages.filter((_, i) => i !== index),
+        }));
+    };
+
+    // Featured Project handlers
+    const addFeaturedProject = () => {
+        if (newFeaturedProject.title.trim() && newFeaturedProject.shortDescription.trim() && newFeaturedProject.sourceLink.trim()) {
+            setFormData(prev => ({
+                ...prev,
+                featuredProjects: [...prev.featuredProjects, { ...newFeaturedProject }],
+            }));
+            setNewFeaturedProject({
+                title: '',
+                shortDescription: '',
+                sourceLink: '',
+                thumbnail: '',
+            });
+            setThumbnailFile(null);
+            setThumbnailPreviewUrl('');
+            if (errors.featuredProjects) {
+                setErrors(prev => ({ ...prev, featuredProjects: '' }));
+            }
+        }
+    };
+
+    const removeFeaturedProject = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            featuredProjects: prev.featuredProjects.filter((_, i) => i !== index),
+        }));
+    };
+
+    const updateFeaturedProjectField = (field: keyof FeaturedProject, value: string) => {
+        setNewFeaturedProject(prev => ({
+            ...prev,
+            [field]: value,
+        }));
     };
 
     const steps = [
@@ -524,12 +685,290 @@ const CreateCard: React.FC = () => {
                             {currentStep === 1 && (
                                 <FormStep title="Professional Details" icon={<Briefcase size={20} className="text-primary" />}>
                                     <InputField label="Years of Experience" name="yearsOfExperience" type="number" value={formData.yearsOfExperience} onChange={handleInputChange} error={errors.yearsOfExperience} placeholder="e.g., 5" />
-                                    <InputField label="Technologies & Skills" name="technologies" value={formData.technologies} onChange={handleInputChange} error={errors.technologies} placeholder="e.g., React, Node.js, Sui" isTextArea />
-                                    <p className="text-muted-foreground text-xs -mt-4">Separate with commas.</p>
-                                    <InputField label="Featured Projects" name="featuredProjects" value={formData.featuredProjects} onChange={handleInputChange} error={errors.featuredProjects} placeholder="e.g., Project A, Project B" />
-                                    <p className="text-muted-foreground text-xs -mt-4">Separate with commas.</p>
-                                    <InputField label="Languages" name="languages" value={formData.languages} onChange={handleInputChange} error={errors.languages} placeholder="e.g., English, Spanish" />
-                                    <p className="text-muted-foreground text-xs -mt-4">Separate with commas.</p>
+                                    
+                                    {/* Technologies & Skills */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Technologies & Skills</label>
+                                        <div className="flex gap-2 mb-2">
+                                            <input
+                                                type="text"
+                                                value={newTechnology}
+                                                onChange={(e) => setNewTechnology(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTechnology())}
+                                                placeholder="e.g., React, Node.js, Sui"
+                                                className="flex-1 px-4 py-2 border rounded-lg bg-input text-foreground placeholder-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                                            />
+                                            <motion.button
+                                                type="button"
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={addTechnology}
+                                                disabled={!newTechnology.trim()}
+                                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                            >
+                                                <Plus size={18} />
+                                                Add
+                                            </motion.button>
+                                        </div>
+                                        {errors.technologies && (
+                                            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-destructive text-xs mt-1.5 flex items-center gap-1.5">
+                                                <AlertCircle size={14} />
+                                                {errors.technologies}
+                                            </motion.p>
+                                        )}
+                                        {formData.technologies.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {formData.technologies.map((tech, index) => (
+                                                    <motion.div
+                                                        key={index}
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        className="flex items-center gap-2 px-3 py-1.5 bg-secondary text-secondary-foreground rounded-full text-sm"
+                                                    >
+                                                        <span>{tech}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeTechnology(index)}
+                                                            className="hover:text-destructive transition-colors"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Languages */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Languages</label>
+                                        <div className="flex gap-2 mb-2">
+                                            <input
+                                                type="text"
+                                                value={newLanguage}
+                                                onChange={(e) => setNewLanguage(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addLanguage())}
+                                                placeholder="e.g., English, Spanish, French"
+                                                className="flex-1 px-4 py-2 border rounded-lg bg-input text-foreground placeholder-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                                            />
+                                            <motion.button
+                                                type="button"
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={addLanguage}
+                                                disabled={!newLanguage.trim()}
+                                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                            >
+                                                <Plus size={18} />
+                                                Add
+                                            </motion.button>
+                                        </div>
+                                        {errors.languages && (
+                                            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-destructive text-xs mt-1.5 flex items-center gap-1.5">
+                                                <AlertCircle size={14} />
+                                                {errors.languages}
+                                            </motion.p>
+                                        )}
+                                        {formData.languages.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {formData.languages.map((lang, index) => (
+                                                    <motion.div
+                                                        key={index}
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        className="flex items-center gap-2 px-3 py-1.5 bg-secondary text-secondary-foreground rounded-full text-sm"
+                                                    >
+                                                        <span>{lang}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeLanguage(index)}
+                                                            className="hover:text-destructive transition-colors"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Featured Projects */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">Featured Projects</label>
+                                        <div className="space-y-4 mb-4 p-4 border border-border rounded-lg bg-card/50">
+                                            <div className="grid grid-cols-1 gap-3">
+                                                <input
+                                                    type="text"
+                                                    value={newFeaturedProject.title}
+                                                    onChange={(e) => updateFeaturedProjectField('title', e.target.value)}
+                                                    placeholder="Project Title"
+                                                    className="px-4 py-2 border rounded-lg bg-input text-foreground placeholder-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                                                />
+                                                <textarea
+                                                    value={newFeaturedProject.shortDescription}
+                                                    onChange={(e) => updateFeaturedProjectField('shortDescription', e.target.value)}
+                                                    placeholder="Short Description"
+                                                    rows={2}
+                                                    className="px-4 py-2 border rounded-lg bg-input text-foreground placeholder-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
+                                                />
+                                                <input
+                                                    type="url"
+                                                    value={newFeaturedProject.sourceLink}
+                                                    onChange={(e) => updateFeaturedProjectField('sourceLink', e.target.value)}
+                                                    placeholder="Source/Link (GitHub, Website, etc.)"
+                                                    className="px-4 py-2 border rounded-lg bg-input text-foreground placeholder-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                                                />
+                                                
+                                                {/* Thumbnail Upload Section */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-foreground mb-2">Thumbnail (Optional)</label>
+                                                    <div className="flex space-x-2 mb-3 p-1 bg-secondary rounded-lg">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setThumbnailUploadMethod('url')} 
+                                                            className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${thumbnailUploadMethod === 'url' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-secondary-foreground'}`}
+                                                        >
+                                                            Image URL
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setThumbnailUploadMethod('file')} 
+                                                            className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${thumbnailUploadMethod === 'file' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-secondary-foreground'}`}
+                                                        >
+                                                            Upload File
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-3">
+                                                        {thumbnailUploadMethod === 'url' ? (
+                                                            <input
+                                                                type="url"
+                                                                value={newFeaturedProject.thumbnail || ''}
+                                                                onChange={(e) => updateFeaturedProjectField('thumbnail', e.target.value)}
+                                                                placeholder="Thumbnail URL (Optional)"
+                                                                className="w-full px-4 py-2 border rounded-lg bg-input text-foreground placeholder-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                                                            />
+                                                        ) : (
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={handleThumbnailFileChange}
+                                                                className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                                                            />
+                                                        )}
+                                                        
+                                                        {(thumbnailPreviewUrl || newFeaturedProject.thumbnail) && (
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-20 h-20 bg-secondary rounded-lg overflow-hidden border border-border">
+                                                                    <img 
+                                                                        src={thumbnailPreviewUrl || newFeaturedProject.thumbnail} 
+                                                                        alt="Thumbnail preview" 
+                                                                        className="w-full h-full object-cover" 
+                                                                    />
+                                                                </div>
+                                                                {(thumbnailUploadMethod === 'file' && thumbnailFile && !(newFeaturedProject.thumbnail || '').includes('walrus')) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={handleThumbnailUploadToWalrus}
+                                                                        disabled={thumbnailUploading}
+                                                                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-sm"
+                                                                    >
+                                                                        {thumbnailUploading ? (
+                                                                            <>
+                                                                                <Loader2 size={16} className="animate-spin" />
+                                                                                Uploading...
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <CloudUpload size={16} />
+                                                                                Upload to Walrus
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                )}
+                                                                {(thumbnailUploadMethod === 'url' && newFeaturedProject.thumbnail?.trim() && !newFeaturedProject.thumbnail.includes('walrus')) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={handleThumbnailUploadToWalrus}
+                                                                        disabled={thumbnailUploading}
+                                                                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-sm"
+                                                                    >
+                                                                        {thumbnailUploading ? (
+                                                                            <>
+                                                                                <Loader2 size={16} className="animate-spin" />
+                                                                                Uploading...
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <CloudUpload size={16} />
+                                                                                Upload to Walrus
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                )}
+                                                                {((newFeaturedProject.thumbnail || '').includes('walrus') || (thumbnailPreviewUrl || '').includes('walrus')) && (
+                                                                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-2 flex items-center gap-2 text-xs">
+                                                                        <CheckCircle className="h-4 w-4 text-green-400" />
+                                                                        <p className="text-green-300">Uploaded to Walrus</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <motion.button
+                                                type="button"
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={addFeaturedProject}
+                                                disabled={!newFeaturedProject.title.trim() || !newFeaturedProject.shortDescription.trim() || !newFeaturedProject.sourceLink.trim()}
+                                                className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                <Plus size={18} />
+                                                Add Project
+                                            </motion.button>
+                                        </div>
+                                        {errors.featuredProjects && (
+                                            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-destructive text-xs mt-1.5 flex items-center gap-1.5">
+                                                <AlertCircle size={14} />
+                                                {errors.featuredProjects}
+                                            </motion.p>
+                                        )}
+                                        {formData.featuredProjects.length > 0 && (
+                                            <div className="space-y-3 mt-4">
+                                                {formData.featuredProjects.map((project, index) => (
+                                                    <motion.div
+                                                        key={index}
+                                                        initial={{ opacity: 0, y: 10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        className="p-4 border border-border rounded-lg bg-card/50 relative"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeFeaturedProject(index)}
+                                                            className="absolute top-2 right-2 p-1.5 hover:bg-destructive/20 rounded-full transition-colors text-destructive"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                        <div className="pr-8">
+                                                            <h4 className="font-semibold text-foreground mb-1">{project.title}</h4>
+                                                            <p className="text-sm text-muted-foreground mb-2">{project.shortDescription}</p>
+                                                            <a href={project.sourceLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                                                                <Code size={14} />
+                                                                View Source
+                                                            </a>
+                                                            {project.thumbnail && (
+                                                                <div className="mt-2">
+                                                                    <img src={project.thumbnail} alt={project.title} className="w-full h-32 object-cover rounded-md" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </FormStep>
                             )}
 

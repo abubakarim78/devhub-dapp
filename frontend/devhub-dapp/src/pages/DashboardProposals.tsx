@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiClient } from "@mysten/dapp-kit";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import StarBackground from "@/components/common/StarBackground";
 import DashboardSidebar from "@/components/DashboardSidebar";
+import { PACKAGE_ID } from "@/lib/suiClient";
 
 interface Proposal {
   id: string;
@@ -31,67 +33,69 @@ interface QuickStats {
 
 const DashboardProposals = () => {
   const currentAccount = useCurrentAccount();
+  const suiClient = useSuiClient();
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [quickStats, setQuickStats] = useState<QuickStats>({ submitted: 0, inReview: 0, accepted: 0, rejected: 0 });
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const proposalsPerPage = 4;
 
-  // Mock data for proposals
-  const mockProposals: Proposal[] = [
-    {
-      id: '1',
-      number: '#108',
-      title: 'Performance Audit for Sui Wallet Extension',
-      budget: '$4,000',
-      timeline: '2 weeks',
-      status: 'in-review',
-      actions: 'Open'
-    },
-    {
-      id: '2',
-      number: '#107',
-      title: 'Indexer Optimization for SuiNFT',
-      budget: '$6,500',
-      timeline: '3 weeks',
-      status: 'accepted',
-      actions: 'Open'
-    },
-    {
-      id: '3',
-      number: '#106',
-      title: 'Smart Contract Security Review',
-      budget: '$8,000',
-      timeline: '4 weeks',
-      status: 'rejected',
-      actions: 'Open'
-    },
-    {
-      id: '4',
-      number: '#105',
-      title: 'Node Monitoring Dashboard',
-      budget: '$3,200',
-      timeline: '10 days',
-      status: 'draft',
-      actions: 'Resume'
-    }
-  ];
-
-  const quickStats: QuickStats = {
-    submitted: 8,
-    inReview: 3,
-    accepted: 2,
-    rejected: 1
-  };
-
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setProposals(mockProposals);
-    }, 1000);
+    const fetchProposals = async () => {
+      try {
+        if (!currentAccount?.address) {
+          setProposals([]);
+          setQuickStats({ submitted: 0, inReview: 0, accepted: 0, rejected: 0 });
+          return;
+        }
 
-    return () => clearTimeout(timer);
-  }, []);
+        const objects = await suiClient.getOwnedObjects({
+          owner: currentAccount.address,
+          filter: { StructType: `${PACKAGE_ID}::devhub::Proposal` },
+          options: { showContent: true, showType: true },
+        });
+
+        const mapped: Proposal[] = (objects.data || []).map((obj, idx) => {
+          const fields = (obj.data && obj.data.content && 'fields' in obj.data.content) ? (obj.data.content as any).fields : {};
+          const title: string = fields.proposal_title || fields.title || 'Untitled';
+          const budgetVal: any = fields.budget ?? fields.requested_compensation ?? fields.budget_amount;
+          const timelineWeeks: any = fields.timeline_weeks ?? fields.timeline ?? fields.duration_weeks;
+          const statusRaw: string = (fields.status || '').toString().toLowerCase();
+
+          const status: Proposal['status'] = statusRaw === 'accepted' ? 'accepted' :
+            statusRaw === 'rejected' ? 'rejected' :
+            statusRaw === 'in-review' || statusRaw === 'in_review' ? 'in-review' : 'draft';
+
+          return {
+            id: obj.data?.objectId || String(idx),
+            number: `#${(objects.data.length - idx).toString().padStart(3, '0')}`,
+            title,
+            budget: typeof budgetVal === 'number' || typeof budgetVal === 'bigint' ? `$${budgetVal}` : (budgetVal ? String(budgetVal) : '-') ,
+            timeline: timelineWeeks ? `${timelineWeeks} weeks` : '-',
+            status,
+            actions: 'Open',
+          };
+        });
+
+        setProposals(mapped);
+
+        const qs: QuickStats = {
+          submitted: mapped.length,
+          inReview: mapped.filter(p => p.status === 'in-review').length,
+          accepted: mapped.filter(p => p.status === 'accepted').length,
+          rejected: mapped.filter(p => p.status === 'rejected').length,
+        };
+        setQuickStats(qs);
+      } catch (e) {
+        console.error('Error loading proposals:', e);
+        setProposals([]);
+        setQuickStats({ submitted: 0, inReview: 0, accepted: 0, rejected: 0 });
+      }
+    };
+
+    fetchProposals();
+  }, [currentAccount?.address, suiClient]);
 
   const filteredProposals = proposals.filter((proposal) => {
     const matchesSearch = proposal.title
@@ -189,7 +193,7 @@ const DashboardProposals = () => {
                         Proposals
                       </h1>
                       <p className="text-xl text-muted-foreground">
-                        Track, review, and manage your submitted proposals. Mock data only; no on-chain execution.
+                        Track, review, and manage your submitted proposals.
                       </p>
                    </div>
                     

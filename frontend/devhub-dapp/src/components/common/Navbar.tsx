@@ -8,8 +8,6 @@ import {
   Sun,
   X,
   FolderKanban,
-  FileText,
-  Users,
 } from "lucide-react";
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { useTheme } from "@/contexts/ThemeContext";
