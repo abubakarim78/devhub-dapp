@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { 
   Hash, 
   Users, 
@@ -55,6 +55,7 @@ interface ChannelMessage {
 const ChannelDashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const suiClient = useSuiClient();
   const { 
     getAllActiveCards,
     createChannelTransaction,
@@ -638,16 +639,7 @@ const ChannelDashboard: React.FC = () => {
       // Send message with file attachment
       const messageWithFile = `📎 ${selectedFile.name}\n${blobUrl}`;
       
-      // Add file message to current messages immediately
-      const fileMessage: ChannelMessage = {
-        id: Date.now().toString(),
-        sender: currentAccount.address,
-        content: `📎 ${selectedFile.name}`,
-        timestamp: Date.now(),
-        isRead: false
-      };
-      
-      setChannelMessages(prev => [...prev, fileMessage]);
+      // Do not append optimistically; wait until chain confirms
       
       // Get user's channel memberships to find the MemberCap
       const memberships = await getUserChannelMemberships(currentAccount.address);
@@ -672,24 +664,35 @@ const ChannelDashboard: React.FC = () => {
         contentHash
       );
 
-      const result = await signAndExecute({
-        transaction: tx,
+      const digest = await new Promise<string>((resolve, reject) => {
+        signAndExecute(
+          { transaction: tx as any },
+          {
+            onSuccess: async (res: any) => {
+              try {
+                await suiClient.waitForTransaction({ digest: res.digest });
+                resolve(res.digest);
+              } catch (e) {
+                reject(e);
+              }
+            },
+            onError: reject,
+          },
+        );
       });
 
-      console.log('File message sent successfully:', result);
+      console.log('File message sent successfully:', digest);
 
       // Clear and reload messages with force refresh
       setChannelMessages([]);
       setShowFileUpload(false);
       setSelectedFile(null);
       
-      setTimeout(async () => {
-        await loadChannelMessages(selectedChannel, true);
-      }, 1000);
+      await loadChannelMessages(selectedChannel, true);
       
     } catch (error) {
       console.error('Error uploading file:', error);
-      setChannelMessages(prev => prev.slice(0, -1));
+      // No optimistic UI to rollback
     } finally {
       setUploading(false);
     }
@@ -702,16 +705,7 @@ const ChannelDashboard: React.FC = () => {
     const messageContent = newMessage;
     setNewMessage(''); // Clear input immediately for better UX
     
-    // Add the message optimistically to the UI
-    const optimisticMsg: ChannelMessage = {
-      id: `temp_${Date.now()}`,
-      sender: currentAccount.address,
-      content: messageContent,
-      timestamp: Date.now(),
-      isRead: true
-    };
-    
-    setChannelMessages(prev => [...prev, optimisticMsg]);
+    // Do not append optimistically; wait for confirmation
     
     try {
       
@@ -753,31 +747,39 @@ const ChannelDashboard: React.FC = () => {
       );
       
       // Execute the transaction
-      const result = await signAndExecute({
-        transaction: tx,
+      const digest = await new Promise<string>((resolve, reject) => {
+        signAndExecute(
+          { transaction: tx as any },
+          {
+            onSuccess: async (res: any) => {
+              try {
+                await suiClient.waitForTransaction({ digest: res.digest });
+                resolve(res.digest);
+              } catch (e) {
+                reject(e);
+              }
+            },
+            onError: reject,
+          },
+        );
       });
       
-      console.log('Message sent to channel:', result);
+      console.log('Message sent to channel:', digest);
       
       // Show success toast
       setToast({ message: 'Message sent successfully!', type: 'success' });
       
-      // Replace the optimistic message with real data after transaction confirmation
-      // Wait a bit for the transaction to be processed on the blockchain
-      setTimeout(async () => {
-        try {
-          await loadChannelMessages(selectedChannel, true);
-        } catch (error) {
-          console.error('Error reloading messages after send:', error);
-        }
-      }, 2000); // Wait 2 seconds for blockchain processing
+      try {
+        await loadChannelMessages(selectedChannel, true);
+      } catch (error) {
+        console.error('Error reloading messages after send:', error);
+      }
       
     } catch (error) {
       console.error('Error sending message:', error);
       setToast({ message: 'Failed to send message. Please try again.', type: 'error' });
       
-      // Remove the optimistic message on error
-      setChannelMessages(prev => prev.filter(msg => msg.id !== optimisticMsg.id));
+      // No optimistic UI to rollback
     } finally {
       setSending(false);
     }

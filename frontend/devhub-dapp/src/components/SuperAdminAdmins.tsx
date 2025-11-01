@@ -28,7 +28,7 @@ interface SuperAdminAdminsProps {
   setAdminSearchTerm: (term: string) => void;
   adminRoleFilter: "All" | "Admin" | "Super";
   setAdminRoleFilter: (filter: "All" | "Admin" | "Super") => void;
-  setCurrentPage: (page: number) => void;
+  setCurrentPage: (page: number | ((prev: number) => number)) => void;
   
   // Add admin states
   newAdminAddress: string;

@@ -15,12 +15,17 @@ import CardDetails from "./pages/CardDetails";
 import AdminPanel from "./pages/AdminPanel";
 import SuperAdmin from "./pages/SuperAdmin";
 import Projects from "./pages/Projects";
+import ProjectDetails from "./pages/ProjectDetails";
 import DashboardProjects from "./pages/DashboardProjects";
+import DashboardProjectDetails from "./pages/DashboardProjectDetails";
 import Proposals from "./pages/DashboardProposals";
+import CreateProject from "./pages/CreateProject";
+import ReviewSubmitProject from "./pages/ReviewSubmitProject";
 import Collaborations from "./pages/Collaborations";
 import DashboardSettings from "./pages/DashboardSettings";
 import Navbar from "./components/common/Navbar";
 import { useGlowingCursor } from "./hooks/useGlowingCursor";
+import { Toaster } from "./components/ui/sonner";
 import "./index.css";
 
 export interface DevCard {
@@ -210,8 +215,12 @@ function App() {
             <Route path="/dashboard-connections" element={<Connections />} />
             <Route path="/card/:id" element={<CardDetails />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetails />} />
             <Route path="/dashboard-projects" element={<DashboardProjects />} />
+            <Route path="/dashboard-projects/:id" element={<DashboardProjectDetails />} />
             <Route path="/dashboard-proposals" element={<Proposals />} />
+            <Route path="/projects/new" element={<CreateProject />} />
+            <Route path="/projects/review" element={<ReviewSubmitProject />} />
             <Route path="/dashboard-settings" element={<DashboardSettings />} />
             <Route path="/collaborations" element={<Collaborations />} />
             <Route
@@ -224,6 +233,7 @@ function App() {
 
         <Footer />
       </div>
+      <Toaster />
     </Router>
   );
 }

@@ -8,11 +8,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
 import { 
-  getPlatformStatistics,
-  getCardCount,
-  getProjectCount,
-  getPlatformFeeBalance,
-  getAllActiveCards,
   getOpenProjects,
   getSuggestedDevelopers
 } from '@/lib/suiClient';
@@ -93,7 +88,7 @@ const Toast: React.FC<{
 const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { theme } = useTheme();
-  const { getUserCards, useConnections } = useContract();
+  const { getUserCards } = useContract();
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,14 +123,10 @@ const Dashboard: React.FC = () => {
       const cards = await getUserCards(currentAccount.address);
       setUserCards(cards);
       
-      // Load platform statistics
-      const cardCount = await getCardCount();
-      const projectCount = await getProjectCount();
-      
       // Calculate profile health based on card completeness
       const profileHealth = cards.length > 0 ? 
-        Math.min(100, (cards[0]?.bio ? 20 : 0) + (cards[0]?.skills?.length > 0 ? 20 : 0) + 
-        (cards[0]?.location ? 20 : 0) + (cards[0]?.website ? 20 : 0) + (cards[0]?.github ? 20 : 0)) : 0;
+        Math.min(100, (cards[0]?.name ? 20 : 0) + (cards[0]?.skills?.length > 0 ? 20 : 0) + 
+        (cards[0]?.description ? 20 : 0) + (cards[0]?.about ? 20 : 0) + (cards[0]?.imageUrl ? 20 : 0)) : 0;
       
       setStats({
         activeProjects: Math.floor(Math.random() * 5) + 1, // Mock for now
@@ -201,13 +192,13 @@ const Dashboard: React.FC = () => {
       setSuggestedDevelopers(suggestions);
       
       // Load open projects
-      const projects = await getOpenProjects();
-      const openProjectsData = projects.slice(0, 3).map((project, index) => ({
-        id: project?.id ? project.id.toString() : `project-${index + 1}`,
-        title: typeof project?.title === 'string' ? project.title : `Project ${index + 1}`,
-        description: typeof project?.description === 'string' ? project.description : 'No description available',
-        budget: typeof project?.budget === 'string' ? project.budget : 'TBD',
-        skills: Array.isArray(project?.requiredSkills) ? project.requiredSkills : [],
+      const projectIds = await getOpenProjects();
+      const openProjectsData = projectIds.slice(0, 3).map((projectId, index) => ({
+        id: typeof projectId === 'number' ? projectId.toString() : `project-${index + 1}`,
+        title: `Project ${index + 1}`,
+        description: 'No description available',
+        budget: 'TBD',
+        skills: [] as string[],
         status: 'open' as const
       }));
       setOpenProjects(openProjectsData);

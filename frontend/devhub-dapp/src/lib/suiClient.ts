@@ -4,11 +4,12 @@ import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 
 
 // Contract configuration
-export const PACKAGE_ID = '0x6b1b012e5c7ab40e58aebb60213064a3fb45c7fdd0bf9f964503d1318c38919d';
-export const DEVHUB_OBJECT_ID = '0x67c35f531f6a2f89fa15ef8001edb16d52297991db0befbfb007a6aff6747a9a';
+export const PACKAGE_ID = '0x062cae9b2c24b650d85bd62b1dd002eda3eb6dbaebc2f5c1ecd22e65fb418a20';
+export const DEVHUB_OBJECT_ID = '0xe5bf9cad99265a1645bb4db60bbef3c29094ba292654c2abafd3822fe242a0ec';
 // ConnectionStore is a shared object - we'll query for it dynamically
 export const CONNECTION_STORE_ID = ''; // Will be fetched dynamically
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
+export const PROJECT_POSTING_FEE = 200_000_000; // 0.2 SUI in MIST
 
 // Initialize Sui client with messaging SDK
 // Note: Due to version compatibility issues, we'll use a simpler approach
@@ -49,6 +50,7 @@ export const CONTRACT_FUNCTIONS = {
   
   // Project functions
   CREATE_PROJECT: 'create_project',
+  UPDATE_PROJECT: 'update_project',
   APPLY_TO_PROJECT: 'apply_to_project',
   OPEN_APPLICATIONS: 'open_applications',
   CLOSE_APPLICATIONS: 'close_applications',
@@ -224,7 +226,6 @@ export interface Project {
   requiredSkills: string[];
   attachmentsCount: number;
   owner: string;
-  escrowEnabled: boolean;
   visibility: string;
   applicationsStatus: string;
   devhubMessagesEnabled: boolean;
@@ -785,12 +786,12 @@ export function createProjectTransaction(
     timelineWeeks: number;
     requiredSkills: string[];
     attachmentsCount: number;
-    escrowEnabled: boolean;
     visibility: string;
     applicationsStatus: string;
     devhubMessagesEnabled: boolean;
     attachmentsWalrusBlobIds: string[];
-  }
+  },
+  paymentCoinId: string
 ) {
   const tx = new Transaction();
   
@@ -808,11 +809,11 @@ export function createProjectTransaction(
       tx.pure.u64(projectData.timelineWeeks),
       tx.pure.vector('vector<u8>', projectData.requiredSkills.map(skill => Array.from(new TextEncoder().encode(skill)))),
       tx.pure.u64(projectData.attachmentsCount),
-      tx.pure.bool(projectData.escrowEnabled),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.visibility))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.applicationsStatus))),
       tx.pure.bool(projectData.devhubMessagesEnabled),
       tx.pure.vector('vector<u8>', projectData.attachmentsWalrusBlobIds.map(id => Array.from(new TextEncoder().encode(id)))),
+      tx.object(paymentCoinId),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
@@ -927,6 +928,46 @@ export function updateProjectStatusTransaction(
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(projectId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(newStatus))),
+    ],
+  });
+
+  return tx;
+}
+
+// Helper function to update project
+export function updateProjectTransaction(
+  projectId: number,
+  projectData: {
+    title: string;
+    shortSummary: string;
+    description: string;
+    category: string;
+    experienceLevel: string;
+    budgetMin: number;
+    budgetMax: number;
+    timelineWeeks: number;
+    requiredSkills: string[];
+    applicationsStatus: string;
+  }
+) {
+  const tx = new Transaction();
+  
+  tx.moveCall({
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROJECT}`,
+    arguments: [
+      tx.object(DEVHUB_OBJECT_ID),
+      tx.pure.u64(projectId),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.title))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.shortSummary))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.description))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.category))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.experienceLevel))),
+      tx.pure.u64(projectData.budgetMin),
+      tx.pure.u64(projectData.budgetMax),
+      tx.pure.u64(projectData.timelineWeeks),
+      tx.pure.vector('vector<u8>', projectData.requiredSkills.map(skill => Array.from(new TextEncoder().encode(skill)))),
+      tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.applicationsStatus))),
+      tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
 

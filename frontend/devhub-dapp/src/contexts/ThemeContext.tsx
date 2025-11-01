@@ -1,40 +1,54 @@
 import { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 
-type Theme = 'dark' | 'light';
+type Theme = 'dark' | 'light' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
+  setTheme: (value: Theme) => void;
   toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  // Default to dark mode initially
-  const [theme, setTheme] = useState<Theme>('dark');
+  // Default to system initially
+  const [theme, setTheme] = useState<Theme>('system');
 
   useEffect(() => {
-    // Set initial theme based on system preference
-    if (typeof window !== 'undefined') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
-    }
-  }, []);
+    if (typeof window === 'undefined') return;
+    const root = window.document.documentElement;
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const root = window.document.documentElement;
-      root.classList.remove(theme === 'dark' ? 'light' : 'dark');
-      root.classList.add(theme);
+    const apply = (mode: 'dark' | 'light') => {
+      root.classList.remove(mode === 'dark' ? 'light' : 'dark');
+      root.classList.add(mode);
+    };
+
+    if (theme === 'system') {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      apply(media.matches ? 'dark' : 'light');
+      const handler = () => apply(media.matches ? 'dark' : 'light');
+      media.addEventListener?.('change', handler);
+      return () => media.removeEventListener?.('change', handler);
+    } else {
+      apply(theme);
     }
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
+    setTheme(prevTheme => {
+      if (prevTheme === 'system') {
+        if (typeof window !== 'undefined') {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          return prefersDark ? 'light' : 'dark';
+        }
+        return 'dark';
+      }
+      return prevTheme === 'dark' ? 'light' : 'dark';
+    });
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

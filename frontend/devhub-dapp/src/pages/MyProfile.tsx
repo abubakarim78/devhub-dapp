@@ -20,7 +20,6 @@ import {
   ToggleLeft,
   ToggleRight,
   Trash2,
-  Power
 } from 'lucide-react';
 import StarBackground from '@/components/common/StarBackground';
 import DashboardSidebar from '@/components/DashboardSidebar';

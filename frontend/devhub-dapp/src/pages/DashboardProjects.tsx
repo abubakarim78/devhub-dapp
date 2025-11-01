@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useSuiClient } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FolderKanban, 
@@ -22,6 +24,7 @@ import {
 import StarBackground from '@/components/common/StarBackground';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
+import { DEVHUB_OBJECT_ID } from '@/lib/suiClient';
 
 interface Project {
   id: string;
@@ -44,6 +47,8 @@ interface Project {
 
 const DashboardProjects: React.FC = () => {
   const currentAccount = useCurrentAccount();
+  const navigate = useNavigate();
+  const suiClient = useSuiClient();
   const { theme } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,99 +57,174 @@ const DashboardProjects: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch projects from the blockchain
-    // This is a placeholder for actual blockchain integration
     const fetchProjects = async () => {
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        
-        // Mock data for demonstration
-        const mockProjects: Project[] = [
-          {
-            id: '1',
-            title: 'Sui Grants Portal',
-            short_summary: 'Build submission UI and on-chain verification',
-            description: 'Create a comprehensive grants portal for the Sui ecosystem with submission UI, on-chain verification, and review system.',
-            category: 'Web3',
-            experience_level: 'Senior',
-            budget_min: 5000,
-            budget_max: 15000,
-            timeline_weeks: 8,
-            required_skills: ['React', 'TypeScript', 'Sui SDK', 'Move'],
-            owner: '0x123...abc',
-            applications_status: 'Open',
-            creation_timestamp: Date.now() - 86400000,
-            views: 45,
-            applications: 12,
-            rating: 4.8
-          },
-          {
-            id: '2',
-            title: 'DEX Analytics Dashboard',
-            short_summary: 'Data visualization for swaps and liquidity',
-            description: 'Build an analytics dashboard for DEX operations with real-time data visualization and trading insights.',
-            category: 'DeFi',
-            experience_level: 'Mid',
-            budget_min: 3000,
-            budget_max: 8000,
-            timeline_weeks: 6,
-            required_skills: ['Vue.js', 'D3.js', 'Web3', 'Analytics'],
-            owner: '0x456...def',
-            applications_status: 'Open',
-            creation_timestamp: Date.now() - 172800000,
-            views: 32,
-            applications: 8,
-            rating: 4.6
-          },
-          {
-            id: '3',
-            title: 'Sui Wallet SDK Examples',
-            short_summary: 'Create templates for common flows',
-            description: 'Develop comprehensive SDK examples and templates for common wallet integration patterns.',
-            category: 'Tools',
-            experience_level: 'Junior',
-            budget_min: 2000,
-            budget_max: 5000,
-            timeline_weeks: 4,
-            required_skills: ['JavaScript', 'Sui SDK', 'Documentation'],
-            owner: '0x789...ghi',
-            applications_status: 'Closed',
-            creation_timestamp: Date.now() - 259200000,
-            views: 28,
-            applications: 15,
-            rating: 4.9
-          },
-          {
-            id: '4',
-            title: 'NFT Marketplace Integration',
-            short_summary: 'Integrate NFT marketplace with Sui blockchain',
-            description: 'Build a comprehensive NFT marketplace with minting, trading, and auction functionality.',
-            category: 'NFT',
-            experience_level: 'Senior',
-            budget_min: 8000,
-            budget_max: 20000,
-            timeline_weeks: 12,
-            required_skills: ['React', 'Solidity', 'IPFS', 'Web3'],
-            owner: '0xabc...123',
-            applications_status: 'Open',
-            creation_timestamp: Date.now() - 345600000,
-            views: 67,
-            applications: 23,
-            rating: 4.7
+        setLoading(true);
+        if (!currentAccount?.address) {
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
+
+        console.log('🔍 Fetching user projects for:', currentAccount.address);
+
+        // Step 1: Get the DevHub object to find the projects table ID
+        const devhubObj = await suiClient.getObject({
+          id: DEVHUB_OBJECT_ID,
+          options: { showContent: true, showType: true, showOwner: true }
+        });
+
+        let mapped: Project[] = [];
+
+        if (devhubObj.data?.content && 'fields' in devhubObj.data.content) {
+          const devhubFields = (devhubObj.data.content as any).fields;
+          
+          if (devhubFields.projects) {
+            // Extract the table ID from the projects field
+            let projectsTableId: string;
+            let idValue: any;
+            
+            if (devhubFields.projects.fields && devhubFields.projects.fields.id) {
+              idValue = devhubFields.projects.fields.id;
+            } else if (devhubFields.projects.id) {
+              idValue = devhubFields.projects.id;
+            } else {
+              console.error('⚠️ Projects table structure not recognized');
+              throw new Error('Projects table structure not recognized');
+            }
+
+            // Extract string ID from UID object
+            if (typeof idValue === 'object' && idValue !== null) {
+              if (idValue.id) {
+                projectsTableId = String(idValue.id);
+              } else if (idValue.objectId) {
+                projectsTableId = String(idValue.objectId);
+              } else {
+                const keys = Object.keys(idValue);
+                const possibleId = keys.find(k => 
+                  typeof idValue[k] === 'string' && 
+                  idValue[k].startsWith('0x')
+                );
+                if (possibleId) {
+                  projectsTableId = String(idValue[possibleId]);
+                } else {
+                  throw new Error('Cannot extract table ID');
+                }
+              }
+            } else if (typeof idValue === 'string') {
+              projectsTableId = idValue;
+            } else {
+              throw new Error('Invalid table ID format');
+            }
+
+            // Query dynamic fields on the projects table
+            const tableDynamicFields = await suiClient.getDynamicFields({
+              parentId: projectsTableId,
+              limit: 200
+            });
+
+            console.log(`📦 Found ${tableDynamicFields.data?.length || 0} dynamic fields on projects table`);
+
+            if (tableDynamicFields.data && tableDynamicFields.data.length > 0) {
+              const projectsFromTable: any[] = [];
+
+              // Fetch each dynamic field object
+              for (const field of tableDynamicFields.data) {
+                try {
+                  const fieldObj = await suiClient.getDynamicFieldObject({
+                    parentId: projectsTableId,
+                    name: field.name
+                  });
+
+                  if (fieldObj.data && fieldObj.data.content && 'fields' in fieldObj.data.content) {
+                    const type = fieldObj.data.type || '';
+                    if (type.includes('Project')) {
+                      // Extract Project struct from dynamic field value
+                      const container = fieldObj.data.content as any;
+                      const valueNode = container.fields?.value ?? container.fields;
+                      const fields = (valueNode && valueNode.fields) ? valueNode.fields : valueNode;
+
+                      if (fields && fields.owner === currentAccount.address) {
+                        console.log(`✅ Found user's project via dynamic field:`, field.name);
+                        projectsFromTable.push({ data: fieldObj.data, fields });
+                      }
+                    }
+                  }
+                } catch (fieldError: any) {
+                  console.debug(`⚠️ Error fetching field ${field.name}:`, fieldError?.message || fieldError);
+                  continue;
+                }
+              }
+
+              console.log(`📦 Found ${projectsFromTable.length} user projects via table dynamic fields`);
+
+              // Map projects to our format
+              mapped = projectsFromTable
+                .map((item: any) => {
+                  const fields = item.fields;
+                  if (!fields) return null;
+
+                  const title: string = fields.title || 'Untitled Project';
+                  const shortSummary: string = fields.short_summary || '';
+                  const description: string = fields.description || '';
+                  const category: string = fields.category || 'General';
+                  const experience: string = fields.experience_level || 'Unknown';
+                  const budgetMin: number = Number(fields.budget_min ?? 0);
+                  const budgetMax: number = Number(fields.budget_max ?? 0);
+                  const timelineWeeks: number = Number(fields.timeline_weeks ?? 0);
+                  
+                  let requiredSkills: string[] = [];
+                  if (Array.isArray(fields.required_skills)) {
+                    requiredSkills = fields.required_skills.map((s: any) => String(s));
+                  }
+                  
+                  const applicationsStatus: string = fields.applications_status || 'Open';
+                  const createdAt: number = Number(fields.creation_timestamp ?? Date.now());
+                  const owner: string = fields.owner || currentAccount.address;
+
+                  // Get object ID from the Project's id field (UID)
+                  const objectId = fields.id?.id || item.data?.objectId || 'unknown';
+
+                  const project: Project = {
+                    id: objectId,
+                    title,
+                    short_summary: shortSummary,
+                    description,
+                    category,
+                    experience_level: experience,
+                    budget_min: isNaN(budgetMin) ? 0 : budgetMin,
+                    budget_max: isNaN(budgetMax) ? 0 : budgetMax,
+                    timeline_weeks: isNaN(timelineWeeks) ? 0 : timelineWeeks,
+                    required_skills: requiredSkills,
+                    owner,
+                    applications_status: applicationsStatus,
+                    creation_timestamp: isNaN(createdAt) ? Date.now() : createdAt,
+                    views: Number(fields.views ?? 0),
+                    applications: Number(fields.applications ?? 0),
+                    rating: Number(fields.rating ?? 0),
+                  };
+
+                  console.log('✅ Mapped user project:', project.id, project.title);
+                  return project;
+                })
+                .filter(Boolean) as Project[];
+
+              console.log(`✅ Successfully mapped ${mapped.length} user projects`);
+            }
           }
-        ];
-        
-        setProjects(mockProjects);
-      } catch (error) {
-        console.error('Error fetching projects:', error);
+        }
+
+        setProjects(mapped);
+      } catch (e) {
+        console.error('Error fetching projects:', e);
+        setProjects([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProjects();
-  }, []);
+  }, [currentAccount?.address, suiClient]);
 
   const filteredProjects = projects.filter((project) => {
     const matchesSearch =
@@ -163,6 +243,44 @@ const DashboardProjects: React.FC = () => {
     totalBudget: projects.reduce((sum, p) => sum + p.budget_max, 0),
     avgRating: projects.length > 0 ? projects.reduce((sum, p) => sum + p.rating, 0) / projects.length : 0
   };
+
+  // Calculate percentage change from last month
+  const calculateMonthlyGrowth = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Get first and last day of current month
+    const currentMonthStart = new Date(currentYear, currentMonth, 1).getTime();
+    const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).getTime();
+    
+    // Get first and last day of last month
+    const lastMonthStart = new Date(currentYear, currentMonth - 1, 1).getTime();
+    const lastMonthEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999).getTime();
+    
+    // Count projects created in current month
+    const currentMonthProjects = projects.filter(p => {
+      const creationDate = p.creation_timestamp;
+      return creationDate >= currentMonthStart && creationDate <= currentMonthEnd;
+    }).length;
+    
+    // Count projects created in last month
+    const lastMonthProjects = projects.filter(p => {
+      const creationDate = p.creation_timestamp;
+      return creationDate >= lastMonthStart && creationDate <= lastMonthEnd;
+    }).length;
+    
+    // Calculate percentage change
+    if (lastMonthProjects === 0) {
+      // If no projects last month but projects this month, show 100% growth
+      return currentMonthProjects > 0 ? 100 : 0;
+    }
+    
+    const percentageChange = ((currentMonthProjects - lastMonthProjects) / lastMonthProjects) * 100;
+    return Math.round(percentageChange);
+  };
+
+  const monthlyGrowth = calculateMonthlyGrowth();
 
   const categories = [
     'all',
@@ -234,7 +352,7 @@ const DashboardProjects: React.FC = () => {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowCreateModal(true)}
+                      onClick={() => navigate('/projects/new')}
                       className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-lg"
                     >
                       <Plus size={20} />
@@ -266,8 +384,10 @@ const DashboardProjects: React.FC = () => {
                           {projectStats.total}
                         </h3>
                         <p className="text-muted-foreground text-sm">Total Projects</p>
-                        <div className="mt-2 text-xs text-blue-500 font-medium">
-                          +12% from last month
+                        <div className={`mt-2 text-xs font-medium ${
+                          monthlyGrowth >= 0 ? 'text-blue-500' : 'text-red-500'
+                        }`}>
+                          {monthlyGrowth >= 0 ? '+' : ''}{monthlyGrowth}% from last month
                         </div>
                       </div>
                     </motion.div>
@@ -446,8 +566,9 @@ const DashboardProjects: React.FC = () => {
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <DollarSign size={16} />
                               <span>
-                                ${project.budget_min.toLocaleString()} - $
-                                {project.budget_max.toLocaleString()}
+                                {project.budget_min > 0 || project.budget_max > 0
+                                  ? `${project.budget_min.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })} - ${project.budget_max.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                                  : 'Budget not specified'}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -497,6 +618,7 @@ const DashboardProjects: React.FC = () => {
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
+                              onClick={() => navigate(`/dashboard-projects/${project.id}`)}
                               className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                             >
                               View Details
@@ -504,6 +626,7 @@ const DashboardProjects: React.FC = () => {
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
+                              onClick={() => window.open(`/projects/${project.id}`, '_blank')}
                               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                             >
                               <ExternalLink size={16} />
@@ -531,7 +654,7 @@ const DashboardProjects: React.FC = () => {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowCreateModal(true)}
+                          onClick={() => navigate('/projects/new')}
                           className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                         >
                           <Plus size={20} />
