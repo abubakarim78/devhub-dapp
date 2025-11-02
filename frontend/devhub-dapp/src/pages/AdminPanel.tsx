@@ -4,15 +4,12 @@ import { Shield, RefreshCw, Activity, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useContract } from '../hooks/useContract';
 import { getRecentActivity, getActivityStats, getPlatformFeeBalance } from '../lib/suiClient';
-import StarBackground from '@/components/common/StarBackground';
 import AdminSidebar, { AdminTab } from '@/components/AdminSidebar';
 import AdminFeatures from '@/components/common/AdminFeatures';
 
 const AdminSkeletonLoader: React.FC = () => (
-    <div className="bg-background min-h-screen text-foreground relative">
-        <StarBackground />
-        <div className="relative z-10 pt-32 pb-16">
-            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="pt-24 pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="lg:col-span-1">
                         <div className="sticky top-24 bg-secondary/50 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl animate-pulse">
@@ -31,7 +28,6 @@ const AdminSkeletonLoader: React.FC = () => (
                 </div>
             </div>
         </div>
-    </div>
 );
 
 const AdminPanel: React.FC = () => {
@@ -120,9 +116,7 @@ const AdminPanel: React.FC = () => {
 
     if (!currentAccount) {
         return (
-            <div className="bg-background min-h-screen text-foreground relative">
-                <StarBackground />
-                <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
+            <div className="pt-24 flex items-center justify-center min-h-screen">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -135,16 +129,13 @@ const AdminPanel: React.FC = () => {
                         <h2 className="text-3xl font-bold text-foreground mb-4">Admin Access Required</h2>
                         <p className="text-muted-foreground mb-6">You need to connect your wallet to access the admin panel.</p>
                     </motion.div>
-                </div>
             </div>
         );
     }
 
     if (!adminVerified) {
         return (
-            <div className="bg-background min-h-screen text-foreground relative">
-                <StarBackground />
-                <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
+            <div className="pt-24 flex items-center justify-center min-h-screen">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -164,16 +155,13 @@ const AdminPanel: React.FC = () => {
                             <span>Retry Verification</span>
                         </button>
                     </motion.div>
-                </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-background min-h-screen text-foreground relative">
-            <StarBackground />
-            <div className="relative z-10 pt-32 pb-16">
-                <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="pt-24 pb-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
                         <main className="lg:col-span-3">
@@ -544,7 +532,6 @@ const AdminPanel: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
     );
 };
 

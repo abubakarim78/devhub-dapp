@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useContract } from "./hooks/useContract";
 import Footer from "./components/common/Footer";
@@ -24,6 +24,8 @@ import ReviewSubmitProject from "./pages/ReviewSubmitProject";
 import Collaborations from "./pages/Collaborations";
 import DashboardSettings from "./pages/DashboardSettings";
 import Navbar from "./components/common/Navbar";
+import Layout from "./components/common/Layout";
+import DashboardLayout from "./components/common/DashboardLayout";
 import { useGlowingCursor } from "./hooks/useGlowingCursor";
 import { Toaster } from "./components/ui/sonner";
 import "./index.css";
@@ -183,7 +185,7 @@ function App() {
 
         {/* Show retry option if admin check failed */}
         {adminCheckFailed && (
-          <div className="bg-destructive/10 border-l-4 border-destructive p-4 mx-4 mt-4">
+          <div className="bg-destructive/10 border-l-4 border-destructive p-4 mx-4 mt-24">
             <div className="flex items-center justify-between">
               <div className="flex">
                 <div className="ml-3">
@@ -204,30 +206,46 @@ function App() {
 
         <div className="flex-1">
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/browse" element={<Browse />} />
-            <Route path="/create" element={<CreateCard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard-profile" element={<MyProfile />} />
-            <Route path="/dashboard-messages" element={<Messages />} />
-            <Route path="/dashboard-messages/:id" element={<Messages />} />
-            <Route path="/dashboard-channels" element={<ChannelDashboard />} />
-            <Route path="/dashboard-connections" element={<Connections />} />
-            <Route path="/card/:id" element={<CardDetails />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/projects/:id" element={<ProjectDetails />} />
-            <Route path="/dashboard-projects" element={<DashboardProjects />} />
-            <Route path="/dashboard-projects/:id" element={<DashboardProjectDetails />} />
-            <Route path="/dashboard-proposals" element={<Proposals />} />
-            <Route path="/projects/new" element={<CreateProject />} />
-            <Route path="/projects/review" element={<ReviewSubmitProject />} />
-            <Route path="/dashboard-settings" element={<DashboardSettings />} />
-            <Route path="/collaborations" element={<Collaborations />} />
+            {/* Dashboard routes with sidebar - DashboardLayout already includes Layout */}
             <Route
-              path="/admin"
-              element={<AdminPanel />}
-            />
-            <Route path="/super-admin" element={<SuperAdmin />} />
+              element={
+                <DashboardLayout>
+                  <Outlet />
+                </DashboardLayout>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard-profile" element={<MyProfile />} />
+              <Route path="/dashboard-messages" element={<Messages />} />
+              <Route path="/dashboard-messages/:id" element={<Messages />} />
+              <Route path="/dashboard-channels" element={<ChannelDashboard />} />
+              <Route path="/dashboard-connections" element={<Connections />} />
+              <Route path="/dashboard-projects" element={<DashboardProjects />} />
+              <Route path="/dashboard-projects/:id" element={<DashboardProjectDetails />} />
+              <Route path="/dashboard-proposals" element={<Proposals />} />
+              <Route path="/dashboard-settings" element={<DashboardSettings />} />
+            </Route>
+
+            {/* Regular pages without dashboard sidebar */}
+            <Route
+              element={
+                <Layout>
+                  <Outlet />
+                </Layout>
+              }
+            >
+              <Route path="/" element={<Home />} />
+              <Route path="/browse" element={<Browse />} />
+              <Route path="/create" element={<CreateCard />} />
+              <Route path="/card/:id" element={<CardDetails />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/projects/new" element={<CreateProject />} />
+              <Route path="/projects/review" element={<ReviewSubmitProject />} />
+              <Route path="/collaborations" element={<Collaborations />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/super-admin" element={<SuperAdmin />} />
+            </Route>
           </Routes>
         </div>
 

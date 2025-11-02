@@ -2,7 +2,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useSuiClient, useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
 import { createProjectTransaction, PROJECT_POSTING_FEE } from "../lib/suiClient";
 import { useMemo, useState } from "react";
-import StarBackground from "@/components/common/StarBackground";
 
 export default function ReviewSubmitProject() {
   const { state } = useLocation() as { state?: { form?: any } };
@@ -108,9 +107,8 @@ export default function ReviewSubmitProject() {
   };
 
   return (
-    <div className="bg-background text-foreground min-h-screen w-full flex flex-col relative">
-      <StarBackground />
-      <div className="relative z-10 max-w-6xl w-full mx-auto px-4 py-8 mt-24">
+    <div className="pt-24 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Review & Submit</h1>
           <div className="flex gap-3">

@@ -21,8 +21,6 @@ import {
   ToggleRight,
   Trash2,
 } from 'lucide-react';
-import StarBackground from '@/components/common/StarBackground';
-import DashboardSidebar from '@/components/DashboardSidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
 import { DevCardData, getWorkPreferences } from '@/lib/suiClient';
@@ -86,9 +84,8 @@ const MyProfile: React.FC = () => {
   // Loading state
   if (loading || contractLoading) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -106,9 +103,8 @@ const MyProfile: React.FC = () => {
   // Error state
   if (error || contractError) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -134,9 +130,8 @@ const MyProfile: React.FC = () => {
   // No profile found state
   if (!primaryCard) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -162,9 +157,8 @@ const MyProfile: React.FC = () => {
   // User not connected state
   if (!currentAccount) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -227,17 +221,9 @@ const MyProfile: React.FC = () => {
   };
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-
-      <div className="relative z-10 pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
-            
-            <main className="lg:col-span-3">
-              <AnimatePresence mode="wait">
-                <motion.div
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
                   key="profile-content"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1099,11 +1085,7 @@ const MyProfile: React.FC = () => {
                     </motion.div>
                   </motion.div>
                 </motion.div>
-              </AnimatePresence>
-            </main>
-          </div>
-        </div>
-      </div>
+            </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
@@ -1166,7 +1148,7 @@ const MyProfile: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 };
 

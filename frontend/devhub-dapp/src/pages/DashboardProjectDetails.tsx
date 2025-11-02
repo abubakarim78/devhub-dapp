@@ -8,8 +8,7 @@ import {
   TrendingUp, XCircle, ExternalLink, Edit2,
   Save, X, Paperclip, Image as ImageIcon, File
 } from 'lucide-react';
-import StarBackground from '@/components/common/StarBackground';
-import DashboardSidebar from '@/components/DashboardSidebar';
+import Layout from '@/components/common/Layout';
 import { PACKAGE_ID, DEVHUB_OBJECT_ID, updateProjectTransaction } from '@/lib/suiClient';
 import { WalrusService } from '@/services/walrus';
 
@@ -750,32 +749,31 @@ const DashboardProjectDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-background min-h-screen flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-foreground mb-2">Loading Project...</h2>
-            <p className="text-muted-foreground">Fetching project details from the blockchain.</p>
-          </motion.div>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-foreground mb-2">Loading Project...</h2>
+              <p className="text-muted-foreground">Fetching project details from the blockchain.</p>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (error || !project) {
     return (
-      <div className="bg-background min-h-screen text-foreground relative">
-        <StarBackground />
-        <div className="relative z-10 pt-32 pb-16">
-          <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              <DashboardSidebar />
-              <main className="lg:col-span-3">
+      <div className="pt-24 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div />
+            <main className="lg:col-span-3">
                 <div className="text-center max-w-md mx-auto px-4">
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -803,7 +801,6 @@ const DashboardProjectDetails: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     );
   }
 
@@ -811,24 +808,15 @@ const DashboardProjectDetails: React.FC = () => {
   const isOpen = project.applications_status?.toLowerCase() === 'open';
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-      
-      <div className="relative z-10 pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
-            
-            <main className="lg:col-span-3">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key="project-details-content"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.5 }}
-                  className="space-y-6"
-                >
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="project-details-content"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-6"
+      >
                   {/* Header */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -1356,12 +1344,7 @@ const DashboardProjectDetails: React.FC = () => {
                     )}
                   </div>
                 </motion.div>
-              </AnimatePresence>
-            </main>
-          </div>
-        </div>
-      </div>
-    </div>
+      </AnimatePresence>
   );
 };
 

@@ -5,8 +5,8 @@ const Footer: React.FC = () => {
   const year = new Date().getFullYear();
   
   return (
-    <footer className="bg-background border-t border-border">
-      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-24 py-12">
+    <footer className="bg-background border-t border-border mt-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <div>
             <div className="flex items-center space-x-2 mb-4">

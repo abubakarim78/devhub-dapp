@@ -4,7 +4,7 @@ import { ArrowLeft, Mail, ExternalLink, Clock, Calendar, Code2, Loader2 } from '
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
 import { incrementView } from '../lib/analytics';
-import StarBackground from '@/components/common/StarBackground';
+import Layout from '@/components/common/Layout';
 import { motion } from 'framer-motion';
 
 const CardDetails: React.FC = () => {
@@ -49,22 +49,23 @@ const CardDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-background min-h-screen flex items-center justify-center relative">
-        <StarBackground/>
-        <div className="text-center relative z-10">
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
           <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Loading Profile...</h2>
           <p className="text-muted-foreground">Fetching developer details from the blockchain.</p>
         </div>
       </div>
+      </Layout>
     );
   }
 
   if (error || !card) {
     return (
-      <div className="bg-background min-h-screen flex items-center justify-center relative">
-        <StarBackground/>
-        <div className="text-center relative z-10 max-w-md mx-auto px-4">
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-4">
           <div className="w-24 h-24 bg-destructive/10 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-destructive/30">
             <Code2 className="h-12 w-12 text-destructive" />
           </div>
@@ -80,16 +81,14 @@ const CardDetails: React.FC = () => {
           </Link>
         </div>
       </div>
+      </Layout>
     );
   }
 
   const technologies = card.technologies.split(',').map(t => t.trim()).filter(Boolean);
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground/>
-      
-      <div className="relative z-10 pt-32 pb-16">
+    <div className="pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
             <Link to="/browse" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors group">
@@ -185,7 +184,6 @@ const CardDetails: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

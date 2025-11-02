@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Loader2, AlertCircle, SlidersHorizontal, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
-import StarBackground from '@/components/common/StarBackground';
 import DeveloperCard from '@/components/common/DeveloperCard';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
@@ -113,9 +112,8 @@ const Browse: React.FC = () => {
   // --- RENDER LOGIC ---
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background relative">
-        <StarBackground/>
-        <div className="text-center relative z-10">
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
           <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Loading Developers...</h2>
           <p className="text-muted-foreground">Fetching the latest talent from the blockchain</p>
@@ -127,7 +125,6 @@ const Browse: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background relative">
-        <StarBackground/>
         <div className="text-center max-w-md mx-auto px-4 relative z-10">
           <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-foreground mb-3">{error}</h2>
@@ -144,10 +141,7 @@ const Browse: React.FC = () => {
   }
 
   return (
-    <div className="bg-background text-foreground min-h-screen relative">
-      <StarBackground/>
-      
-      <div className="relative z-10 pt-32 pb-16">
+    <div className="pt-24 pb-16">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -162,7 +156,7 @@ const Browse: React.FC = () => {
           </p>
         </motion.div>
 
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* --- FILTER SIDEBAR --- */}
             <aside className="lg:col-span-1">
@@ -297,7 +291,6 @@ const Browse: React.FC = () => {
             </main>
           </div>
         </div>
-      </div>
     </div>
   );
 };
