@@ -84,9 +84,8 @@ const MyProfile: React.FC = () => {
   // Loading state
   if (loading || contractLoading) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -104,9 +103,8 @@ const MyProfile: React.FC = () => {
   // Error state
   if (error || contractError) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -132,9 +130,8 @@ const MyProfile: React.FC = () => {
   // No profile found state
   if (!primaryCard) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -160,9 +157,8 @@ const MyProfile: React.FC = () => {
   // User not connected state
   if (!currentAccount) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -225,8 +221,9 @@ const MyProfile: React.FC = () => {
   };
 
   return (
-    <AnimatePresence mode="wait">
-                <motion.div
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
                   key="profile-content"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1151,7 +1148,7 @@ const MyProfile: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </AnimatePresence>
+    </>
   );
 };
 

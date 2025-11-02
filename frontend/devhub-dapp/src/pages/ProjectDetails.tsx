@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, DollarSign, Clock, Calendar, Code2, Loader2, User, Tag, Briefcase, TrendingUp, XCircle, ExternalLink, Paperclip, Image as ImageIcon, File, CheckCircle, MessageSquare } from 'lucide-react';
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
+import Layout from '@/components/common/Layout';
 import { PACKAGE_ID, DEVHUB_OBJECT_ID } from '@/lib/suiClient';
 import { WalrusService } from '@/services/walrus';
 
@@ -409,6 +410,7 @@ const ProjectDetails: React.FC = () => {
           </motion.div>
         </div>
       </div>
+      </Layout>
     );
   }
 
@@ -416,10 +418,7 @@ const ProjectDetails: React.FC = () => {
   const isOpen = project.applications_status?.toLowerCase() === 'open';
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-      
-      <div className="relative z-10 pt-32 pb-16">
+    <div className="pt-32 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatePresence mode="wait">
             <motion.div 
@@ -736,7 +735,6 @@ const ProjectDetails: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

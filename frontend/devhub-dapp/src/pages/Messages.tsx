@@ -1206,19 +1206,20 @@ const Messages: React.FC = () => {
       <Layout>
         <div className="min-h-screen pt-16 flex items-center justify-center">
           <div className="text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
-          >
-            <MessageSquare className="h-16 w-16 text-primary" />
-          </motion.div>
-          <h2 className="text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
-          <p className="text-muted-foreground mb-8 text-lg">You need to connect your Sui wallet to access your messages.</p>
-          <div className="bg-primary/10 backdrop-blur-sm p-6 rounded-xl border border-primary/30 max-w-md mx-auto">
-            <p className="text-primary">
-              Connect your wallet to view and manage your messages.
-            </p>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
+            >
+              <MessageSquare className="h-16 w-16 text-primary" />
+            </motion.div>
+            <h2 className="text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
+            <p className="text-muted-foreground mb-8 text-lg">You need to connect your Sui wallet to access your messages.</p>
+            <div className="bg-primary/10 backdrop-blur-sm p-6 rounded-xl border border-primary/30 max-w-md mx-auto">
+              <p className="text-primary">
+                Connect your wallet to view and manage your messages.
+              </p>
+            </div>
           </div>
         </div>
       </Layout>

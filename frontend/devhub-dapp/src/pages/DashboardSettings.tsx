@@ -327,9 +327,8 @@ const DashboardSettings: React.FC = () => {
   // User not connected state
   if (!currentAccount) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -345,8 +344,9 @@ const DashboardSettings: React.FC = () => {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
         key="settings-content"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -845,8 +845,7 @@ const DashboardSettings: React.FC = () => {
                     </AnimatePresence>
                   </motion.div>
                 </motion.div>
-              </motion.div>
-      </AnimatePresence>
+            </AnimatePresence>
 
       {/* Delete Account Modal */}
       <AnimatePresence>
@@ -895,7 +894,7 @@ const DashboardSettings: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </AnimatePresence>
+    </>
   );
 };
 

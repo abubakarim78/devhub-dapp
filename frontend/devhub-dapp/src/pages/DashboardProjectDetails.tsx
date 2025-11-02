@@ -752,15 +752,16 @@ const DashboardProjectDetails: React.FC = () => {
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-foreground mb-2">Loading Project...</h2>
-            <p className="text-muted-foreground">Fetching project details from the blockchain.</p>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-foreground mb-2">Loading Project...</h2>
+              <p className="text-muted-foreground">Fetching project details from the blockchain.</p>
+            </motion.div>
+          </div>
         </div>
       </Layout>
     );
@@ -800,7 +801,6 @@ const DashboardProjectDetails: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     );
   }
 
@@ -1345,7 +1345,6 @@ const DashboardProjectDetails: React.FC = () => {
                   </div>
                 </motion.div>
       </AnimatePresence>
-    </AnimatePresence>
   );
 };
 

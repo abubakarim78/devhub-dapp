@@ -147,9 +147,7 @@ export default function CreateProject() {
     form.timelineWeeks > 0;
 
   return (
-    <div className="bg-background text-foreground min-h-screen w-full flex flex-col relative">
-      <StarBackground />
-      <div className="relative z-10 pt-28 pb-12">
+    <div className="pt-28 pb-12">
         <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
           <main>
               <motion.div
@@ -490,7 +488,6 @@ export default function CreateProject() {
               </motion.div>
           </main>
         </div>
-      </div>
     </div>
   );
 }

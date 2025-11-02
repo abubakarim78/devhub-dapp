@@ -107,9 +107,7 @@ export default function ReviewSubmitProject() {
   };
 
   return (
-    <div className="bg-background text-foreground min-h-screen w-full flex flex-col relative">
-      <StarBackground />
-      <div className="relative z-10 max-w-6xl w-full mx-auto px-4 py-8 mt-24">
+    <div className="max-w-6xl w-full mx-auto px-4 py-8 mt-24">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Review & Submit</h1>
           <div className="flex gap-3">
@@ -192,7 +190,6 @@ export default function ReviewSubmitProject() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

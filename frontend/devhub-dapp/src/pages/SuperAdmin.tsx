@@ -53,7 +53,6 @@ const SuperAdminSkeletonLoader: React.FC = () => (
         </div>
       </div>
     </div>
-  </div>
 );
 
 const SuperAdmin: React.FC = () => {
@@ -585,7 +584,6 @@ const SuperAdmin: React.FC = () => {
             </main>
           </div>
         </div>
-      </div>
 
       {/* Confirmation Dialog */}
       <RemoveAdminDialog

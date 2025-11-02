@@ -112,9 +112,8 @@ const Browse: React.FC = () => {
   // --- RENDER LOGIC ---
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background relative">
-        <StarBackground/>
-        <div className="text-center relative z-10">
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
           <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Loading Developers...</h2>
           <p className="text-muted-foreground">Fetching the latest talent from the blockchain</p>
@@ -126,7 +125,6 @@ const Browse: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background relative">
-        <StarBackground/>
         <div className="text-center max-w-md mx-auto px-4 relative z-10">
           <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-foreground mb-3">{error}</h2>
@@ -293,7 +291,6 @@ const Browse: React.FC = () => {
             </main>
           </div>
         </div>
-      </div>
     </div>
   );
 };

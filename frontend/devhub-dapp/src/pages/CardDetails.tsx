@@ -184,7 +184,6 @@ const CardDetails: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

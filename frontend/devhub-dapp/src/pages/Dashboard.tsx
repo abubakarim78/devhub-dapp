@@ -214,9 +214,8 @@ const Dashboard: React.FC = () => {
   // User not connected state
   if (!currentAccount) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}

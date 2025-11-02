@@ -19,7 +19,6 @@ import {
   Download,
   Smile
 } from 'lucide-react';
-import Layout from '@/components/common/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
 import { getChannelMembers } from '@/lib/suiClient';

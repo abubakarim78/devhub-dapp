@@ -206,7 +206,27 @@ function App() {
 
         <div className="flex-1">
           <Routes>
-            {/* Default layout for all pages */}
+            {/* Dashboard routes with sidebar - DashboardLayout already includes Layout */}
+            <Route
+              element={
+                <DashboardLayout>
+                  <Outlet />
+                </DashboardLayout>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard-profile" element={<MyProfile />} />
+              <Route path="/dashboard-messages" element={<Messages />} />
+              <Route path="/dashboard-messages/:id" element={<Messages />} />
+              <Route path="/dashboard-channels" element={<ChannelDashboard />} />
+              <Route path="/dashboard-connections" element={<Connections />} />
+              <Route path="/dashboard-projects" element={<DashboardProjects />} />
+              <Route path="/dashboard-projects/:id" element={<DashboardProjectDetails />} />
+              <Route path="/dashboard-proposals" element={<Proposals />} />
+              <Route path="/dashboard-settings" element={<DashboardSettings />} />
+            </Route>
+
+            {/* Regular pages without dashboard sidebar */}
             <Route
               element={
                 <Layout>
@@ -214,27 +234,6 @@ function App() {
                 </Layout>
               }
             >
-              {/* Dashboard routes with sidebar */}
-              <Route
-                element={
-                  <DashboardLayout>
-                    <Outlet />
-                  </DashboardLayout>
-                }
-              >
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/dashboard-profile" element={<MyProfile />} />
-                <Route path="/dashboard-messages" element={<Messages />} />
-                <Route path="/dashboard-messages/:id" element={<Messages />} />
-                <Route path="/dashboard-channels" element={<ChannelDashboard />} />
-                <Route path="/dashboard-connections" element={<Connections />} />
-                <Route path="/dashboard-projects" element={<DashboardProjects />} />
-                <Route path="/dashboard-projects/:id" element={<DashboardProjectDetails />} />
-                <Route path="/dashboard-proposals" element={<Proposals />} />
-                <Route path="/dashboard-settings" element={<DashboardSettings />} />
-              </Route>
-
-              {/* Regular pages without dashboard sidebar */}
               <Route path="/" element={<Home />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/create" element={<CreateCard />} />

@@ -28,7 +28,6 @@ const AdminSkeletonLoader: React.FC = () => (
                 </div>
             </div>
         </div>
-    </div>
 );
 
 const AdminPanel: React.FC = () => {
@@ -130,7 +129,6 @@ const AdminPanel: React.FC = () => {
                         <h2 className="text-3xl font-bold text-foreground mb-4">Admin Access Required</h2>
                         <p className="text-muted-foreground mb-6">You need to connect your wallet to access the admin panel.</p>
                     </motion.div>
-                </div>
             </div>
         );
     }
@@ -157,7 +155,6 @@ const AdminPanel: React.FC = () => {
                             <span>Retry Verification</span>
                         </button>
                     </motion.div>
-                </div>
             </div>
         );
     }
@@ -535,7 +532,6 @@ const AdminPanel: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
     );
 };
 

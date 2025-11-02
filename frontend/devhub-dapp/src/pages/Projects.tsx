@@ -876,7 +876,6 @@ const Projects = () => {
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
     </div>
   );
 };
