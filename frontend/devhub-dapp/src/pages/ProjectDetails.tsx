@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, DollarSign, Clock, Calendar, Code2, Loader2, User, Tag, Briefcase, TrendingUp, XCircle, ExternalLink, Paperclip, Image as ImageIcon, File, CheckCircle, MessageSquare } from 'lucide-react';
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
-import StarBackground from '@/components/common/StarBackground';
 import { PACKAGE_ID, DEVHUB_OBJECT_ID } from '@/lib/suiClient';
 import { WalrusService } from '@/services/walrus';
 
@@ -366,9 +365,9 @@ const ProjectDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-background min-h-screen flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -380,14 +379,15 @@ const ProjectDetails: React.FC = () => {
           </motion.div>
         </div>
       </div>
+      </Layout>
     );
   }
 
   if (error || !project) {
     return (
-      <div className="bg-background min-h-screen flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10 max-w-md mx-auto px-4">
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

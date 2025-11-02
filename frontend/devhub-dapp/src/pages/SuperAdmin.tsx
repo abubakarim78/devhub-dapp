@@ -16,7 +16,6 @@ import {
   getPlatformFee,
   getActivityStats,
 } from "../lib/suiClient";
-import StarBackground from "@/components/common/StarBackground";
 import SuperAdminSidebar, {
   SuperAdminTab,
 } from "@/components/SuperAdminSidebar";
@@ -27,9 +26,7 @@ import SuperAdminActivity from "@/components/SuperAdminActivity";
 import RemoveAdminDialog from "@/components/RemoveAdminDialog";
 
 const SuperAdminSkeletonLoader: React.FC = () => (
-  <div className="bg-background min-h-screen text-foreground relative">
-    <StarBackground />
-    <div className="relative z-10 pt-32 pb-16">
+  <div className="pt-32 pb-16">
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Skeleton */}
@@ -473,9 +470,7 @@ const SuperAdmin: React.FC = () => {
 
   if (!isAuthorized) {
     return (
-      <div className="bg-background min-h-screen text-foreground relative">
-        <StarBackground />
-        <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
+      <div className="pt-32 flex items-center justify-center min-h-screen">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -493,14 +488,11 @@ const SuperAdmin: React.FC = () => {
             </p>
           </motion.div>
         </div>
-      </div>
     );
   }
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-      <div className="relative z-10 pt-32 pb-16">
+    <div className="pt-32 pb-16">
         <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <SuperAdminSidebar

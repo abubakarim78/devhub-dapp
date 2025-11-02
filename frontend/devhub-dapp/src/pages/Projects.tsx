@@ -14,7 +14,6 @@ import {
   XCircle,
   ExternalLink,
 } from "lucide-react";
-import StarBackground from "@/components/common/StarBackground";
 import { useTheme } from "@/contexts/ThemeContext";
 import { PACKAGE_ID, DEVHUB_OBJECT_ID } from "@/lib/suiClient";
 
@@ -623,9 +622,7 @@ const Projects = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative">
-      <StarBackground />
-      <div className="relative z-10 pt-24 pb-12">
+    <div className="pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatePresence mode="wait">
             <motion.div

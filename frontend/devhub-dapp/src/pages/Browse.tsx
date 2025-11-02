@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Loader2, AlertCircle, SlidersHorizontal, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
-import StarBackground from '@/components/common/StarBackground';
 import DeveloperCard from '@/components/common/DeveloperCard';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
@@ -144,10 +143,7 @@ const Browse: React.FC = () => {
   }
 
   return (
-    <div className="bg-background text-foreground min-h-screen relative">
-      <StarBackground/>
-      
-      <div className="relative z-10 pt-32 pb-16">
+    <div className="pt-32 pb-16">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

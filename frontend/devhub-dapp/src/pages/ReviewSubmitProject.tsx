@@ -2,7 +2,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useSuiClient, useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
 import { createProjectTransaction, PROJECT_POSTING_FEE } from "../lib/suiClient";
 import { useMemo, useState } from "react";
-import StarBackground from "@/components/common/StarBackground";
 
 export default function ReviewSubmitProject() {
   const { state } = useLocation() as { state?: { form?: any } };

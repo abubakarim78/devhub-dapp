@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
 import { useContract } from '../hooks/useContract';
-import StarBackground from '@/components/common/StarBackground';
+import Layout from '@/components/common/Layout';
 
 interface FeaturedProject {
   title: string;
@@ -531,27 +531,27 @@ const CreateCard: React.FC = () => {
 
     if (!currentAccount) {
       return (
-          <div className="bg-background min-h-screen flex items-center justify-center relative">
-              <StarBackground />
-              <div className="text-center relative z-10 p-8 bg-card/50 backdrop-blur-md rounded-2xl border border-border">
+          <Layout>
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="text-center p-8 bg-card/50 backdrop-blur-md rounded-2xl border border-border">
                   <div className="w-20 h-20 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center mx-auto mb-6">
                       <User className="h-10 w-10 text-primary" />
                   </div>
                   <h2 className="text-2xl font-bold text-foreground mb-2">Connect Your Wallet</h2>
                   <p className="text-muted-foreground">Please connect your Sui wallet to proceed.</p>
               </div>
-          </div>
+            </div>
+          </Layout>
       );
     }
 
     return (
-        <div className="bg-background min-h-screen pt-32 pb-20 relative text-foreground">
-            <StarBackground />
+        <div className="pt-32 pb-20">
             <AnimatePresence>
                 {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
             </AnimatePresence>
 
-            <div className="relative z-10 max-w-2xl mx-auto px-4">
+            <div className="max-w-2xl mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}

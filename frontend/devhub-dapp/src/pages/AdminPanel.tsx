@@ -4,14 +4,11 @@ import { Shield, RefreshCw, Activity, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useContract } from '../hooks/useContract';
 import { getRecentActivity, getActivityStats, getPlatformFeeBalance } from '../lib/suiClient';
-import StarBackground from '@/components/common/StarBackground';
 import AdminSidebar, { AdminTab } from '@/components/AdminSidebar';
 import AdminFeatures from '@/components/common/AdminFeatures';
 
 const AdminSkeletonLoader: React.FC = () => (
-    <div className="bg-background min-h-screen text-foreground relative">
-        <StarBackground />
-        <div className="relative z-10 pt-32 pb-16">
+    <div className="pt-32 pb-16">
             <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="lg:col-span-1">
@@ -120,9 +117,7 @@ const AdminPanel: React.FC = () => {
 
     if (!currentAccount) {
         return (
-            <div className="bg-background min-h-screen text-foreground relative">
-                <StarBackground />
-                <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
+            <div className="pt-32 flex items-center justify-center min-h-screen">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -142,9 +137,7 @@ const AdminPanel: React.FC = () => {
 
     if (!adminVerified) {
         return (
-            <div className="bg-background min-h-screen text-foreground relative">
-                <StarBackground />
-                <div className="relative z-10 pt-32 flex items-center justify-center min-h-screen">
+            <div className="pt-32 flex items-center justify-center min-h-screen">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -170,9 +163,7 @@ const AdminPanel: React.FC = () => {
     }
 
     return (
-        <div className="bg-background min-h-screen text-foreground relative">
-            <StarBackground />
-            <div className="relative z-10 pt-32 pb-16">
+        <div className="pt-32 pb-16">
                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />

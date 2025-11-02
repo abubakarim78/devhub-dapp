@@ -19,8 +19,7 @@ import {
   Download,
   Smile
 } from 'lucide-react';
-import StarBackground from '@/components/common/StarBackground';
-import DashboardSidebar from '@/components/DashboardSidebar';
+import Layout from '@/components/common/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
 import { getChannelMembers } from '@/lib/suiClient';
@@ -849,9 +848,7 @@ const ChannelDashboard: React.FC = () => {
   const selectedChannelData = channels.find(c => c.id === selectedChannel);
 
   return (
-    <div className="min-h-screen bg-background">
-      <StarBackground />
-      
+    <>
       {/* Toast Notification */}
       {toast && (
         <motion.div
@@ -883,13 +880,7 @@ const ChannelDashboard: React.FC = () => {
         </motion.div>
       )}
       
-      <div className="relative z-10 pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
-            
-            <main className="lg:col-span-3">
-              <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
             {/* Header */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1487,10 +1478,6 @@ const ChannelDashboard: React.FC = () => {
               </motion.div>
             </div>
           </div>
-        </main>
-          </div>
-        </div>
-      </div>
 
       {/* Create Channel Modal */}
       <AnimatePresence>
@@ -1847,7 +1834,7 @@ const ChannelDashboard: React.FC = () => {
           </motion.div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

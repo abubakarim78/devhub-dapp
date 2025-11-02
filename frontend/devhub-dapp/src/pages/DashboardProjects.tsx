@@ -21,8 +21,6 @@ import {
   Activity,
   CheckCircle2
 } from 'lucide-react';
-import StarBackground from '@/components/common/StarBackground';
-import DashboardSidebar from '@/components/DashboardSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { DEVHUB_OBJECT_ID } from '@/lib/suiClient';
 
@@ -313,24 +311,15 @@ const DashboardProjects: React.FC = () => {
   }
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-      
-      <div className="relative z-10 pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
-            
-            <main className="lg:col-span-3">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key="projects-content"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.5 }}
-                  className="space-y-8"
-                >
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="projects-content"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-8"
+      >
                   {/* Header */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -664,11 +653,8 @@ const DashboardProjects: React.FC = () => {
                     </motion.div>
                   )}
                 </motion.div>
-              </AnimatePresence>
-            </main>
-          </div>
-        </div>
-      </div>
+              </motion.div>
+            </AnimatePresence>
 
       {/* Create Project Modal */}
       <AnimatePresence>
@@ -714,7 +700,7 @@ const DashboardProjects: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </AnimatePresence>
   );
 };
 

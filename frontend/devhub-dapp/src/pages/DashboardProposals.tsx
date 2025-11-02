@@ -10,8 +10,7 @@ import {
   Download,
   RefreshCw
 } from "lucide-react";
-import StarBackground from "@/components/common/StarBackground";
-import DashboardSidebar from "@/components/DashboardSidebar";
+import Layout from "@/components/common/Layout";
 import { PACKAGE_ID } from "@/lib/suiClient";
 
 interface Proposal {
@@ -135,9 +134,9 @@ const DashboardProposals = () => {
   // User not connected state
   if (!currentAccount) {
     return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center relative">
-        <StarBackground />
-        <div className="text-center relative z-10">
+      <Layout>
+        <div className="min-h-screen pt-16 flex items-center justify-center">
+          <div className="text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -153,21 +152,13 @@ const DashboardProposals = () => {
             </p>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-
-      <div className="relative z-10 pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
-            
-            <main className="lg:col-span-3">
-              <AnimatePresence mode="wait">
+    <>
+      <AnimatePresence mode="wait">
                 <motion.div
                   key="proposals-content"
                   initial={{ opacity: 0, y: 20 }}
@@ -592,11 +583,7 @@ const DashboardProposals = () => {
                   </motion.div>
                 </motion.div>
               </AnimatePresence>
-            </main>
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 };
 

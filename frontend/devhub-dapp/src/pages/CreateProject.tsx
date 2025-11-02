@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import StarBackground from "@/components/common/StarBackground";
 import { useContract } from "../hooks/useContract";
 import { motion, AnimatePresence } from "framer-motion";
 

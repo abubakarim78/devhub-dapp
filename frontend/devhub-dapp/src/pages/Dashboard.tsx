@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { User, AlertCircle, CheckCircle, Activity, X, Search, Star, Zap, Briefcase, Users, Wallet, Send, Download, Loader2 } from 'lucide-react';
-import StarBackground from '@/components/common/StarBackground';
-import DashboardSidebar from '@/components/DashboardSidebar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
@@ -240,9 +238,7 @@ const Dashboard: React.FC = () => {
 
 
   return (
-    <div className="bg-background min-h-screen text-foreground relative">
-      <StarBackground />
-
+    <>
       {toast && (
         <Toast
           message={toast.message}
@@ -251,21 +247,15 @@ const Dashboard: React.FC = () => {
         />
       )}
 
-      <div className="relative z-10 pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
-            
-            <main className="lg:col-span-3">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key="dashboard-content"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.5 }}
-                  className="space-y-8"
-                >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="dashboard-content"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.5 }}
+          className="space-y-8"
+        >
                   {/* Dashboard Header */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -709,12 +699,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </motion.div>
               </AnimatePresence>
-            </main>
-          </div>
-        </div>
-      </div>
-
-    </div>
+    </>
   );
 };
 
