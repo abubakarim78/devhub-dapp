@@ -97,35 +97,35 @@ const CardDetails: React.FC = () => {
             </Link>
           </motion.div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6 md:space-y-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-secondary/50 backdrop-blur-xl rounded-3xl p-8 border border-border shadow-2xl shadow-primary/5"
+                className="bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 border border-border shadow-2xl shadow-primary/5"
               >
-                <div className="flex flex-col md:flex-row md:items-start gap-8 mb-8">
-                  <img src={card.imageUrl} alt={card.name} className="w-32 h-32 rounded-2xl object-cover ring-4 ring-border shadow-lg"/>
-                  <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6 md:gap-8 mb-4 sm:mb-6 md:mb-8">
+                  <img src={card.imageUrl} alt={card.name} className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-xl sm:rounded-2xl object-cover ring-2 sm:ring-4 ring-border shadow-lg mx-auto sm:mx-0"/>
+                  <div className="flex-1 text-center sm:text-left">
                     <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h1 className="text-4xl font-bold text-foreground mb-1">{card.name}</h1>
-                        <p className="text-xl text-primary font-semibold">{card.niche}</p>
+                      <div className="flex-1">
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1">{card.name}</h1>
+                        <p className="text-base sm:text-lg md:text-xl text-primary font-semibold">{card.niche}</p>
                       </div>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
-                      <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /><span>{card.yearsOfExperience} years experience</span></div>
-                      <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /><span>Card ID: #{card.id}</span></div>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
+                      <div className="flex items-center gap-1.5 sm:gap-2"><Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" /><span>{card.yearsOfExperience} years experience</span></div>
+                      <div className="flex items-center gap-1.5 sm:gap-2"><Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" /><span>Card ID: #{card.id}</span></div>
                     </div>
                     
-                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm ${
+                    <div className={`inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-semibold text-xs sm:text-sm ${
                       card.openToWork 
                         ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
                         : 'bg-muted text-muted-foreground border border-border'
                     }`}>
-                      <div className={`w-2 h-2 rounded-full ${card.openToWork ? 'bg-green-400 animate-pulse' : 'bg-muted-foreground'}`}></div>
+                      <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${card.openToWork ? 'bg-green-400 animate-pulse' : 'bg-muted-foreground'}`}></div>
                       <span>{card.openToWork ? 'Available for work' : 'Currently busy'}</span>
                     </div>
                   </div>

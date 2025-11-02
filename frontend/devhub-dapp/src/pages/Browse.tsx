@@ -164,18 +164,18 @@ const Browse: React.FC = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="sticky top-24 bg-secondary/50 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl shadow-primary/5"
+                className="sticky top-16 sm:top-20 md:top-24 bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border border-border shadow-2xl shadow-primary/5"
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <SlidersHorizontal size={20} className="text-primary"/> Filters
+                <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-1.5 sm:gap-2">
+                    <SlidersHorizontal className="h-4 w-4 sm:h-5 sm:w-5 text-primary"/> <span>Filters</span>
                   </h3>
-                  <button onClick={resetFilters} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                  <button onClick={resetFilters} className="text-xs sm:text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                     Reset
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-5 md:space-y-6">
                   {/* Search Input */}
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Search</label>
@@ -249,7 +249,7 @@ const Browse: React.FC = () => {
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6"
                 >
                   {paginatedCards.length > 0 ? (
                     paginatedCards.map((card) => (

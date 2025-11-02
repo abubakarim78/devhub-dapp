@@ -437,20 +437,20 @@ const ProjectDetails: React.FC = () => {
             </motion.div>
           </AnimatePresence>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6 md:space-y-8">
               {/* Project Header */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-secondary/50 backdrop-blur-xl rounded-3xl p-8 border border-border shadow-2xl shadow-primary/5"
+                className="bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 border border-border shadow-2xl shadow-primary/5"
               >
-                <div className="flex items-start justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-5 md:mb-6 gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-4">
-                      <h1 className="text-4xl font-bold text-foreground">{project.title}</h1>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">{project.title}</h1>
                       <AnimatePresence>
                         {isOpen ? (
                           <motion.div

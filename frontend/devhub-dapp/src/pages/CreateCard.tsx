@@ -555,34 +555,34 @@ const CreateCard: React.FC = () => {
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-10"
+                    className="text-center mb-6 sm:mb-8 md:mb-10"
                 >
-                    <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent px-2">
                         Create Your Developer Card
                     </h1>
-                    <p className="text-lg text-muted-foreground">Showcase your skills and connect with the ecosystem.</p>
+                    <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-4">Showcase your skills and connect with the ecosystem.</p>
                 </motion.div>
 
                 {/* Progress Bar */}
-                <div className="mb-8 px-4">
+                <div className="mb-6 sm:mb-8 px-2 sm:px-4">
                     <div className="flex items-center justify-between">
                         {steps.map((step, index) => (
                             <React.Fragment key={index}>
-                                <div className="flex flex-col items-center">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${currentStep >= index ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                        {currentStep > index ? <CheckCircle size={20}/> : index + 1}
+                                <div className="flex flex-col items-center min-w-0 flex-1">
+                                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-all duration-300 text-xs sm:text-sm md:text-base ${currentStep >= index ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                        {currentStep > index ? <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5"/> : index + 1}
                                     </div>
-                                    <p className={`mt-2 text-xs font-medium ${currentStep >= index ? 'text-foreground' : 'text-muted-foreground'}`}>{step}</p>
+                                    <p className={`mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium text-center ${currentStep >= index ? 'text-foreground' : 'text-muted-foreground'}`}>{step}</p>
                                 </div>
                                 {index < steps.length - 1 && (
-                                    <div className={`flex-1 h-1 mx-2 rounded ${currentStep > index ? 'bg-primary' : 'bg-muted'}`}/>
+                                    <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded ${currentStep > index ? 'bg-primary' : 'bg-muted'}`}/>
                                 )}
                             </React.Fragment>
                         ))}
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="bg-card/70 backdrop-blur-xl rounded-2xl p-8 border border-border shadow-2xl">
+                <form onSubmit={handleSubmit} className="bg-card/70 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 border border-border shadow-2xl">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={currentStep}

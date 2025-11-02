@@ -160,13 +160,13 @@ export default function CreateProject() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.05 }}
-                  className="flex items-center justify-between"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                 >
                   <div>
-                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">Post a Project</h1>
-                    <p className="text-muted-foreground mt-2">Describe your opportunity and invite developers to apply.</p>
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">Post a Project</h1>
+                    <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Describe your opportunity and invite developers to apply.</p>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground"
               onClick={() => navigate(-1)}
