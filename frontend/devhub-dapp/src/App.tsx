@@ -185,7 +185,7 @@ function App() {
 
         {/* Show retry option if admin check failed */}
         {adminCheckFailed && (
-          <div className="bg-destructive/10 border-l-4 border-destructive p-4 mx-4 mt-4">
+          <div className="bg-destructive/10 border-l-4 border-destructive p-4 mx-4 mt-24">
             <div className="flex items-center justify-between">
               <div className="flex">
                 <div className="ml-3">

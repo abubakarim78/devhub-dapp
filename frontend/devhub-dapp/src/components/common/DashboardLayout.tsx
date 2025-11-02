@@ -20,8 +20,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   return (
     <Layout showStarBackground={showStarBackground} applyDefaultSpacing={false}>
-      <div className="pt-32 pb-16">
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="pt-24 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <DashboardSidebar />
             <main className="lg:col-span-3">

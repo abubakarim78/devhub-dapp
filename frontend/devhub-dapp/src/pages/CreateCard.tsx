@@ -546,12 +546,12 @@ const CreateCard: React.FC = () => {
     }
 
     return (
-        <div className="pt-32 pb-20">
+        <div className="pt-24 pb-16">
             <AnimatePresence>
                 {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
             </AnimatePresence>
 
-            <div className="max-w-2xl mx-auto px-4">
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}

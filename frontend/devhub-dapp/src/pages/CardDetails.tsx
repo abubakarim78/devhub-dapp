@@ -88,7 +88,7 @@ const CardDetails: React.FC = () => {
   const technologies = card.technologies.split(',').map(t => t.trim()).filter(Boolean);
 
   return (
-    <div className="pt-32 pb-16">
+    <div className="pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
             <Link to="/browse" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors group">

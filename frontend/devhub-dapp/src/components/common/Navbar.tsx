@@ -116,7 +116,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <div className="max-w-8xl mx-auto px-2 sm:px-6 lg:px-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <Link to="/" className="flex items-center space-x-2 group">
             <div className="p-2 bg-primary rounded-lg">
