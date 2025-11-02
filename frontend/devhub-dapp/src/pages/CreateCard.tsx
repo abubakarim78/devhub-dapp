@@ -546,7 +546,7 @@ const CreateCard: React.FC = () => {
     }
 
     return (
-        <div className="pt-24 pb-16">
+        <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
             <AnimatePresence>
                 {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
             </AnimatePresence>

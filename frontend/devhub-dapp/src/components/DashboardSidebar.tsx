@@ -93,10 +93,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ className }) => {
       transition={{ duration: 0.5 }}
       className={className}
     >
-      <div className="sticky top-24 bg-secondary/50 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl shadow-primary/5">
-        <div className="flex items-center gap-3 mb-8">
-          <LayoutDashboard className="text-primary h-8 w-8" />
-          <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
+      <div className="sticky top-16 sm:top-20 md:top-24 bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-border shadow-2xl shadow-primary/5">
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 md:mb-8">
+          <LayoutDashboard className="text-primary h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Dashboard</h2>
         </div>
         <nav className="space-y-2">
           {navItems.map((item, index) => {

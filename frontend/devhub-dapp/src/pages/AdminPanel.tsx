@@ -8,7 +8,7 @@ import AdminSidebar, { AdminTab } from '@/components/AdminSidebar';
 import AdminFeatures from '@/components/common/AdminFeatures';
 
 const AdminSkeletonLoader: React.FC = () => (
-    <div className="pt-24 pb-16">
+    <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="lg:col-span-1">
@@ -116,7 +116,7 @@ const AdminPanel: React.FC = () => {
 
     if (!currentAccount) {
         return (
-            <div className="pt-24 flex items-center justify-center min-h-screen">
+            <div className="pt-16 sm:pt-20 md:pt-24 flex items-center justify-center min-h-screen">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -135,7 +135,7 @@ const AdminPanel: React.FC = () => {
 
     if (!adminVerified) {
         return (
-            <div className="pt-24 flex items-center justify-center min-h-screen">
+            <div className="pt-16 sm:pt-20 md:pt-24 flex items-center justify-center min-h-screen">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -160,7 +160,7 @@ const AdminPanel: React.FC = () => {
     }
 
     return (
-        <div className="pt-24 pb-16">
+        <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />

@@ -769,7 +769,7 @@ const DashboardProjectDetails: React.FC = () => {
 
   if (error || !project) {
     return (
-      <div className="pt-24 pb-16">
+      <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div />
