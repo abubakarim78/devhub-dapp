@@ -1669,6 +1669,25 @@ export function createUserProposalsObjectTransaction() {
   return tx;
 }
 
+// Helper function to batch create both helper objects in one transaction
+export function createHelperObjectsBatchTransaction() {
+  const tx = new Transaction();
+  
+  // Create UserProposals object
+  tx.moveCall({
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_USER_PROPOSALS_OBJECT}`,
+    arguments: [],
+  });
+
+  // Create ProposalsByStatus object
+  tx.moveCall({
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSALS_BY_STATUS}`,
+    arguments: [],
+  });
+
+  return tx;
+}
+
 // Helper function to grant admin privileges (super admin only)
 export function grantAdminRoleTransaction(newAdmin: string) {
   const tx = new Transaction();
@@ -2052,10 +2071,54 @@ export async function getProjectInfo(projectId: number) {
   }
 }
 
-// Get project applications
-export async function getProjectApplications(projectId: number) {
+// Helper to parse ProjectApplication from return value
+function parseProjectApplication(value: any): ProjectApplication | null {
   try {
-    const result = await suiClient.devInspectTransactionBlock({
+    if (!value) {
+      return null;
+    }
+
+    // If value is already an object with expected fields, return it
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      if (value.id || value.applicantAddress || value.yourRole) {
+        return {
+          id: value.id || '',
+          projectId: value.projectId || '',
+          applicantAddress: value.applicantAddress || '',
+          yourRole: value.yourRole || '',
+          availabilityHrsPerWeek: Number(value.availabilityHrsPerWeek || 0),
+          startDate: value.startDate || '',
+          expectedDurationWeeks: Number(value.expectedDurationWeeks || 0),
+          proposalSummary: value.proposalSummary || '',
+          requestedCompensation: Number(value.requestedCompensation || 0),
+          milestonesCount: Number(value.milestonesCount || 0),
+          githubRepoLink: value.githubRepoLink || '',
+          onChainAddress: value.onChainAddress || '',
+          teamMembers: Array.isArray(value.teamMembers) ? value.teamMembers : [],
+          applicationStatus: value.applicationStatus || 'Pending',
+          submissionTimestamp: Number(value.submissionTimestamp || 0),
+          coverLetterWalrusBlobId: value.coverLetterWalrusBlobId,
+          portfolioWalrusBlobIds: Array.isArray(value.portfolioWalrusBlobIds) ? value.portfolioWalrusBlobIds : [],
+          proposalId: value.proposalId,
+        };
+      }
+    }
+
+    // If it's an array, it's likely struct fields that need to be parsed elsewhere
+    // Return null here and let the caller handle array parsing
+    return null;
+  } catch (e) {
+    console.error('Error parsing ProjectApplication:', e, value);
+    return null;
+  }
+}
+
+// Get project applications
+export async function getProjectApplications(projectId: number, client?: SuiClient) {
+  try {
+    const clientToUse = client || suiClient;
+    console.log('🔍 Fetching applications for project:', projectId);
+    const result = await clientToUse.devInspectTransactionBlock({
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
@@ -2070,12 +2133,137 @@ export async function getProjectApplications(projectId: number) {
       sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
     });
 
-    if (result.results?.[0]?.returnValues) {
-      return parseReturnValue(result.results[0].returnValues[0]) as ProjectApplication[];
+    console.log('📥 Raw result for project applications:', JSON.stringify(result, null, 2));
+
+    if (!result.results?.[0]?.returnValues) {
+      console.log('⚠️ No return values found');
+      return [];
     }
-    return [];
+
+    const returnValue = result.results[0].returnValues[0];
+    console.log('📊 Return value type:', typeof returnValue);
+    console.log('📊 Return value structure:', JSON.stringify(returnValue, null, 2));
+    
+    // The contract returns &vector<ProjectApplication>
+    // The return value from devInspectTransactionBlock is typically in format [type, data]
+    let applications: ProjectApplication[] = [];
+    
+    // Handle different return value formats
+    let vectorData: any = null;
+    
+    if (Array.isArray(returnValue)) {
+      // Check if it's [type, data] format
+      if (returnValue.length === 2) {
+        const [type, data] = returnValue;
+        console.log('📦 Type:', type, 'Data type:', typeof data, 'Is array:', Array.isArray(data));
+        
+        // The data should be the vector contents
+        if (Array.isArray(data)) {
+          vectorData = data;
+        } else {
+          // Sometimes the data is nested differently
+          vectorData = returnValue;
+        }
+      } else {
+        // Direct array (might be the vector itself)
+        vectorData = returnValue;
+      }
+    } else if (returnValue && typeof returnValue === 'object') {
+      // Might be an object with a 'data' field or similar
+      vectorData = returnValue.data || returnValue.value || [returnValue];
+    }
+    
+    if (!vectorData || !Array.isArray(vectorData)) {
+      console.log('⚠️ Could not extract vector data from return value');
+      return [];
+    }
+    
+    console.log('📋 Vector data length:', vectorData.length);
+    console.log('📋 First item structure:', vectorData[0] ? JSON.stringify(vectorData[0], null, 2) : 'empty');
+    
+    // Parse each application in the vector
+    applications = vectorData
+      .map((item: any, index: number) => {
+        try {
+          console.log(`🔍 Parsing application ${index}:`, typeof item, Array.isArray(item) ? `array[${item.length}]` : 'object');
+          
+          // If item is already an object with expected fields
+          if (item && typeof item === 'object' && !Array.isArray(item)) {
+            if (item.id || item.applicantAddress || item.yourRole) {
+              const parsed = parseProjectApplication(item);
+              if (parsed) {
+                console.log(`✅ Parsed application ${index} as object`);
+                return parsed;
+              }
+            }
+          }
+          
+          // If item is an array, it might be struct fields in order
+          if (Array.isArray(item)) {
+            console.log(`🔍 Item ${index} is array with ${item.length} elements`);
+            
+            // Try to extract fields - the structure depends on BCS encoding
+            // ProjectApplication has 18 fields (including UID)
+            // The first element might be the UID, or it might be skipped
+            
+            // Try different field arrangements
+            let fields = item;
+            
+            // If first element is an array (nested structure)
+            if (item.length > 0 && Array.isArray(item[0])) {
+              fields = item[0];
+            }
+            
+            // Try to parse assuming fields are in struct order
+            // Note: The actual order depends on BCS encoding, but typically:
+            // id (UID), project_id (ID), applicant_address (address), etc.
+            try {
+              const app: ProjectApplication = {
+                id: fields[0] ? String(fields[0]) : '',
+                projectId: fields[1] ? String(fields[1]) : String(projectId),
+                applicantAddress: fields[2] ? bytesToHexAddress(fields[2]) : '',
+                yourRole: fields[3] ? (Array.isArray(fields[3]) ? decodeBytesToString(fields[3]) : String(fields[3])) : '',
+                availabilityHrsPerWeek: Number(fields[4] || 0),
+                startDate: fields[5] ? (Array.isArray(fields[5]) ? decodeBytesToString(fields[5]) : String(fields[5])) : '',
+                expectedDurationWeeks: Number(fields[6] || 0),
+                proposalSummary: fields[7] ? (Array.isArray(fields[7]) ? decodeBytesToString(fields[7]) : String(fields[7])) : '',
+                requestedCompensation: Number(fields[8] || 0),
+                milestonesCount: Number(fields[9] || 0),
+                githubRepoLink: fields[10] ? (Array.isArray(fields[10]) ? decodeBytesToString(fields[10]) : String(fields[10])) : '',
+                onChainAddress: fields[11] ? bytesToHexAddress(fields[11]) : '',
+                teamMembers: Array.isArray(fields[12]) 
+                  ? fields[12].map((m: any) => Array.isArray(m) ? decodeBytesToString(m) : String(m))
+                  : [],
+                applicationStatus: fields[13] ? (Array.isArray(fields[13]) ? decodeBytesToString(fields[13]) : String(fields[13])) : 'Pending',
+                submissionTimestamp: Number(fields[14] || 0),
+                coverLetterWalrusBlobId: fields[15] ? (Array.isArray(fields[15]) ? decodeBytesToString(fields[15]) : String(fields[15])) : undefined,
+                portfolioWalrusBlobIds: Array.isArray(fields[16])
+                  ? fields[16].map((p: any) => Array.isArray(p) ? decodeBytesToString(p) : String(p))
+                  : [],
+                proposalId: fields[17] ? String(fields[17]) : undefined,
+              };
+              
+              console.log(`✅ Parsed application ${index} from array`);
+              return app;
+            } catch (e) {
+              console.error(`❌ Error parsing application ${index} from array:`, e, item);
+              return null;
+            }
+          }
+          
+          console.log(`⚠️ Could not parse application ${index}`);
+          return null;
+        } catch (e) {
+          console.error(`❌ Error processing application ${index}:`, e, item);
+          return null;
+        }
+      })
+      .filter((app: ProjectApplication | null): app is ProjectApplication => app !== null && app.applicantAddress !== '');
+    
+    console.log('✅ Successfully parsed applications:', applications.length, applications);
+    return applications;
   } catch (error) {
-    console.error('Error getting project applications:', error);
+    console.error('❌ Error getting project applications:', error);
     return [];
   }
 }
