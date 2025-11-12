@@ -125,7 +125,7 @@ const Collaborations = () => {
   };
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -133,16 +133,16 @@ const Collaborations = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Users className="h-8 w-8 text-primary" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-3 bg-primary/10 rounded-lg">
+                <Users className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-foreground">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
                   Collaborations
                 </h1>
-                <p className="text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-0.5 sm:mt-1">
                   Connect with developers and manage your network
                 </p>
               </div>
@@ -150,10 +150,10 @@ const Collaborations = () => {
             {currentAccount && (
               <button
                 onClick={() => setShowSendRequestModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm sm:text-base w-full sm:w-auto"
               >
-                <UserPlus size={20} />
-                Send Request
+                <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span>Send Request</span>
               </button>
             )}
           </div>

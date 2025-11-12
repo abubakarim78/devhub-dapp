@@ -107,7 +107,7 @@ export default function ReviewSubmitProject() {
   };
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Review & Submit</h1>
@@ -142,7 +142,7 @@ export default function ReviewSubmitProject() {
                 <div className="text-muted-foreground mb-1">Description</div>
                 <div className="whitespace-pre-wrap leading-relaxed">{form.description}</div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div><span className="text-muted-foreground">Category:</span> {form.category}</div>
                 <div><span className="text-muted-foreground">Experience:</span> {form.experienceLevel}</div>
                 <div><span className="text-muted-foreground">Budget:</span> ${form.budgetMin?.toLocaleString('en-US')} - ${form.budgetMax?.toLocaleString('en-US')}</div>
@@ -150,10 +150,10 @@ export default function ReviewSubmitProject() {
               </div>
               {Array.isArray(form.requiredSkills) && form.requiredSkills.length > 0 && (
                 <div className="pt-2">
-                  <div className="text-muted-foreground mb-1">Required Skills</div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="text-muted-foreground mb-1 text-xs sm:text-sm">Required Skills</div>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {form.requiredSkills.map((s: string) => (
-                      <span key={s} className="px-2 py-1 text-sm rounded-full bg-muted">{s}</span>
+                      <span key={s} className="px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm rounded-full bg-muted">{s}</span>
                     ))}
                   </div>
                 </div>
@@ -171,10 +171,10 @@ export default function ReviewSubmitProject() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-6">
-              <h3 className="text-sm font-medium mb-3">On-chain Actions</h3>
-              <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+          <div className="space-y-4 sm:space-y-5 md:space-y-6">
+            <div className="bg-card/70 backdrop-blur-xl border border-border rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6">
+              <h3 className="text-xs sm:text-sm font-medium mb-2 sm:mb-3">On-chain Actions</h3>
+              <div className="rounded-md border border-primary/30 bg-primary/10 p-2.5 sm:p-3 text-xs sm:text-sm">
                 <div className="font-medium mb-2">Transaction prepared</div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">Project Creation Fee</span>

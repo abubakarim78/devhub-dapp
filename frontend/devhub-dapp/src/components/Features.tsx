@@ -37,36 +37,38 @@ const Features = () => {
   ];
 
   return (
-    <section className="py-24 bg-background/80 backdrop-blur-lg">
+    <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background/80 backdrop-blur-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="text-center mb-16"
+          className="text-center mb-8 sm:mb-12 md:mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">The Next Generation of Professional Networks</h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-foreground px-2">
+            The Next Generation of Professional Networks
+          </h2>
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto px-4">
             DevHub isn't just a portfolio platform; it's a new standard for professional identity in the decentralized world.
           </p>
         </motion.div>
         
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {features.map((feature, index) => (
             <motion.div
               key={index}
-              className="bg-secondary/50 p-8 rounded-2xl border border-border transition-all duration-300 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2"
+              className="bg-secondary/50 p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-border transition-all duration-300 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2"
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
             >
-              <div className="mb-6 inline-block p-4 bg-primary/10 rounded-xl border border-primary/20">
-                {feature.icon}
+              <div className="mb-4 sm:mb-5 md:mb-6 inline-block p-3 sm:p-4 bg-primary/10 rounded-lg sm:rounded-xl border border-primary/20">
+                <div className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary">{feature.icon}</div>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-foreground">{feature.title}</h3>
-              <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+              <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3 text-foreground">{feature.title}</h3>
+              <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </div>

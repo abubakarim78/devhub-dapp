@@ -16,6 +16,7 @@ import AdminPanel from "./pages/AdminPanel";
 import SuperAdmin from "./pages/SuperAdmin";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
+import ApplyProject from "./pages/ApplyProject";
 import DashboardProjects from "./pages/DashboardProjects";
 import DashboardProjectDetails from "./pages/DashboardProjectDetails";
 import Proposals from "./pages/DashboardProposals";
@@ -240,6 +241,7 @@ function App() {
               <Route path="/card/:id" element={<CardDetails />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/projects/:id/apply" element={<ApplyProject />} />
               <Route path="/projects/new" element={<CreateProject />} />
               <Route path="/projects/review" element={<ReviewSubmitProject />} />
               <Route path="/collaborations" element={<Collaborations />} />

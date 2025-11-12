@@ -6,8 +6,8 @@ const Footer: React.FC = () => {
   
   return (
     <footer className="bg-background border-t border-border mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <div className="p-2 bg-primary rounded-lg">
@@ -54,9 +54,9 @@ const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-10 pt-8 border-t border-border flex flex-col md:flex-row md:items-center md:justify-between">
-          <p className="text-xs text-muted-foreground">© {year} DevHub. All rights reserved.</p>
-          <div className="mt-4 md:mt-0 flex items-center space-x-6">
+        <div className="mt-6 sm:mt-8 md:mt-10 pt-6 sm:pt-8 border-t border-border flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <p className="text-xs text-muted-foreground text-center md:text-left">© {year} DevHub. All rights reserved.</p>
+          <div className="flex items-center justify-center md:justify-end space-x-4 sm:space-x-6">
             <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
               <Github className="h-5 w-5" />
             </a>

@@ -117,16 +117,16 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          <Link to="/" className="flex items-center space-x-2 group">
-            <div className="p-2 bg-primary rounded-lg">
-              <Code2 className="h-6 w-6 text-primary-foreground" />
+        <div className="flex justify-between items-center h-16 sm:h-20">
+          <Link to="/" className="flex items-center space-x-1.5 sm:space-x-2 group">
+            <div className="p-1.5 sm:p-2 bg-primary rounded-lg">
+              <Code2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-foreground">DevHub</span>
+            <span className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">DevHub</span>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center space-x-2">
+          <nav className="hidden lg:flex items-center space-x-1 lg:space-x-2">
             {navItems.map((item) => (
               <NavLink key={item.href} href={item.href} icon={item.icon}>
                 {item.label}
@@ -135,14 +135,14 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
           </nav>
 
           {/* Right Side */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <div className="hidden sm:block">
               <ConnectButton />
             </div>
             <ThemeSwitcher />
             <button
               aria-label="Toggle menu"
-              className="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-accent"
+              className="lg:hidden inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-accent"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? <X /> : <Menu />}
@@ -156,7 +156,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="md:hidden pb-4 px-4"
+          className="lg:hidden pb-4 px-4 bg-background/95 backdrop-blur-lg border-b border-border"
         >
           <nav className="flex flex-col space-y-2">
             {navItems.map((item) => (

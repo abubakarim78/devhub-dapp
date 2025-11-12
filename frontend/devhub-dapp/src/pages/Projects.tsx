@@ -622,7 +622,7 @@ const Projects = () => {
   ];
 
   return (
-    <div className="pt-24 pb-16">
+    <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatePresence mode="wait">
             <motion.div
@@ -638,15 +638,15 @@ const Projects = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="flex items-center justify-between"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary/10 rounded-lg">
-                    <FolderKanban className="h-8 w-8 text-primary" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 sm:p-3 bg-primary/10 rounded-lg">
+                    <FolderKanban className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-4xl font-bold text-foreground">Projects</h1>
-                    <p className="text-muted-foreground mt-1">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Projects</h1>
+                    <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-0.5 sm:mt-1">
                       Browse and manage development projects
                     </p>
                   </div>
@@ -655,10 +655,10 @@ const Projects = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate("/projects/new")}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-lg"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-lg text-sm sm:text-base w-full sm:w-auto"
                 >
-                  <Plus size={20} />
-                  Create Project
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span>Create Project</span>
                 </motion.button>
               </motion.div>
 

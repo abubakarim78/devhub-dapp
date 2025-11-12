@@ -201,6 +201,54 @@ const Browse: React.FC = () => {
   }
 
   return (
+    <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-8 sm:mb-12 md:mb-16 px-4"
+        >
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-3 sm:mb-4 bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Talent Discovery
+          </h1>
+          <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto px-2">
+            Find the perfect on-chain talent for your next big project.
+          </p>
+        </motion.div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            {/* --- FILTER SIDEBAR --- */}
+            <aside className="lg:col-span-1">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="sticky top-16 sm:top-20 md:top-24 bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border border-border shadow-2xl shadow-primary/5"
+              >
+                <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-1.5 sm:gap-2">
+                    <SlidersHorizontal className="h-4 w-4 sm:h-5 sm:w-5 text-primary"/> <span>Filters</span>
+                  </h3>
+                  <button onClick={resetFilters} className="text-xs sm:text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                    Reset
+                  </button>
+                </div>
+
+                <div className="space-y-4 sm:space-y-5 md:space-y-6">
+                  {/* Search Input */}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Search</label>
+                    <div className="relative mt-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder="Name, title..."
+                        value={searchTerm}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-background/80 text-foreground placeholder:text-muted-foreground border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
     <div className="pt-20 pb-16 min-h-screen bg-background">
       {/* Simplified Hero Section */}
       <motion.div
@@ -391,6 +439,14 @@ const Browse: React.FC = () => {
                   <span className="font-bold text-foreground">{filteredCards.length}</span> developer{filteredCards.length !== 1 ? 's' : ''}
                 </p>
               </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentPage} // Animate when page changes
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6"
               
               {/* Sort dropdown */}
               <div className="flex items-center gap-2">
