@@ -44,28 +44,6 @@ export interface DevCard {
   openToWork: boolean;
 }
 
-// Enhanced loading spinner with timeout
-const LoadingSpinner = ({ onTimeout }: { onTimeout?: () => void }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onTimeout?.();
-    }, 5000); // 5 second timeout
-
-    return () => clearTimeout(timer);
-  }, [onTimeout]);
-
-  return (
-    <div className="fixed inset-0 bg-background/75 flex items-center justify-center z-50">
-      <div className="flex flex-col items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="mt-4 text-muted-foreground">Checking admin status...</p>
-        <p className="mt-2 text-sm text-muted-foreground/80">
-          This may take a few moments
-        </p>
-      </div>
-    </div>
-  );
-};
 
 // Admin status cache
 const adminStatusCache = new Map<
@@ -78,8 +56,6 @@ function App() {
   const currentAccount = useCurrentAccount();
   const { isAdmin } = useContract();
   const [isAdminUser, setIsAdminUser] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [adminCheckFailed, setAdminCheckFailed] = useState(false);
   useGlowingCursor();
   // Memoize the current account address
   const currentAddress = useMemo(
@@ -117,9 +93,7 @@ function App() {
         return;
       }
 
-      setLoading(true);
-      setAdminCheckFailed(false);
-
+      // Check admin status silently in the background
       try {
         // Add timeout to the admin check
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -138,40 +112,19 @@ function App() {
       } catch (error) {
         console.error("Error checking admin status:", error);
         setIsAdminUser(false);
-        setAdminCheckFailed(true);
 
         // Cache failed result as false for shorter duration
         setCachedAdminStatus(address, false);
-      } finally {
-        setLoading(false);
       }
     },
     [isAdmin, getCachedAdminStatus, setCachedAdminStatus],
   );
-
-  // Handle loading timeout
-  const handleLoadingTimeout = useCallback(() => {
-    setLoading(false);
-    setAdminCheckFailed(true);
-    setIsAdminUser(false);
-    console.warn("Admin status check timed out");
-  }, []);
 
   useEffect(() => {
     if (currentAddress) {
       checkAdminStatus(currentAddress);
     } else {
       setIsAdminUser(false);
-      setLoading(false);
-    }
-  }, [currentAddress, checkAdminStatus]);
-
-  // Retry admin check
-  const retryAdminCheck = useCallback(() => {
-    if (currentAddress) {
-      // Clear cache for this address
-      adminStatusCache.delete(currentAddress);
-      checkAdminStatus(currentAddress);
     }
   }, [currentAddress, checkAdminStatus]);
 
@@ -181,29 +134,6 @@ function App() {
 
       <div className="min-h-screen flex flex-col">
         <Navbar isAdmin={isAdminUser} />
-
-        {loading && <LoadingSpinner onTimeout={handleLoadingTimeout} />}
-
-        {/* Show retry option if admin check failed */}
-        {adminCheckFailed && (
-          <div className="bg-destructive/10 border-l-4 border-destructive p-4 mx-4 mt-24">
-            <div className="flex items-center justify-between">
-              <div className="flex">
-                <div className="ml-3">
-                  <p className="text-sm text-destructive-foreground">
-                    Unable to verify admin status. Some features may be limited.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={retryAdminCheck}
-                className="bg-destructive/20 hover:bg-destructive/30 text-destructive-foreground px-3 py-1 rounded text-sm font-medium"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="flex-1">
           <Routes>

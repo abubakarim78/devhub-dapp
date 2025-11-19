@@ -3,6 +3,7 @@ import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
+import { Transaction } from "@mysten/sui/transactions";
 import { Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import { useContract } from "../hooks/useContract";
@@ -10,11 +11,15 @@ import {
   grantAdminRoleTransaction,
   revokeAdminRoleTransaction,
   withdrawFeesTransaction,
+  changePlatformFeeTransaction,
+  changeProjectPostingFeeTransaction,
   getPlatformFeeBalance,
   getPlatformStats,
   getRecentActivity,
   getPlatformFee,
   getActivityStats,
+  PACKAGE_ID,
+  DEVHUB_OBJECT_ID,
 } from "../lib/suiClient";
 import SuperAdminSidebar, {
   SuperAdminTab,
@@ -66,6 +71,7 @@ const SuperAdmin: React.FC = () => {
 
   // Admin management
   const [newAdminAddress, setNewAdminAddress] = useState("");
+  const [revokeAdminAddress, setRevokeAdminAddress] = useState("");
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [removingAdmin, setRemovingAdmin] = useState<string | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -125,11 +131,13 @@ const SuperAdmin: React.FC = () => {
     adminEvents: number;
     feeEvents: number;
     cardEvents: number;
+    projectEvents: number;
   }>({
     totalEvents: 0,
     adminEvents: 0,
     feeEvents: 0,
     cardEvents: 0,
+    projectEvents: 0,
   });
 
   // Active tab state
@@ -215,7 +223,7 @@ const SuperAdmin: React.FC = () => {
       setActivityLog(activity);
       setActivityStats(activityStatsData);
       setTotalCards(cardCount);
-      setCurrentTradingFee(platformFee / 1_000_000_000); // Convert from MIST to SUI
+      setCurrentTradingFee(platformFee); // getPlatformFee already returns value in SUI
     } catch (err) {
       console.error('❌ Error fetching platform data:', err);
       setError("Failed to fetch platform data.");
@@ -290,6 +298,7 @@ const SuperAdmin: React.FC = () => {
         {
           onSuccess: () => {
             alert("Admin removed successfully!");
+            setRevokeAdminAddress("");
             fetchAllData();
           },
           onError: (err) => {
@@ -377,22 +386,52 @@ const SuperAdmin: React.FC = () => {
 
     setUpdatingFees(true);
     try {
-      // Note: Fee updates would require contract functions to be implemented
-      // For now, we'll show a message that this feature is not yet implemented
-      alert("Fee update functionality is not yet implemented in the contract. Current fees are fixed at 0.1 SUI (platform) and 0.2 SUI (project posting).");
-      
-      // In a real implementation, you would call the contract function here
-      // const tx = updateFeesTransaction(platformFee * 1_000_000_000, projectFee * 1_000_000_000);
-      // signAndExecute({ transaction: tx }, { ... });
+      const platformFeeInMist = Math.floor(platformFee * 1_000_000_000);
+      const projectFeeInMist = Math.floor(projectFee * 1_000_000_000);
 
-      setNewTradingFee("");
-      setNewListingFee("");
+      // Create transactions for both fee updates
+      const platformFeeTx = changePlatformFeeTransaction(platformFeeInMist);
+      const projectFeeTx = changeProjectPostingFeeTransaction(projectFeeInMist);
+
+      // Combine both transactions
+      const combinedTx = new Transaction();
+      combinedTx.moveCall({
+        target: `${PACKAGE_ID}::devhub::change_platform_fee`,
+        arguments: [
+          combinedTx.object(DEVHUB_OBJECT_ID),
+          combinedTx.pure.u64(platformFeeInMist),
+        ],
+      });
+      combinedTx.moveCall({
+        target: `${PACKAGE_ID}::devhub::change_project_posting_fee`,
+        arguments: [
+          combinedTx.object(DEVHUB_OBJECT_ID),
+          combinedTx.pure.u64(projectFeeInMist),
+        ],
+      });
+
+      signAndExecute(
+        { transaction: combinedTx },
+        {
+          onSuccess: () => {
+            alert("Fees updated successfully!");
+            setNewTradingFee("");
+            setNewListingFee("");
+            fetchAllData(); // Refresh to show updated fees
+          },
+          onError: (err) => {
+            alert(`Failed to update fees: ${err.message}`);
+          },
+          onSettled: () => {
+            setUpdatingFees(false);
+          },
+        },
+      );
     } catch (err) {
+      setUpdatingFees(false);
       alert(
         `Failed to update fees: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
-    } finally {
-      setUpdatingFees(false);
     }
   };
 
@@ -539,6 +578,8 @@ const SuperAdmin: React.FC = () => {
                   setNewAdminNote={setNewAdminNote}
                   addingAdmin={addingAdmin}
                   handleAddAdmin={handleAddAdmin}
+                  revokeAdminAddress={revokeAdminAddress}
+                  setRevokeAdminAddress={setRevokeAdminAddress}
                   removingAdmin={removingAdmin}
                   handleRemoveAdmin={handleRemoveAdmin}
                 />

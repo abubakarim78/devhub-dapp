@@ -131,7 +131,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
                   Current Platform Fee
                 </p>
                 <p className="text-lg font-bold text-foreground">
-                  {currentTradingFee} SUI
+                  {typeof currentTradingFee === 'number' ? currentTradingFee.toFixed(2) : currentTradingFee} SUI
                 </p>
               </div>
               <div className="p-3 bg-secondary/50 rounded-xl">
@@ -139,7 +139,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
                   Project Posting Fee
                 </p>
                 <p className="text-lg font-bold text-foreground">
-                  {currentListingFee} SUI
+                  {typeof currentListingFee === 'number' ? currentListingFee.toFixed(2) : currentListingFee} SUI
                 </p>
               </div>
             </div>

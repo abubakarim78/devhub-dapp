@@ -41,6 +41,8 @@ interface SuperAdminAdminsProps {
   handleAddAdmin: () => void;
   
   // Remove admin states
+  revokeAdminAddress: string;
+  setRevokeAdminAddress: (address: string) => void;
   removingAdmin: string | null;
   handleRemoveAdmin: (address: string) => void;
 }
@@ -64,6 +66,8 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
   setNewAdminNote,
   addingAdmin,
   handleAddAdmin,
+  revokeAdminAddress,
+  setRevokeAdminAddress,
   removingAdmin,
   handleRemoveAdmin,
 }) => {
@@ -391,8 +395,8 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
                 type="text"
                 placeholder="0x Enter SUI address to revoke"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
-                value={newAdminAddress}
-                onChange={(e) => setNewAdminAddress(e.target.value)}
+                value={revokeAdminAddress}
+                onChange={(e) => setRevokeAdminAddress(e.target.value)}
               />
             </div>
             <div>
@@ -405,8 +409,8 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
               />
             </div>
             <button
-              onClick={() => handleRemoveAdmin(newAdminAddress)}
-              disabled={!!removingAdmin || !newAdminAddress}
+              onClick={() => handleRemoveAdmin(revokeAdminAddress)}
+              disabled={!!removingAdmin || !revokeAdminAddress}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {removingAdmin ? (

@@ -9,6 +9,13 @@ import {
 import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
 import { useContract } from '../hooks/useContract';
 import Layout from '@/components/common/Layout';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface FeaturedProject {
   title: string;
@@ -598,18 +605,34 @@ const CreateCard: React.FC = () => {
                                     {/* Niche Selection */}
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">Professional Niche</label>
-                                        <select 
-                                            name="niche" 
+                                        <Select 
                                             value={formData.niche} 
-                                            onChange={handleInputChange} 
-                                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 bg-input text-foreground ${
+                                            onValueChange={(value) => {
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    niche: value,
+                                                    ...(value !== 'Custom' ? { customNiche: '' } : {})
+                                                }));
+                                                if (errors.niche) {
+                                                    setErrors(prev => ({ ...prev, niche: '' }));
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger 
+                                                className={`w-full h-12 px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 bg-input text-foreground ${
                                                 errors.niche ? 'border-destructive focus:ring-destructive/50' : 'border-border focus:ring-ring'
                                             }`}
                                         >
+                                                <SelectValue placeholder="Select a professional niche" />
+                                            </SelectTrigger>
+                                            <SelectContent>
                                             {availableNiches.map((niche) => (
-                                                <option key={niche} value={niche}>{niche}</option>
+                                                    <SelectItem key={niche} value={niche}>
+                                                        {niche}
+                                                    </SelectItem>
                                             ))}
-                                        </select>
+                                            </SelectContent>
+                                        </Select>
                                         {errors.niche && (
                                             <motion.p
                                                 initial={{ opacity: 0, y: -5 }}
@@ -976,28 +999,58 @@ const CreateCard: React.FC = () => {
                                 <FormStep title="Work Preferences" icon={<DollarSign size={20} className="text-green-400" />}>
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">Work Types</label>
-                                        <select name="workTypes" value={formData.workTypes} onChange={handleInputChange} className="w-full px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
-                                            <option>Full-time</option>
-                                            <option>Contract</option>
-                                            <option>Freelance</option>
-                                        </select>
+                                        <Select value={formData.workTypes} onValueChange={(value) => {
+                                            setFormData(prev => ({ ...prev, workTypes: value }));
+                                            if (errors.workTypes) {
+                                                setErrors(prev => ({ ...prev, workTypes: '' }));
+                                            }
+                                        }}>
+                                            <SelectTrigger className="w-full h-12 px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Full-time">Full-time</SelectItem>
+                                                <SelectItem value="Contract">Contract</SelectItem>
+                                                <SelectItem value="Freelance">Freelance</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <InputField label="Hourly Rate (USD, optional)" name="hourlyRate" type="number" value={formData.hourlyRate} onChange={handleInputChange} error={errors.hourlyRate} placeholder="e.g., 75" />
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">Location Preference</label>
-                                        <select name="locationPreference" value={formData.locationPreference} onChange={handleInputChange} className="w-full px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
-                                            <option>Remote</option>
-                                            <option>On-site</option>
-                                            <option>Hybrid</option>
-                                        </select>
+                                        <Select value={formData.locationPreference} onValueChange={(value) => {
+                                            setFormData(prev => ({ ...prev, locationPreference: value }));
+                                            if (errors.locationPreference) {
+                                                setErrors(prev => ({ ...prev, locationPreference: '' }));
+                                            }
+                                        }}>
+                                            <SelectTrigger className="w-full h-12 px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Remote">Remote</SelectItem>
+                                                <SelectItem value="On-site">On-site</SelectItem>
+                                                <SelectItem value="Hybrid">Hybrid</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">Availability</label>
-                                        <select name="availability" value={formData.availability} onChange={handleInputChange} className="w-full px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
-                                            <option>Immediately</option>
-                                            <option>2 weeks</option>
-                                            <option>1 month</option>
-                                        </select>
+                                        <Select value={formData.availability} onValueChange={(value) => {
+                                            setFormData(prev => ({ ...prev, availability: value }));
+                                            if (errors.availability) {
+                                                setErrors(prev => ({ ...prev, availability: '' }));
+                                            }
+                                        }}>
+                                            <SelectTrigger className="w-full h-12 px-4 py-3 border rounded-lg bg-input text-foreground border-border focus:ring-2 focus:ring-ring">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Immediately">Immediately</SelectItem>
+                                                <SelectItem value="2 weeks">2 weeks</SelectItem>
+                                                <SelectItem value="1 month">1 month</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </FormStep>
                             )}

@@ -21,6 +21,7 @@ interface ActivityStats {
   adminEvents: number;
   feeEvents: number;
   cardEvents: number;
+  projectEvents: number;
 }
 
 interface SuperAdminActivityProps {
@@ -88,8 +89,8 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
           Activity Log
         </h1>
         <p className="text-xl text-muted-foreground">
-          Full audit history of admin actions, fee updates, and
-          withdrawals.
+          Full audit history of admin actions, fee updates, withdrawals, and
+          project creation.
         </p>
       </div>
 
@@ -228,6 +229,7 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
           <option value="Role Revoked">Role Revoked</option>
           <option value="Withdrawal">Withdrawal</option>
           <option value="Card Created">Card Created</option>
+          <option value="Project Created">Project Created</option>
         </select>
         <select className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none">
           <option>Status: Any</option>

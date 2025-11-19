@@ -200,10 +200,10 @@ export default function CreateProject() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 space-y-6">
                     <div className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-6">
-              <h2 className="text-lg font-semibold mb-4">Project Details</h2>
+              <h2 className="text-lg font-semibold mb-4 text-foreground">Project Details</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm mb-1">Project Title</label>
+                  <label className="block text-sm mb-1 text-foreground">Project Title</label>
                   <input
                     className="w-full bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                     placeholder="e.g., Sui Grants Portal"
@@ -213,7 +213,7 @@ export default function CreateProject() {
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1">Short Summary</label>
+                  <label className="block text-sm mb-1 text-foreground">Short Summary</label>
                   <input
                     className="w-full bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                     placeholder="One-liner that explains the goal"
@@ -223,7 +223,7 @@ export default function CreateProject() {
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1">Description</label>
+                  <label className="block text-sm mb-1 text-foreground">Description</label>
                   <textarea
                     className="w-full min-h-[120px] bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                     placeholder="Describe scope, context, milestones, and deliverables..."
@@ -234,7 +234,7 @@ export default function CreateProject() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm mb-1">Category</label>
+                    <label className="block text-sm mb-1 text-foreground">Category</label>
                     <select
                       className="w-full bg-background text-foreground border border-border rounded-md px-3 py-2"
                       value={isCustomCategory ? CUSTOM_CATEGORY : (form.category || CATEGORIES[0])}
@@ -278,7 +278,7 @@ export default function CreateProject() {
                     </AnimatePresence>
                   </div>
                   <div>
-                    <label className="block text-sm mb-1">Experience Level</label>
+                    <label className="block text-sm mb-1 text-foreground">Experience Level</label>
                     <select
                       className="w-full bg-background text-foreground border border-border rounded-md px-3 py-2"
                       value={form.experienceLevel}
@@ -293,7 +293,7 @@ export default function CreateProject() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm mb-1">Budget Min ($)</label>
+                    <label className="block text-sm mb-1 text-foreground">Budget Min ($)</label>
                     <input
                       className="w-full bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                       type="number"
@@ -303,7 +303,7 @@ export default function CreateProject() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm mb-1">Budget Max ($)</label>
+                    <label className="block text-sm mb-1 text-foreground">Budget Max ($)</label>
                     <input
                       className="w-full bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                       type="number"
@@ -316,7 +316,7 @@ export default function CreateProject() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm mb-1">Timeline (weeks)</label>
+                    <label className="block text-sm mb-1 text-foreground">Timeline (weeks)</label>
                     <input
                       className="w-full bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                       type="number"
@@ -328,10 +328,10 @@ export default function CreateProject() {
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1">Required Skills</label>
+                  <label className="block text-sm mb-1 text-foreground">Required Skills</label>
                   <div className="flex gap-2">
                     <input
-                      className="flex-1 max-w-xs bg-background border border-border rounded-md px-3 py-2"
+                      className="flex-1 max-w-xs bg-background text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2"
                       placeholder="Enter a skill"
                       value={skillInput}
                       onChange={(e) => setSkillInput(e.target.value)}
@@ -357,7 +357,7 @@ export default function CreateProject() {
                       {form.requiredSkills.map((s) => (
                         <span key={s} className="px-2 py-1 text-sm rounded-full bg-muted text-foreground">
                           {s}
-                          <button className="ml-2 text-xs" onClick={() => removeSkill(s)}>×</button>
+                          <button className="ml-2 text-xs text-foreground hover:text-foreground/80" onClick={() => removeSkill(s)}>×</button>
                         </span>
                       ))}
                     </div>
@@ -365,7 +365,7 @@ export default function CreateProject() {
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1">Attachments</label>
+                  <label className="block text-sm mb-1 text-foreground">Attachments</label>
                   <div
                     className={`w-full border rounded-xl px-4 py-6 cursor-pointer transition-colors ${
                       isDragging ? "border-primary/60 bg-primary/5" : "border-border bg-input"
@@ -402,7 +402,7 @@ export default function CreateProject() {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm truncate" title={att.file.name}>{att.file.name}</p>
+                            <p className="text-sm truncate text-foreground" title={att.file.name}>{att.file.name}</p>
                             <p className="text-xs text-muted-foreground">{(att.file.size / 1024).toFixed(1)} KB</p>
                             {att.error && <p className="text-xs text-destructive mt-1">{att.error}</p>}
                             {att.blobId && <p className="text-xs text-foreground/80 mt-1 truncate" title={att.blobId}>Blob: {att.blobId}</p>}
@@ -433,8 +433,8 @@ export default function CreateProject() {
                     <div className="mt-3 space-y-1">
                       {form.attachmentsWalrusBlobIds.map((id) => (
                         <div key={id} className="flex items-center justify-between text-sm bg-muted text-foreground rounded px-2 py-1">
-                          <span className="truncate mr-2">{id}</span>
-                          <button className="text-xs" onClick={() => removeAttachment(id)}>Remove</button>
+                          <span className="truncate mr-2 text-foreground">{id}</span>
+                          <button className="text-xs text-foreground hover:text-foreground/80" onClick={() => removeAttachment(id)}>Remove</button>
                         </div>
                       ))}
                     </div>
@@ -446,10 +446,10 @@ export default function CreateProject() {
 
                   <div className="space-y-6">
                     <div className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-6">
-              <h3 className="text-sm font-medium mb-3">Visibility & Access</h3>
+              <h3 className="text-sm font-medium mb-3 text-foreground">Visibility & Access</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>Who can view</span>
+                  <span className="text-foreground">Who can view</span>
                   <select
                     className="bg-background text-foreground border border-border rounded-md px-2 py-1"
                     value={form.visibility}
@@ -460,7 +460,7 @@ export default function CreateProject() {
                   </select>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Allow Applications</span>
+                  <span className="text-foreground">Allow Applications</span>
                   <select
                     className="bg-background text-foreground border border-border rounded-md px-2 py-1"
                     value={form.applicationsStatus}
@@ -471,7 +471,7 @@ export default function CreateProject() {
                   </select>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Communication</span>
+                  <span className="text-foreground">Communication</span>
                   <select
                     className="bg-background text-foreground border border-border rounded-md px-2 py-1"
                     value={form.devhubMessagesEnabled ? "DevHub Messages" : "Off"}
