@@ -79,10 +79,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <div className="hidden lg:block">
               <DashboardSidebar />
             </div>
-      <div className="pt-24 pb-16">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DashboardSidebar />
+            {/* Main Content */}
             <main className="lg:col-span-3">
               {children}
             </main>

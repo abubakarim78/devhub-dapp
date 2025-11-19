@@ -27,20 +27,17 @@ export function AppWrapper({ children }: { children: ReactNode }) {
   const currentAccount = useCurrentAccount();
   const { isAdmin } = useContract();
   const [isAdminUser, setIsAdminUser] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const currentAddress = useMemo(() => currentAccount?.address, [currentAccount]);
 
   const checkAdminStatus = useCallback(async (address: string) => {
-    setLoading(true);
+    // Check admin status silently in the background
     try {
       const status = await isAdmin(address);
       setIsAdminUser(status);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdminUser(false);
-    } finally {
-      setLoading(false);
     }
   }, [isAdmin]);
 
@@ -54,11 +51,6 @@ export function AppWrapper({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative overflow-hidden">
-        {loading && (
-             <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">
-                Checking admin status...
-             </div>
-        )}
       <Navbar isAdmin={isAdminUser} />
       <div className="relative z-10">
         {children}

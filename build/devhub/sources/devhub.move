@@ -93,7 +93,7 @@ public struct WorkPreferences has store, copy, drop {
 
 public struct ProfileAnalytics has store, drop {
     total_views: u64,
-    monthly_views: u64,
+    profile_views: u64,
     contact_clicks: u64,
     project_applications: u64,
     total_reviews: u64,
@@ -104,6 +104,7 @@ public struct ProfileAnalytics has store, drop {
 public struct Review has store, copy, drop {
     reviewer: address,
     rating: u8, // 1-5
+    review_text: Option<String>,
     timestamp: u64,
 }
 
@@ -292,6 +293,8 @@ public struct DevHub has key, store {
     project_applications: Table<u64, vector<ProjectApplication>>,
     platform_fees: Balance<SUI>,
     user_cards: Table<address, u64>, // Maps user address to their card ID
+    platform_fee: u64, // Mutable platform fee for card creation
+    project_posting_fee: u64, // Mutable project posting fee
 }
 
 // Events
@@ -322,6 +325,7 @@ public struct ReviewAdded has copy, drop {
     card_id: u64,
     reviewer: address,
     rating: u8,
+    review_text: Option<String>,
     timestamp: u64,
 }
 
@@ -395,6 +399,8 @@ fun init(ctx: &mut TxContext) {
         project_applications: table::new(ctx),
         platform_fees: balance::zero(),
         user_cards: table::new(ctx),
+        platform_fee: PLATFORM_FEE, // Initialize with default fee
+        project_posting_fee: PROJECT_POSTING_FEE, // Initialize with default fee
     });
 }
 
@@ -431,7 +437,7 @@ public entry fun create_card(
     assert!(!table::contains(&devhub.user_cards, sender), USER_ALREADY_HAS_CARD);
     
     let value = coin::value(&payment);
-    assert!(value >= PLATFORM_FEE, INSUFFICIENT_FUNDS);
+    assert!(value >= devhub.platform_fee, INSUFFICIENT_FUNDS);
 
     // Validate and process niche
     let final_niche = if (string::utf8(niche) == string::utf8(CUSTOM_NICHE)) {
@@ -446,7 +452,7 @@ public entry fun create_card(
     };
 
     // Collect platform fee
-    let platform_fee_coin = coin::split(&mut payment, PLATFORM_FEE, ctx);
+    let platform_fee_coin = coin::split(&mut payment, devhub.platform_fee, ctx);
     let platform_fee_balance = coin::into_balance(platform_fee_coin);
     balance::join(&mut devhub.platform_fees, platform_fee_balance);
 
@@ -476,7 +482,7 @@ public entry fun create_card(
 
     let analytics = ProfileAnalytics {
         total_views: 0,
-        monthly_views: 0,
+        profile_views: 0,
         contact_clicks: 0,
         project_applications: 0,
         total_reviews: 0,
@@ -490,7 +496,7 @@ public entry fun create_card(
         owner: tx_context::sender(ctx),
         niche: final_niche,
         contact: string::utf8(contact),
-        platform_fee_paid: PLATFORM_FEE,
+        platform_fee_paid: devhub.platform_fee,
         timestamp: current_time,
     });
 
@@ -661,6 +667,7 @@ public entry fun add_review(
     devhub: &mut DevHub,
     card_id: u64,
     rating: u8,
+    review_text: Option<String>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -681,6 +688,7 @@ public entry fun add_review(
     let review = Review {
         reviewer,
         rating,
+        review_text,
         timestamp: current_time,
     };
 
@@ -695,13 +703,16 @@ public entry fun add_review(
         card_id,
         reviewer,
         rating,
+        review_text,
         timestamp: current_time,
     });
 }
 
 
-// Track profile view
-public entry fun track_profile_view(
+// Track profile view - public function (can be called without entry requirement)
+// Note: This function modifies state, so it still needs to be called via a transaction
+// However, we can use devInspectTransactionBlock to simulate it, or create an entry wrapper
+public fun track_profile_view(
     devhub: &mut DevHub,
     card_id: u64,
     clock: &Clock,
@@ -711,20 +722,30 @@ public entry fun track_profile_view(
     let viewer = tx_context::sender(ctx);
     let current_time = clock::timestamp_ms(clock);
 
-    // Reset monthly views if needed (roughly 30 days)
+    // Reset profile views if needed (roughly 30 days)
     if (current_time - card.analytics.last_view_reset > 30 * 24 * 60 * 60 * 1000) {
-        card.analytics.monthly_views = 0;
+        card.analytics.profile_views = 0;
         card.analytics.last_view_reset = current_time;
     };
 
     card.analytics.total_views = card.analytics.total_views + 1;
-    card.analytics.monthly_views = card.analytics.monthly_views + 1;
+    card.analytics.profile_views = card.analytics.profile_views + 1;
 
     event::emit(ProfileViewed {
         card_id,
         viewer: option::some(viewer),
         timestamp: current_time,
     });
+}
+
+// Entry function wrapper to call track_profile_view from outside the module
+public entry fun track_profile_view_entry(
+    devhub: &mut DevHub,
+    card_id: u64,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    track_profile_view(devhub, card_id, clock, ctx);
 }
 
 public entry fun create_project(
@@ -748,10 +769,10 @@ public entry fun create_project(
     ctx: &mut TxContext
 ) {
     let value = coin::value(&payment);
-    assert!(value >= PROJECT_POSTING_FEE, INSUFFICIENT_FUNDS);
+    assert!(value >= devhub.project_posting_fee, INSUFFICIENT_FUNDS);
 
     // Collect project posting fee
-    let project_fee_coin = coin::split(&mut payment, PROJECT_POSTING_FEE, ctx);
+    let project_fee_coin = coin::split(&mut payment, devhub.project_posting_fee, ctx);
     let project_fee_balance = coin::into_balance(project_fee_coin);
     balance::join(&mut devhub.platform_fees, project_fee_balance);
 
@@ -1122,8 +1143,12 @@ public entry fun withdraw_platform_fees(
 
 public entry fun change_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mut TxContext) {
     assert!(is_super_admin(devhub, tx_context::sender(ctx)), NOT_SUPER_ADMIN);
-    // This is a placeholder for the actual fee change logic.
-    // The fee constants are not mutable.
+    devhub.platform_fee = new_fee;
+}
+
+public entry fun change_project_posting_fee(devhub: &mut DevHub, new_fee: u64, ctx: &mut TxContext) {
+    assert!(is_super_admin(devhub, tx_context::sender(ctx)), NOT_SUPER_ADMIN);
+    devhub.project_posting_fee = new_fee;
 }
 
 // === View Functions ===
@@ -1159,6 +1184,8 @@ public fun get_card_info(
     vector<String>, // featured_projects
     u64, // total_views
     Option<vector<u8>>, // avatar_walrus_blob_id
+    u64, // created_at
+    u64, // last_updated
 ) {
     let card = table::borrow(&devhub.cards, id);
     (
@@ -1175,6 +1202,8 @@ public fun get_card_info(
         card.featured_projects,
         card.analytics.total_views,
         card.avatar_walrus_blob_id,
+        card.created_at,
+        card.last_updated,
     )
 }
 
@@ -1691,7 +1720,7 @@ public fun get_detailed_analytics(
     let card = table::borrow(&devhub.cards, card_id);
     (
         card.analytics.total_views,
-        card.analytics.monthly_views,
+        card.analytics.profile_views,
         card.analytics.contact_clicks,
         card.analytics.project_applications,
         card.analytics.total_reviews,
@@ -1722,6 +1751,12 @@ public fun get_work_preferences(devhub: &DevHub, card_id: u64): WorkPreferences 
 public fun get_social_links(devhub: &DevHub, card_id: u64): SocialLinks {
     let card = table::borrow(&devhub.cards, card_id);
     card.social_links
+}
+
+// Get languages
+public fun get_languages(devhub: &DevHub, card_id: u64): vector<String> {
+    let card = table::borrow(&devhub.cards, card_id);
+    card.languages
 }
 
 // Verification functions (admin only)
@@ -1788,8 +1823,8 @@ public fun get_platform_stats(devhub: &DevHub): (u64, u64, u64, u64) {
 }
 
 // Fee constants getters
-public fun get_platform_fee(): u64 { PLATFORM_FEE }
-public fun get_project_posting_fee(): u64 { PROJECT_POSTING_FEE }
+public fun get_platform_fee(devhub: &DevHub): u64 { devhub.platform_fee }
+public fun get_project_posting_fee(devhub: &DevHub): u64 { devhub.project_posting_fee }
 
 // Messaging functions moved to `devhub::messaging`
 

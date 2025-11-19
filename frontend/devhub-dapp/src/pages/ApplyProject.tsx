@@ -4,13 +4,11 @@ import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
-  Briefcase,
   Calendar,
   Clock,
   DollarSign,
   FileText,
   Github,
-  Users,
   CheckCircle,
   Loader2,
   AlertCircle,
@@ -19,6 +17,8 @@ import {
   Link as LinkIcon,
   Target,
   Code2,
+  Plus,
+  X,
 } from "lucide-react";
 import {
   applyToProjectTransaction,
@@ -27,7 +27,15 @@ import {
   createHelperObjectsBatchTransaction,
   DEVHUB_OBJECT_ID,
   PACKAGE_ID,
+  addMilestoneToProposalTransaction,
 } from "@/lib/suiClient";
+
+type Milestone = {
+  id: string;
+  description: string;
+  dueDate: string; // ISO date string
+  budget: number;
+};
 
 type FormState = {
   yourRole: string;
@@ -50,6 +58,7 @@ type FormState = {
   budget: number;
   timelineWeeks: number;
   methodology: string;
+  milestones: Milestone[];
 };
 
 export default function ApplyProject() {
@@ -84,6 +93,7 @@ export default function ApplyProject() {
     budget: 0,
     timelineWeeks: 6,
     methodology: "",
+    milestones: [],
   });
 
   // Populate applicant address by default
@@ -376,15 +386,44 @@ export default function ApplyProject() {
         throw new Error("Required proposal objects not available");
       }
 
+      // Ensure all required fields have defaults to prevent empty string issues
+      const applicationData = {
+        yourRole: form.yourRole || "Developer",
+        availabilityHrsPerWeek: form.availabilityHrsPerWeek || 20,
+        startDate: form.startDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        expectedDurationWeeks: form.expectedDurationWeeks || 6,
+        proposalSummary: form.proposalSummary || "",
+        requestedCompensation: form.requestedCompensation || form.milestones.reduce((sum, m) => sum + (m.budget || 0), 0) || 0,
+        milestonesCount: form.milestones.length || form.milestonesCount || 1,
+        githubRepoLink: form.githubRepoLink || "",
+        onChainAddress: form.onChainAddress || account?.address || "",
+        teamMembers: form.teamMembers || [],
+        coverLetterWalrusBlobId: form.coverLetterWalrusBlobId,
+        portfolioWalrusBlobIds: form.portfolioWalrusBlobIds || [],
+        opportunityTitle: form.opportunityTitle || "Project Application",
+        proposalTitle: form.proposalTitle || "Application Proposal",
+        teamName: form.teamName || "Individual",
+        contactEmail: form.contactEmail || account?.address || "",
+        summary: form.summary || form.proposalSummary || "",
+        budget: form.budget || form.requestedCompensation || 0,
+        timelineWeeks: form.timelineWeeks || form.expectedDurationWeeks || 6,
+        methodology: form.methodology || form.proposalSummary || "",
+      };
+
+      // Validate critical fields
+      if (!applicationData.onChainAddress) {
+        throw new Error("On-chain address is required");
+      }
+
       console.log('📤 Submitting application with:', {
         userProposalsId: ensuredUserProposalsId,
         proposalsByStatusId: ensuredProposalsByStatusId,
         projectNumberId,
-        formData: form
+        applicationData
       });
 
       setError("Submitting your application... Please approve the transaction.");
-      const tx = applyToProjectTransaction(ensuredUserProposalsId, ensuredProposalsByStatusId, projectNumberId, form);
+      const tx = applyToProjectTransaction(ensuredUserProposalsId, ensuredProposalsByStatusId, projectNumberId, applicationData);
 
       await new Promise<void>((resolve, reject) => {
         signExecute(
@@ -395,6 +434,67 @@ export default function ApplyProject() {
                 console.log('✅ Application submitted, digest:', res.digest);
                 await client.waitForTransaction({ digest: res.digest });
                 console.log('✅ Transaction confirmed');
+                
+                // Extract proposal ID from transaction events
+                const tx = await client.getTransactionBlock({ 
+                  digest: res.digest, 
+                  options: { showEvents: true, showEffects: true } 
+                });
+                
+                // Find ProposalCreated event to get proposal ID
+                const events = tx.events || [];
+                const proposalEvent = events.find((e: any) => 
+                  e.type?.includes('ProposalCreated') || e.type?.includes('proposal_created')
+                );
+                
+                let proposalId: string | null = null;
+                if (proposalEvent) {
+                  const parsed = proposalEvent.parsedJson || proposalEvent;
+                  proposalId = (parsed as any)?.proposal_id || (parsed as any)?.proposalId || null;
+                }
+                
+                // Add milestones if any were provided
+                if (proposalId && form.milestones.length > 0) {
+                  console.log(`📝 Adding ${form.milestones.length} milestones to proposal ${proposalId}`);
+                  setError("Adding milestones to proposal...");
+                  
+                  // Add milestones one by one (could be batched in future)
+                  for (const milestone of form.milestones) {
+                    if (milestone.description.trim()) {
+                      const dueDateTimestamp = new Date(milestone.dueDate).getTime();
+                      const milestoneTx = addMilestoneToProposalTransaction(
+                        proposalId,
+                        milestone.description,
+                        dueDateTimestamp,
+                        milestone.budget
+                      );
+                      
+                      await new Promise<void>((resolve, reject) => {
+                        signExecute(
+                          { transaction: milestoneTx } as any,
+                          {
+                            onSuccess: async (milestoneRes: any) => {
+                              try {
+                                await client.waitForTransaction({ digest: milestoneRes.digest });
+                                console.log('✅ Milestone added');
+                                resolve();
+                              } catch (e) {
+                                console.error('Error adding milestone:', e);
+                                reject(e);
+                              }
+                            },
+                            onError: (error) => {
+                              console.error('Error adding milestone:', error);
+                              reject(error);
+                            },
+                          }
+                        );
+                      });
+                    }
+                  }
+                  console.log('✅ All milestones added');
+                }
+                
                 resolve();
               } catch (e) {
                 console.error('Error waiting for application transaction:', e);
@@ -420,6 +520,39 @@ export default function ApplyProject() {
   };
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
+
+  // Milestone management
+  const addMilestone = () => {
+    if (form.milestones.length >= 10) return;
+    setForm((f) => ({
+      ...f,
+      milestones: [
+        ...f.milestones,
+        { 
+          id: Date.now().toString(), 
+          description: "", 
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          budget: 0 
+        },
+      ],
+    }));
+  };
+
+  const removeMilestone = (milestoneId: string) => {
+    setForm((f) => ({
+      ...f,
+      milestones: f.milestones.filter((m) => m.id !== milestoneId),
+    }));
+  };
+
+  const updateMilestone = (milestoneId: string, field: keyof Milestone, value: string | number) => {
+    setForm((f) => ({
+      ...f,
+      milestones: f.milestones.map((m) =>
+        m.id === milestoneId ? { ...m, [field]: value } : m
+      ),
+    }));
+  };
 
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
@@ -608,6 +741,98 @@ export default function ApplyProject() {
                 </div>
               </motion.div>
 
+              {/* Milestones Section */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <div className="bg-primary/20 p-2 rounded-lg border border-primary/30">
+                      <Target size={18} />
+                    </div>
+                    Payment Milestones
+                  </h2>
+                  <span className="text-xs text-muted-foreground">
+                    {form.milestones.length}/10 milestones
+                  </span>
+                </div>
+                <div className="space-y-4">
+                  {form.milestones.map((milestone) => (
+                    <div
+                      key={milestone.id}
+                      className="grid grid-cols-12 gap-3 items-end p-4 bg-muted/30 rounded-lg border border-border"
+                    >
+                      <div className="col-span-12 sm:col-span-5">
+                        <label className="block text-xs font-medium text-foreground mb-1">
+                          Description
+                        </label>
+                        <input
+                          value={milestone.description}
+                          onChange={(e) => updateMilestone(milestone.id, "description", e.target.value)}
+                          className="w-full bg-input text-foreground border border-border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-ring"
+                          placeholder="Milestone description..."
+                        />
+                      </div>
+                      <div className="col-span-6 sm:col-span-3">
+                        <label className="block text-xs font-medium text-foreground mb-1">
+                          Due Date
+                        </label>
+                        <input
+                          type="date"
+                          value={milestone.dueDate}
+                          onChange={(e) => updateMilestone(milestone.id, "dueDate", e.target.value)}
+                          className="w-full bg-input text-foreground border border-border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div className="col-span-5 sm:col-span-3">
+                        <label className="block text-xs font-medium text-foreground mb-1">
+                          Budget ($)
+                        </label>
+                        <input
+                          type="number"
+                          value={milestone.budget || ""}
+                          onChange={(e) => updateMilestone(milestone.id, "budget", Number(e.target.value || 0))}
+                          className="w-full bg-input text-foreground border border-border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-ring"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <button
+                          onClick={() => removeMilestone(milestone.id)}
+                          className="w-full p-1.5 rounded-md bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors"
+                          type="button"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {form.milestones.length < 10 && (
+                    <button
+                      onClick={addMilestone}
+                      className="w-full py-2 rounded-md border border-dashed border-border text-foreground/70 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2"
+                      type="button"
+                    >
+                      <Plus size={16} />
+                      Add Milestone
+                    </button>
+                  )}
+                  {form.milestones.length > 0 && (
+                    <div className="pt-2 border-t border-border">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Total Budget:</span>
+                        <span className="font-semibold text-foreground">
+                          ${form.milestones.reduce((sum, m) => sum + (m.budget || 0), 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
               {/* Links & Contact */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -661,64 +886,6 @@ export default function ApplyProject() {
                       placeholder="your.email@example.com"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                      <Users size={14} />
-                      Team Members (comma separated)
-                    </label>
-                    <input
-                      value={form.teamMembers.join(", ")}
-                      onChange={(e) => set("teamMembers", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))}
-                      className="w-full bg-input text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2 focus:ring-2 focus:ring-ring focus:border-transparent"
-                      placeholder="@alice, @bob"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Additional Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.25 }}
-                className="bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-6"
-              >
-                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <div className="bg-primary/20 p-2 rounded-lg border border-primary/30">
-                    <Briefcase size={18} />
-                  </div>
-                  Additional Information
-                </h2>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Opportunity Title</label>
-                      <input
-                        value={form.opportunityTitle}
-                        onChange={(e) => set("opportunityTitle", e.target.value)}
-                        className="w-full bg-input text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2 focus:ring-2 focus:ring-ring focus:border-transparent"
-                        placeholder="Project opportunity title"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Proposal Title</label>
-                      <input
-                        value={form.proposalTitle}
-                        onChange={(e) => set("proposalTitle", e.target.value)}
-                        className="w-full bg-input text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2 focus:ring-2 focus:ring-ring focus:border-transparent"
-                        placeholder="Your proposal title"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">Team Name</label>
-                    <input
-                      value={form.teamName}
-                      onChange={(e) => set("teamName", e.target.value)}
-                      className="w-full bg-input text-foreground placeholder-muted-foreground border border-border rounded-md px-3 py-2 focus:ring-2 focus:ring-ring focus:border-transparent"
-                      placeholder="Your team name"
-                    />
-                  </div>
                 </div>
               </motion.div>
 
@@ -726,7 +893,7 @@ export default function ApplyProject() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ duration: 0.5, delay: 0.25 }}
                 className="flex gap-3 justify-end"
               >
                 <button

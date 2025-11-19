@@ -52,11 +52,13 @@ const AdminPanel: React.FC = () => {
         adminEvents: number;
         feeEvents: number;
         cardEvents: number;
+        projectEvents: number;
     }>({
         totalEvents: 0,
         adminEvents: 0,
         feeEvents: 0,
-        cardEvents: 0
+        cardEvents: 0,
+        projectEvents: 0
     });
     const [platformFeeBalance, setPlatformFeeBalance] = useState<number>(0);
     
@@ -324,7 +326,7 @@ const AdminPanel: React.FC = () => {
                                         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent mb-4">
                                             Activity Log
                                         </h1>
-                                        <p className="text-xl text-muted-foreground">Audit log of platform activities and admin actions.</p>
+                                        <p className="text-xl text-muted-foreground">Audit log of platform activities, admin actions, and project creation.</p>
                                     </div>
 
                                     {/* Read-Only Notice */}
@@ -419,6 +421,7 @@ const AdminPanel: React.FC = () => {
                                                     <option value="Role Revoked">Role Revoked</option>
                                                     <option value="Withdrawal">Withdrawal</option>
                                                     <option value="Card Created">Card Created</option>
+                                                    <option value="Project Created">Project Created</option>
                                                 </select>
                                             </div>
                                             <div className="flex items-center space-x-2">

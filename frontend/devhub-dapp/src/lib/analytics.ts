@@ -1,7 +1,7 @@
 // On-chain analytics from the contract
 export interface ProfileAnalytics {
   totalViews: number;
-  monthlyViews: number;
+  profileViews: number;
   contactClicks: number;
   projectApplications: number;
   totalReviews: number;
