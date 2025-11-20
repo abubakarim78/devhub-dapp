@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Loader2, AlertCircle, SlidersHorizontal, ArrowLeft, ArrowRight, Filter, X, Users, TrendingUp, Star, MapPin, Briefcase, Code2, Globe, Zap, Shield } from 'lucide-react';
+import { Search, Loader2, AlertCircle, SlidersHorizontal, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
 import { DevCardData } from '../lib/suiClient';
 import DeveloperCard from '@/components/common/DeveloperCard';
@@ -44,7 +44,6 @@ const Browse: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('newest');
 
   // UI States
-  const [showMobileFilters, setShowMobileFilters] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const { getAllCards } = useContract();
@@ -68,20 +67,6 @@ const Browse: React.FC = () => {
   }, [getAllCards]);
 
   // --- MEMOIZED COMPUTATIONS ---
-  const allTechnologies = useMemo((): string[] => {
-    const techSet = new Set(allCards.flatMap(card => card.technologies.split(',').map(t => t.trim()).filter(Boolean)));
-    return Array.from(techSet).sort();
-  }, [allCards]);
-
-  const allNiches = useMemo((): string[] => {
-    const nicheSet = new Set(allCards.map(card => card.niche).filter(Boolean));
-    return Array.from(nicheSet).sort();
-  }, [allCards]);
-
-  const allLocations = useMemo((): string[] => {
-    const locationSet = new Set(allCards.map(card => card.workPreferences?.locationPreference).filter(Boolean));
-    return Array.from(locationSet).sort();
-  }, [allCards]);
 
   const filteredCards = useMemo((): DevCardData[] => {
     let filtered = allCards.filter(card => {
@@ -208,7 +193,7 @@ const Browse: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-8 sm:mb-12 md:mb-16 px-4"
         >
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-3 sm:mb-4 bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-3 sm:mb-4 bg-linear-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent">
             Talent Discovery
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto px-2">
