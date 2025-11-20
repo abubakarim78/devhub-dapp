@@ -1487,14 +1487,14 @@ const ChannelDashboard: React.FC = () => {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-card/90 backdrop-blur-xl rounded-2xl p-6 max-w-2xl w-full mx-4 border border-border max-h-[80vh] overflow-hidden flex flex-col"
             >
-              <h3 className="text-xl font-semibold mb-4">Create New Channel</h3>
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Create New Channel</h3>
               <p className="text-muted-foreground mb-4">
                 Create a channel and add members to start group conversations:
               </p>
               
               {/* Channel Name Input */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Channel Name</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Channel Name</label>
                 <input
                   type="text"
                   placeholder="Enter channel name..."
@@ -1506,7 +1506,7 @@ const ChannelDashboard: React.FC = () => {
               
               {/* Member Selection */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Add Members</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Add Members</label>
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
@@ -1572,7 +1572,7 @@ const ChannelDashboard: React.FC = () => {
                 
                 {/* Selected Members */}
                 <div className="mt-4">
-                  <label className="block text-sm font-medium mb-2">Selected Members</label>
+                  <label className="block text-sm font-medium mb-2 text-foreground">Selected Members</label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {selectedMembers.length === 0 ? (
                       <div className="text-sm text-muted-foreground">No members selected</div>
@@ -1667,14 +1667,14 @@ const ChannelDashboard: React.FC = () => {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-card/90 backdrop-blur-xl rounded-2xl p-6 max-w-2xl w-full mx-4 border border-border max-h-[80vh] overflow-hidden flex flex-col"
             >
-              <h3 className="text-xl font-semibold mb-4">Manage Channel Members</h3>
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Manage Channel Members</h3>
               <p className="text-muted-foreground mb-4">
                 Add or remove members from {selectedChannelData.name}
               </p>
               
               {/* Current Members */}
               <div className="mb-6">
-                <h4 className="text-sm font-medium mb-3">Current Members</h4>
+                <h4 className="text-sm font-medium mb-3 text-foreground">Current Members</h4>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {channelMembers.map((member) => (
                     <div
@@ -1720,7 +1720,7 @@ const ChannelDashboard: React.FC = () => {
               
               {/* Add Members */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium mb-3">Add New Members</h4>
+                <h4 className="text-sm font-medium mb-3 text-foreground">Add New Members</h4>
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
@@ -1796,9 +1796,9 @@ const ChannelDashboard: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-card/90 backdrop-blur-xl rounded-2xl p-6 max-w-md w-full mx-4 border border-border"
           >
-            <h3 className="text-xl font-semibold mb-4">Upload File</h3>
+            <h3 className="text-xl font-semibold mb-4 text-foreground">Upload File</h3>
             <p className="text-muted-foreground mb-4">
-              File: <span className="font-medium">{selectedFile.name}</span>
+              File: <span className="font-medium text-foreground">{selectedFile.name}</span>
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               Size: {(selectedFile.size / 1024).toFixed(2)} KB

@@ -3153,12 +3153,343 @@ export async function getWorkPreferences(cardId: number) {
       sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
     });
 
-    if (result.results?.[0]?.returnValues) {
-      return parseReturnValue(result.results[0].returnValues[0]) as WorkPreferences;
+    console.log(`🔍 Raw work preferences result for card ${cardId}:`, result);
+
+    if (!result.results?.[0]?.returnValues) {
+      console.warn(`⚠️ No return values for work preferences for card ${cardId}`);
+      return null;
     }
-    return null;
+
+    const returnValues = result.results[0].returnValues;
+    console.log(`🔍 Work preferences returnValues for card ${cardId}:`, returnValues);
+    console.log(`🔍 ReturnValues count: ${returnValues.length}`);
+
+    // WorkPreferences struct has 4 fields:
+    // 1. work_types: vector<String>
+    // 2. hourly_rate: Option<u64>
+    // 3. location_preference: String
+    // 4. availability: String
+
+    // Check if struct is returned as a single value with fields property
+    let structData: any = null;
+    const firstReturnValue = returnValues[0];
+    
+    // Check if it's [bcsBytes, type] format
+    if (Array.isArray(firstReturnValue) && firstReturnValue.length === 2 && typeof firstReturnValue[1] === 'string') {
+      // Try to parse the struct from the byte array or use the parsed value
+      structData = parseReturnValue(firstReturnValue);
+    } else {
+      structData = parseReturnValue(firstReturnValue);
+    }
+
+    console.log(`🔍 Parsed structData:`, structData);
+
+    // Check if structData has a fields property (Move struct format)
+    if (structData && typeof structData === 'object' && structData.fields) {
+      console.log(`🔍 Found struct with fields property:`, structData.fields);
+      structData = structData.fields;
+    }
+
+    // If structData is an object with the field names, use it directly
+    // Otherwise, assume returnValues array contains fields in order
+    let workTypesRaw: any;
+    let hourlyRateRaw: any;
+    let locationPreferenceRaw: any;
+    let availabilityRaw: any;
+
+    if (structData && typeof structData === 'object' && !Array.isArray(structData)) {
+      // Struct fields are in an object
+      workTypesRaw = structData.work_types || structData.workTypes;
+      hourlyRateRaw = structData.hourly_rate || structData.hourlyRate;
+      locationPreferenceRaw = structData.location_preference || structData.locationPreference;
+      availabilityRaw = structData.availability;
+      console.log(`🔍 Extracted from struct object:`, { workTypesRaw, hourlyRateRaw, locationPreferenceRaw, availabilityRaw });
+    } else if (returnValues.length >= 4) {
+      // Struct fields are in returnValues array in order
+      workTypesRaw = returnValues[0];
+      hourlyRateRaw = returnValues[1];
+      locationPreferenceRaw = returnValues[2];
+      availabilityRaw = returnValues[3];
+      console.log(`🔍 Using returnValues array:`, { workTypesRaw, hourlyRateRaw, locationPreferenceRaw, availabilityRaw });
+    } else {
+      // The struct is in the first returnValue as a single BCS-encoded struct
+      // We need to parse the entire struct from the byte array
+      workTypesRaw = returnValues[0];
+      console.log(`🔍 Struct is BCS-encoded in first returnValue`);
+    }
+
+    // Parse the entire BCS-encoded struct from the byte array
+    let workTypes: string[] = [];
+    let hourlyRate: number | undefined = undefined;
+    let locationPreference: string = '';
+    let availability: string = '';
+    
+    console.log(`🔍 Raw work_types/struct:`, workTypesRaw);
+    
+    if (Array.isArray(workTypesRaw)) {
+      // Check if it's [bcsBytes, type] format
+      let actualData: any = workTypesRaw;
+      if (Array.isArray(workTypesRaw) && workTypesRaw.length === 2 && typeof workTypesRaw[1] === 'string') {
+        actualData = workTypesRaw[0];
+      }
+      
+      // Check if it's a BCS-encoded byte array (array of numbers/strings representing bytes)
+      if (Array.isArray(actualData) && actualData.length > 0) {
+        // Check if elements are numbers or string numbers (BCS encoding)
+        const firstElement = actualData[0];
+        const isByteArray = typeof firstElement === 'number' || (typeof firstElement === 'string' && !isNaN(Number(firstElement)));
+        
+        if (isByteArray) {
+          console.log(`🔍 Detected BCS-encoded struct byte array`);
+          // Convert string numbers to actual numbers
+          const byteArray = actualData.map((b: any) => typeof b === 'string' ? Number(b) : b);
+          console.log(`🔍 Byte array length: ${byteArray.length}`, byteArray.slice(0, 50));
+          
+          let index = 0;
+          
+          // 1. Parse work_types: vector<String>
+          // Read vector length (uleb128)
+          let vectorLength = 0;
+          let shift = 0;
+          while (index < byteArray.length) {
+            const byte = byteArray[index++];
+            vectorLength |= (byte & 0x7F) << shift;
+            if ((byte & 0x80) === 0) break;
+            shift += 7;
+          }
+          console.log(`🔍 Work types vector length: ${vectorLength}`);
+          
+          // Parse each string in the vector
+          for (let i = 0; i < vectorLength && index < byteArray.length; i++) {
+            // Read string length (uleb128)
+            let strLength = 0;
+            shift = 0;
+            while (index < byteArray.length) {
+              const byte = byteArray[index++];
+              strLength |= (byte & 0x7F) << shift;
+              if ((byte & 0x80) === 0) break;
+              shift += 7;
+            }
+            
+            // Read string bytes
+            if (index + strLength > byteArray.length) {
+              console.warn(`⚠️ Work type ${i}: Not enough bytes`);
+              break;
+            }
+            const textBytes = byteArray.slice(index, index + strLength);
+            const decoded = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(textBytes));
+            const trimmed = decoded.trim();
+            if (trimmed.length > 0) {
+              workTypes.push(trimmed);
+              console.log(`✅ Decoded work type ${i}: "${trimmed}"`);
+            }
+            index += strLength;
+          }
+          
+          // 2. Parse hourly_rate: Option<u64>
+          // In Sui BCS, Option<T> encoding can vary. Based on the byte array:
+          // - If tag is 0: None (no value follows)
+          // - If tag is 1: Some (value follows)
+          // However, some implementations use 1 for Some and 0 for None
+          // We'll check both patterns
+          if (index < byteArray.length) {
+            const optionTag = byteArray[index++];
+            console.log(`🔍 Option tag for hourly_rate at index ${index - 1}: ${optionTag}, remaining bytes: ${byteArray.length - index}`);
+            console.log(`🔍 Next 8 bytes:`, byteArray.slice(index, index + 8));
+            
+            // Try both encoding patterns
+            if (optionTag === 1 && index + 8 <= byteArray.length) {
+              // Pattern 1: Tag 1 means Some (Sui-specific)
+              let u64Value = 0n;
+              for (let i = 0; i < 8; i++) {
+                u64Value += BigInt(byteArray[index + i] || 0) << BigInt(i * 8);
+              }
+              hourlyRate = Number(u64Value);
+              index += 8;
+              console.log(`✅ Parsed hourly_rate (tag=1=Some): ${hourlyRate} (from bytes: ${byteArray.slice(index - 8, index).join(', ')})`);
+            } else if (optionTag === 0 && index + 8 <= byteArray.length) {
+              // Pattern 2: Tag 0 means Some (standard BCS)
+              let u64Value = 0n;
+              for (let i = 0; i < 8; i++) {
+                u64Value += BigInt(byteArray[index + i] || 0) << BigInt(i * 8);
+              }
+              hourlyRate = Number(u64Value);
+              index += 8;
+              console.log(`✅ Parsed hourly_rate (tag=0=Some): ${hourlyRate}`);
+            } else if (optionTag === 0 || optionTag === 1) {
+              // None (either pattern)
+              console.log(`✅ hourly_rate is None (tag=${optionTag})`);
+            } else {
+              // Unexpected - might be that the tag byte is actually part of the value
+              // Try reading 8 bytes starting from the tag position
+              index--; // Go back
+              if (index + 8 <= byteArray.length) {
+                let u64Value = 0n;
+                for (let i = 0; i < 8; i++) {
+                  u64Value += BigInt(byteArray[index + i] || 0) << BigInt(i * 8);
+                }
+                hourlyRate = Number(u64Value);
+                index += 8;
+                console.log(`✅ Parsed hourly_rate (no tag, direct): ${hourlyRate}`);
+              }
+            }
+          }
+          
+          console.log(`🔍 After hourly_rate parsing, index: ${index}, remaining: ${byteArray.length - index} bytes`);
+          console.log(`🔍 Remaining bytes:`, byteArray.slice(index, Math.min(index + 20, byteArray.length)));
+          
+          // 3. Parse location_preference: String
+          if (index < byteArray.length) {
+            // Read string length (uleb128)
+            let strLength = 0;
+            shift = 0;
+            const lengthStartIndex = index;
+            while (index < byteArray.length) {
+              const byte = byteArray[index++];
+              strLength |= (byte & 0x7F) << shift;
+              if ((byte & 0x80) === 0) break;
+              shift += 7;
+            }
+            console.log(`🔍 location_preference length: ${strLength} (from bytes at index ${lengthStartIndex}-${index - 1})`);
+            
+            // Read string bytes
+            if (index + strLength <= byteArray.length) {
+              const textBytes = byteArray.slice(index, index + strLength);
+              locationPreference = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(textBytes)).trim();
+              index += strLength;
+              console.log(`✅ Parsed location_preference: "${locationPreference}" (from bytes: ${textBytes.join(', ')})`);
+            } else {
+              console.warn(`⚠️ Not enough bytes for location_preference (need ${strLength}, have ${byteArray.length - index})`);
+            }
+          }
+          
+          console.log(`🔍 After location_preference parsing, index: ${index}, remaining: ${byteArray.length - index} bytes`);
+          console.log(`🔍 Remaining bytes:`, byteArray.slice(index, Math.min(index + 20, byteArray.length)));
+          
+          // 4. Parse availability: String
+          if (index < byteArray.length) {
+            // Read string length (uleb128)
+            let strLength = 0;
+            shift = 0;
+            const lengthStartIndex = index;
+            while (index < byteArray.length) {
+              const byte = byteArray[index++];
+              strLength |= (byte & 0x7F) << shift;
+              if ((byte & 0x80) === 0) break;
+              shift += 7;
+            }
+            console.log(`🔍 availability length: ${strLength} (from bytes at index ${lengthStartIndex}-${index - 1})`);
+            
+            // Read string bytes
+            if (index + strLength <= byteArray.length) {
+              const textBytes = byteArray.slice(index, index + strLength);
+              availability = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(textBytes)).trim();
+              index += strLength;
+              console.log(`✅ Parsed availability: "${availability}" (from bytes: ${textBytes.join(', ')})`);
+            } else {
+              console.warn(`⚠️ Not enough bytes for availability (need ${strLength}, have ${byteArray.length - index})`);
+            }
+          }
+          
+          console.log(`🔍 Final parsing state - index: ${index}, total bytes: ${byteArray.length}`);
+        } else if (Array.isArray(actualData[0])) {
+          // Nested array structure - fallback parsing
+          workTypes = actualData
+            .map((wt: any) => {
+              if (Array.isArray(wt)) {
+                return safeDecodeText(wt);
+              }
+              if (typeof wt === 'string') return wt.trim();
+              return safeDecodeText(wt);
+            })
+            .filter((wt: string) => wt && wt.trim().length > 0);
+        } else {
+          // Flat array - fallback parsing
+          workTypes = actualData
+            .map((wt: any) => {
+              if (typeof wt === 'string') return wt.trim();
+              if (Array.isArray(wt)) {
+                return safeDecodeText(wt);
+              }
+              return safeDecodeText(wt);
+            })
+            .filter((wt: string) => wt && wt.trim().length > 0);
+        }
+      }
+    }
+    console.log(`✅ Parsed work_types:`, workTypes);
+
+    // If we didn't parse from BCS, try the fallback methods
+    if (workTypes.length === 0 && workTypesRaw) {
+      // Fallback: try to parse workTypesRaw if it wasn't BCS-encoded
+      if (Array.isArray(workTypesRaw)) {
+        const actualData = Array.isArray(workTypesRaw) && workTypesRaw.length === 2 && typeof workTypesRaw[1] === 'string'
+          ? workTypesRaw[0]
+          : workTypesRaw;
+        
+        if (Array.isArray(actualData[0])) {
+          workTypes = actualData
+            .map((wt: any) => {
+              if (Array.isArray(wt)) return safeDecodeText(wt);
+              if (typeof wt === 'string') return wt.trim();
+              return safeDecodeText(wt);
+            })
+            .filter((wt: string) => wt && wt.trim().length > 0);
+        } else {
+          workTypes = actualData
+            .map((wt: any) => {
+              if (typeof wt === 'string') return wt.trim();
+              if (Array.isArray(wt)) return safeDecodeText(wt);
+              return safeDecodeText(wt);
+            })
+            .filter((wt: string) => wt && wt.trim().length > 0);
+        }
+      }
+    }
+    
+    // Fallback parsing for other fields if not already parsed from BCS
+    if (!hourlyRate && hourlyRateRaw) {
+      const parseOptionU64 = (value: any): number | undefined => {
+        if (!value) return undefined;
+        if (typeof value === 'object' && value !== null) {
+          if (value.Some !== undefined) return parseU64Value(value.Some);
+          if (value.None !== undefined) return undefined;
+          if (Array.isArray(value)) {
+            if (value.length === 0) return undefined;
+            if (value[0] === 0 && value.length > 1) return parseU64Value(value[1]);
+            if (value[0] === 1) return undefined;
+          }
+        }
+        if (typeof value === 'number') return value;
+        const parsed = Number(value);
+        return isNaN(parsed) ? undefined : parsed;
+      };
+      hourlyRate = parseOptionU64(hourlyRateRaw);
+    }
+    
+    if (!locationPreference && locationPreferenceRaw) {
+      locationPreference = typeof locationPreferenceRaw === 'string' 
+        ? locationPreferenceRaw.trim() 
+        : safeDecodeText(locationPreferenceRaw);
+    }
+    
+    if (!availability && availabilityRaw) {
+      availability = typeof availabilityRaw === 'string' 
+        ? availabilityRaw.trim() 
+        : safeDecodeText(availabilityRaw);
+    }
+
+    const workPreferences: WorkPreferences = {
+      workTypes,
+      hourlyRate,
+      locationPreference,
+      availability,
+    };
+
+    console.log(`✅ Final work preferences for card ${cardId}:`, workPreferences);
+    return workPreferences;
   } catch (error) {
-    console.error('Error getting work preferences:', error);
+    console.error(`❌ Error getting work preferences for card ${cardId}:`, error);
     return null;
   }
 }
@@ -5275,6 +5606,113 @@ export async function getSuggestedDevelopers(limit: number = 3, excludeAddress?:
   }
 }
 
+// Helper function to count open projects by fetching from table (same as Projects page)
+async function countOpenProjectsFromTable(): Promise<number> {
+  try {
+    // Get the DevHub object to find the projects table ID
+    const devhubObj = await suiClient.getObject({
+      id: DEVHUB_OBJECT_ID,
+      options: { showContent: true, showType: true, showOwner: true }
+    });
+
+    if (!devhubObj.data?.content || !('fields' in devhubObj.data.content)) {
+      console.warn('⚠️ DevHub object has no content');
+      return 0;
+    }
+
+    const devhubFields = (devhubObj.data.content as any).fields;
+    
+    if (!devhubFields.projects) {
+      console.warn('⚠️ Projects table not found in DevHub structure');
+      return 0;
+    }
+
+    // Extract the table ID from the projects field
+    let projectsTableId: string;
+    let idValue: any;
+    
+    if (devhubFields.projects.fields && devhubFields.projects.fields.id) {
+      idValue = devhubFields.projects.fields.id;
+    } else if (devhubFields.projects.id) {
+      idValue = devhubFields.projects.id;
+    } else {
+      console.error('⚠️ Projects table structure not recognized');
+      return 0;
+    }
+
+    // Extract string ID from UID object
+    if (typeof idValue === 'object' && idValue !== null) {
+      if (idValue.id) {
+        projectsTableId = String(idValue.id);
+      } else if (idValue.objectId) {
+        projectsTableId = String(idValue.objectId);
+      } else {
+        const keys = Object.keys(idValue);
+        const possibleId = keys.find(k => 
+          typeof idValue[k] === 'string' && 
+          idValue[k].startsWith('0x')
+        );
+        if (possibleId) {
+          projectsTableId = String(idValue[possibleId]);
+        } else {
+          console.error('⚠️ Cannot extract table ID');
+          return 0;
+        }
+      }
+    } else if (typeof idValue === 'string') {
+      projectsTableId = idValue;
+    } else {
+      console.error('⚠️ Invalid table ID format');
+      return 0;
+    }
+
+    // Query dynamic fields on the projects table
+    const tableDynamicFields = await suiClient.getDynamicFields({
+      parentId: projectsTableId,
+      limit: 200
+    });
+
+    if (!tableDynamicFields.data || tableDynamicFields.data.length === 0) {
+      return 0;
+    }
+
+    let openCount = 0;
+
+    // Fetch each dynamic field object and check status
+    for (const field of tableDynamicFields.data) {
+      try {
+        const fieldObj = await suiClient.getDynamicFieldObject({
+          parentId: projectsTableId,
+          name: field.name
+        });
+
+        if (fieldObj.data && fieldObj.data.content && 'fields' in fieldObj.data.content) {
+          const type = fieldObj.data.type || '';
+          if (type.includes('Project')) {
+            // Extract Project struct from dynamic field value
+            const container = fieldObj.data.content as any;
+            const valueNode = container.fields?.value ?? container.fields;
+            const fields = (valueNode && valueNode.fields) ? valueNode.fields : valueNode;
+
+            if (fields && fields.applications_status === 'Open') {
+              openCount++;
+            }
+          }
+        }
+      } catch (fieldError: any) {
+        console.debug(`⚠️ Error fetching field ${field.name}:`, fieldError?.message || fieldError);
+        continue;
+      }
+    }
+
+    console.log(`📊 Counted ${openCount} open projects from table`);
+    return openCount;
+  } catch (error) {
+    console.error('❌ Error counting open projects from table:', error);
+    return 0;
+  }
+}
+
 // Get platform statistics
 export async function getPlatformStats(): Promise<{
   totalDevelopers: number;
@@ -5283,8 +5721,8 @@ export async function getPlatformStats(): Promise<{
   openProjects: number;
 }> {
   try {
-    // Fetch platform stats and open projects in parallel
-    const [statsResult, openProjectsIds] = await Promise.all([
+    // Fetch platform stats and count open projects from table in parallel
+    const [statsResult, openProjectsCount] = await Promise.all([
       suiClient.devInspectTransactionBlock({
         transactionBlock: (() => {
           const tx = new Transaction();
@@ -5298,7 +5736,7 @@ export async function getPlatformStats(): Promise<{
         })(),
         sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
       }),
-      getOpenProjects() // Get actual open projects from blockchain
+      countOpenProjectsFromTable() // Count open projects from table (same method as Projects page)
     ]);
 
     // Parse platform stats
@@ -5313,15 +5751,15 @@ export async function getPlatformStats(): Promise<{
       verifiedDevelopers = Number(parseReturnValue(returnValues[2]));
     }
 
-    // Use actual count from getOpenProjects for more reliable data
-    const openProjects = Array.isArray(openProjectsIds) ? openProjectsIds.length : 0;
+    // Use count from table to ensure consistency with Projects page
+    const openProjects = openProjectsCount;
 
     console.log('📊 Platform stats fetched:', {
       totalDevelopers,
       activeDevelopers,
       verifiedDevelopers,
       openProjects,
-      openProjectsIdsCount: openProjectsIds?.length || 0
+      openProjectsCount
     });
 
     return {
@@ -5332,10 +5770,9 @@ export async function getPlatformStats(): Promise<{
     };
   } catch (error) {
     console.error('Error getting platform stats:', error);
-    // Fallback: try to get at least open projects count
+    // Fallback: try to get at least open projects count from table
     try {
-      const openProjectsIds = await getOpenProjects();
-      const openProjects = Array.isArray(openProjectsIds) ? openProjectsIds.length : 0;
+      const openProjects = await countOpenProjectsFromTable();
       return {
         totalDevelopers: 0,
         activeDevelopers: 0,

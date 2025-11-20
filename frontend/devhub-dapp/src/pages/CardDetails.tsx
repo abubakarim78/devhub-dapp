@@ -319,12 +319,16 @@ const CardDetails: React.FC = () => {
                               Verified
                             </span>
                           )}
-                          {card.openToWork && (
-                            <span className="px-3 py-1 bg-green-500 text-white rounded-full text-sm font-semibold flex items-center gap-1">
-                              <div className="h-2 w-2 rounded-full bg-white"></div>
-                              Available for work
-                            </span>
-                          )}
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 ${
+                            card.openToWork 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-gray-500 text-white'
+                          }`}>
+                            <div className={`h-2 w-2 rounded-full ${
+                              card.openToWork ? 'bg-white' : 'bg-white/70'
+                            }`}></div>
+                            {card.openToWork ? 'Available' : 'Unavailable'}
+                          </span>
                         </div>
                         {card.analytics.averageRating > 0 && (
                           <div className="flex items-center gap-2 mb-2">

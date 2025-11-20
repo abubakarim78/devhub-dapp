@@ -309,16 +309,16 @@ const AdminFeatures: React.FC = () => {
               <Lock className="h-5 w-5 text-muted-foreground" />
             </div>
             
-            <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-              <div className="flex items-center space-x-2 mb-2">
-                <AlertCircle className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium text-yellow-700">Admin Notice</span>
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <div className="flex items-center space-x-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Admin Notice</span>
+                </div>
+                <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                  Platform fee management and withdrawals are restricted to Super Admin access only. 
+                  Contact your Super Admin for fee-related operations.
+                </p>
               </div>
-              <p className="text-sm text-yellow-600">
-                Platform fee management and withdrawals are restricted to Super Admin access only. 
-                Contact your Super Admin for fee-related operations.
-              </p>
-            </div>
           </div>
         </motion.div>
 
@@ -346,13 +346,13 @@ const AdminFeatures: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-700">Super Admin</span>
-                <Shield className="h-4 w-4 text-blue-500" />
+              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Super Admin</span>
+                  <Shield className="h-4 w-4 text-blue-500" />
+                </div>
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-mono break-all">{superAdmin}</p>
               </div>
-              <p className="text-sm text-blue-600 font-mono break-all">{superAdmin}</p>
-            </div>
 
             <div className="p-4 bg-secondary/50 rounded-xl">
               <div className="flex items-center justify-between mb-2">
@@ -365,9 +365,9 @@ const AdminFeatures: React.FC = () => {
             <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
               <div className="flex items-center space-x-2 mb-2">
                 <AlertCircle className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium text-yellow-700">Admin Notice</span>
+                <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Admin Notice</span>
               </div>
-              <p className="text-sm text-yellow-600">
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">
                 Admin role management (grant/revoke) is restricted to Super Admin access only. 
                 Contact your Super Admin for role-related operations.
               </p>
