@@ -187,9 +187,9 @@ const AdminPanel: React.FC = () => {
                                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
                                         <div className="flex items-center space-x-2 mb-2">
                                             <Eye className="h-4 w-4 text-yellow-500" />
-                                            <span className="text-sm font-medium text-yellow-700">Read-Only Access</span>
+                                            <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Read-Only Access</span>
                                         </div>
-                                        <p className="text-sm text-yellow-600">
+                                        <p className="text-sm text-yellow-600 dark:text-yellow-400">
                                             This section provides read-only access to admin information. Role management requires Super Admin privileges.
                                         </p>
                                     </div>
@@ -333,9 +333,9 @@ const AdminPanel: React.FC = () => {
                                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
                                         <div className="flex items-center space-x-2 mb-2">
                                             <Eye className="h-4 w-4 text-yellow-500" />
-                                            <span className="text-sm font-medium text-yellow-700">Read-Only Access</span>
+                                            <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Read-Only Access</span>
                                         </div>
-                                        <p className="text-sm text-yellow-600">
+                                        <p className="text-sm text-yellow-600 dark:text-yellow-400">
                                             This section provides read-only access to activity logs. Detailed audit information is available to Super Admins.
                                         </p>
                                     </div>
@@ -414,7 +414,7 @@ const AdminPanel: React.FC = () => {
                                                         setActivityFilter(e.target.value);
                                                         setCurrentPage(1);
                                                     }}
-                                                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+                                                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-foreground"
                                                 >
                                                     <option value="All">All Events</option>
                                                     <option value="Role Granted">Role Granted</option>
@@ -519,7 +519,7 @@ const AdminPanel: React.FC = () => {
                                                             onChange={() => {
                                                                 setCurrentPage(1);
                                                             }}
-                                                            className="px-2 py-1 rounded border border-border bg-background text-foreground"
+                                                            className="px-2 py-1 rounded border border-border bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                                                             disabled
                                                         >
                                                             <option value={5}>5 events</option>

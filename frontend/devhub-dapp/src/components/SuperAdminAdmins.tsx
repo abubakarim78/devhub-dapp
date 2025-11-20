@@ -94,7 +94,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
           <input
             type="text"
             placeholder="Search by address or name"
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
             value={adminSearchTerm}
             onChange={(e) => setAdminSearchTerm(e.target.value)}
           />
@@ -102,7 +102,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
         <select 
           value={adminRoleFilter}
           onChange={(e) => setAdminRoleFilter(e.target.value as "All" | "Admin" | "Super")}
-          className="px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none"
+          className="px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none text-foreground"
         >
           <option value="All">All Roles</option>
           <option value="Admin">Admin Only</option>
@@ -215,7 +215,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
                         className="h-8 w-8 rounded-full"
                       />
                       <div className="flex flex-col">
-                        <span className="font-medium font-mono text-sm">
+                        <span className="font-medium font-mono text-sm text-foreground">
                           {admin.address.slice(0, 8)}...{admin.address.slice(-8)}
                         </span>
                         <span className="text-xs text-muted-foreground font-mono">
@@ -243,7 +243,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
                       </span>
                     </td>
                     <td className="p-4 text-muted-foreground">
-                      {admin.notes}
+                      {admin.notes || <span className="text-muted-foreground/50">—</span>}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
@@ -330,14 +330,14 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
               <input
                 type="text"
                 placeholder="0x Enter SUI address"
-                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
                 value={newAdminAddress}
                 onChange={(e) => setNewAdminAddress(e.target.value)}
               />
             </div>
             <div>
               <select
-                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground"
                 value={newAdminRole}
                 onChange={(e) =>
                   setNewAdminRole(
@@ -353,7 +353,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
               <input
                 type="text"
                 placeholder="Note (optional)"
-                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
                 value={newAdminNote}
                 onChange={(e) => setNewAdminNote(e.target.value)}
               />
@@ -394,7 +394,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
               <input
                 type="text"
                 placeholder="0x Enter SUI address to revoke"
-                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
                 value={revokeAdminAddress}
                 onChange={(e) => setRevokeAdminAddress(e.target.value)}
               />
@@ -403,7 +403,7 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
               <input
                 type="text"
                 placeholder="Reason for revocation (optional)"
-                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
                 value={newAdminNote}
                 onChange={(e) => setNewAdminNote(e.target.value)}
               />

@@ -452,7 +452,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     profile: { ...prev.profile, displayName: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="Enter your display name"
                                 />
                               </div>
@@ -467,7 +467,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     profile: { ...prev.profile, location: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="City, Country"
                                 />
                               </div>
@@ -482,7 +482,7 @@ const DashboardSettings: React.FC = () => {
                                     profile: { ...prev.profile, bio: e.target.value }
                                   }))}
                                   rows={4}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="Tell us about yourself..."
                                 />
                               </div>
@@ -497,7 +497,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     profile: { ...prev.profile, website: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="https://yourwebsite.com"
                                 />
                               </div>
@@ -512,7 +512,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     profile: { ...prev.profile, github: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="username"
                                 />
                               </div>
@@ -527,7 +527,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     profile: { ...prev.profile, twitter: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="@handle"
                                 />
                               </div>
@@ -542,7 +542,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     profile: { ...prev.profile, linkedin: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                                   placeholder="profile url or handle"
                                 />
                               </div>
@@ -706,7 +706,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     preferences: { ...prev.preferences, language: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                                 >
                                   <option value="en">English</option>
                                   <option value="es">Spanish</option>
@@ -725,7 +725,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     preferences: { ...prev.preferences, timezone: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                                 >
                                   <option value="UTC">UTC</option>
                                   <option value="EST">Eastern Time</option>
@@ -744,7 +744,7 @@ const DashboardSettings: React.FC = () => {
                                     ...prev,
                                     preferences: { ...prev.preferences, currency: e.target.value }
                                   }))}
-                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                                 >
                                   <option value="USD">USD</option>
                                   <option value="EUR">EUR</option>
@@ -787,7 +787,7 @@ const DashboardSettings: React.FC = () => {
                                   </motion.button>
                                 </div>
                                 {settings.security.twoFactorAuth && (
-                                  <div className="text-sm text-green-600 bg-green-500/10 p-3 rounded-lg">
+                                  <div className="text-sm text-green-600 dark:text-green-400 bg-green-500/10 p-3 rounded-lg">
                                     ✓ Two-factor authentication is enabled
                                   </div>
                                 )}

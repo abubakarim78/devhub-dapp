@@ -213,7 +213,7 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
           <input
             type="text"
             placeholder="Search address, tx, or note"
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
           />
         </div>
         <select 
@@ -222,7 +222,7 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
             setActivityFilter(e.target.value);
             setActivityCurrentPage(1);
           }}
-          className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+          className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground"
         >
           <option value="All">Type: All</option>
           <option value="Role Granted">Role Granted</option>
@@ -231,13 +231,13 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
           <option value="Card Created">Card Created</option>
           <option value="Project Created">Project Created</option>
         </select>
-        <select className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none">
+        <select className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground">
           <option>Status: Any</option>
           <option>Confirmed</option>
           <option>Timelocked</option>
           <option>Review</option>
         </select>
-        <select className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none">
+        <select className="px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground">
           <option>Date: Last 30d</option>
           <option>Last 7d</option>
           <option>Last 24h</option>
@@ -285,7 +285,7 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
                         {item.type}
                       </span>
                     </td>
-                    <td className="p-4 font-medium">{item.actor}</td>
+                    <td className="p-4 font-medium text-foreground">{item.actor}</td>
                     <td className="p-4 text-foreground">
                       {item.details}
                     </td>
@@ -311,8 +311,8 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
                   <td colSpan={5} className="p-8 text-center text-muted-foreground">
                     <div className="flex flex-col items-center space-y-2">
                       <Activity className="h-8 w-8 text-muted-foreground/50" />
-                      <p className="text-lg font-medium">No Activity Data Available</p>
-                      <p className="text-sm">
+                      <p className="text-lg font-medium text-foreground">No Activity Data Available</p>
+                      <p className="text-sm text-muted-foreground">
                         Activity logging will be available when event querying is implemented.
                       </p>
                     </div>
@@ -355,7 +355,7 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
                   onChange={() => {
                     setActivityCurrentPage(1);
                   }}
-                  className="px-2 py-1 rounded border border-border bg-background text-foreground"
+                  className="px-2 py-1 rounded border border-border bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                   disabled
                 >
                   <option value={5}>5 events</option>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { 
   User, 
   MapPin, 
@@ -9,21 +9,21 @@ import {
   Wallet, 
   ExternalLink, 
   Star,
-  Edit,
-  Plus,
-  Upload,
-  Eye,
   Building,
   Zap,
   Loader2,
   AlertCircle,
   ToggleLeft,
   ToggleRight,
+  Users,
+  Plus,
   Trash2,
+  CheckCircle,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
-import { DevCardData, getWorkPreferences } from '@/lib/suiClient';
+import { DevCardData, getWorkPreferences, updateCardTransaction, updateFeaturedProjectsTransaction } from '@/lib/suiClient';
 
 const MyProfile: React.FC = () => {
   const currentAccount = useCurrentAccount();
@@ -32,10 +32,26 @@ const MyProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
-  const [deletingCard, setDeletingCard] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [addingProject, setAddingProject] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
+  const [newProject, setNewProject] = useState({ title: '', description: '', source: '', thumbnail: '' });
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
-  const { getUserCards, loading: contractLoading, error: contractError } = useContract();
+  const { getUserCards, loading: contractLoading, error: contractError, clearCache } = useContract();
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+
+  // Toast functions
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const closeToast = () => {
+    setToast(null);
+  };
 
   // Fetch user cards when component mounts or account changes
   useEffect(() => {
@@ -48,9 +64,12 @@ const MyProfile: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const cards = await getUserCards(currentAccount.address);
         
-        // Fetch work preferences for each card
+        // Fetch cards first and show them immediately
+        const cards = await getUserCards(currentAccount.address);
+        setUserCards(cards); // Show cards immediately
+        
+        // Then fetch work preferences in parallel (non-blocking)
         const cardsWithWorkPreferences = await Promise.all(
           cards.map(async (card) => {
             try {
@@ -66,6 +85,7 @@ const MyProfile: React.FC = () => {
           })
         );
         
+        // Update cards with work preferences
         setUserCards(cardsWithWorkPreferences);
       } catch (err) {
         console.error('Error fetching user cards:', err);
@@ -178,46 +198,256 @@ const MyProfile: React.FC = () => {
     );
   }
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // You could add a toast notification here
+  const handleCopy = (text: string, label: string = 'Text') => {
+    if (!text) {
+      showToast('Nothing to copy', 'error');
+      return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(`${label} copied to clipboard!`, 'success');
+    }).catch((err) => {
+      console.error('Failed to copy:', err);
+      showToast('Failed to copy to clipboard', 'error');
+    });
   };
 
   const handleToggleAvailability = async () => {
-    if (!primaryCard) return;
+    if (!primaryCard || !currentAccount) return;
     
     try {
       setTogglingAvailability(true);
-      // Here you would call the contract function to toggle availability
-      // For now, we'll just update the local state
-      setUserCards(prevCards => 
-        prevCards.map(card => 
-          card.id === primaryCard.id 
-            ? { ...card, openToWork: !card.openToWork }
-            : card
-        )
+      
+      // Prepare card data with toggled openToWork
+      const updatedOpenToWork = !primaryCard.openToWork;
+      const featuredProjectsJson = primaryCard.featuredProjects.map(p => JSON.stringify(p));
+      
+      const tx = updateCardTransaction(primaryCard.id, {
+        name: primaryCard.name,
+        niche: primaryCard.niche,
+        about: primaryCard.description || primaryCard.about || '',
+        imageUrl: primaryCard.imageUrl,
+        technologies: primaryCard.technologies,
+        contact: primaryCard.contact,
+        portfolio: primaryCard.portfolio,
+        featuredProjects: featuredProjectsJson,
+        languages: primaryCard.languages || [],
+        openToWork: updatedOpenToWork,
+        yearsOfExperience: primaryCard.yearsOfExperience,
+        workTypes: primaryCard.workPreferences.workTypes || [],
+        hourlyRate: primaryCard.workPreferences.hourlyRate || null,
+        locationPreference: primaryCard.workPreferences.locationPreference || '',
+        availability: primaryCard.workPreferences.availability || '',
+        github: primaryCard.socialLinks.github || '',
+        linkedin: primaryCard.socialLinks.linkedin || '',
+        twitter: primaryCard.socialLinks.twitter || '',
+        personalWebsite: primaryCard.socialLinks.personalWebsite || '',
+      });
+      
+      await signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: async () => {
+            // Clear cache and refetch to get latest data from blockchain
+            if (currentAccount?.address) {
+              clearCache(currentAccount.address);
+              const cards = await getUserCards(currentAccount.address, true);
+              const cardsWithWorkPreferences = await Promise.all(
+                cards.map(async (card) => {
+                  try {
+                    const workPrefs = await getWorkPreferences(card.id);
+                    return {
+                      ...card,
+                      workPreferences: workPrefs || card.workPreferences
+                    };
+                  } catch (err) {
+                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
+                    return card;
+                  }
+                })
+              );
+              setUserCards(cardsWithWorkPreferences);
+              showToast(
+                updatedOpenToWork 
+                  ? 'Availability activated successfully!' 
+                  : 'Availability deactivated successfully!',
+                'success'
+              );
+            }
+          },
+          onError: (error) => {
+            console.error('Error toggling availability:', error);
+            showToast('Failed to update availability. Please try again.', 'error');
+          },
+        }
       );
     } catch (error) {
       console.error('Error toggling availability:', error);
+      showToast('Failed to update availability. Please try again.', 'error');
     } finally {
       setTogglingAvailability(false);
     }
   };
 
-  const handleDeleteCard = async () => {
-    if (!primaryCard) return;
+  const handleAddProject = async () => {
+    if (!primaryCard || !currentAccount) return;
+    
+    if (!newProject.title || !newProject.source) {
+      showToast('Please provide at least a title and source URL for the project.', 'error');
+      return;
+    }
     
     try {
-      setDeletingCard(true);
-      // Here you would call the contract function to delete the card
-      // For now, we'll just remove it from the local state
-      setUserCards(prevCards => prevCards.filter(card => card.id !== primaryCard.id));
-      setShowDeleteConfirm(false);
+      setAddingProject(true);
+      
+      // Add new project to the list
+      const updatedProjects = [...primaryCard.featuredProjects, newProject];
+      const featuredProjectsJson = updatedProjects.map(p => JSON.stringify(p));
+      
+      const tx = updateFeaturedProjectsTransaction(primaryCard.id, featuredProjectsJson);
+      
+      await signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: async () => {
+            // Clear cache and refetch to get latest data from blockchain
+            if (currentAccount?.address) {
+              clearCache(currentAccount.address);
+              const cards = await getUserCards(currentAccount.address, true);
+              const cardsWithWorkPreferences = await Promise.all(
+                cards.map(async (card) => {
+                  try {
+                    const workPrefs = await getWorkPreferences(card.id);
+                    return {
+                      ...card,
+                      workPreferences: workPrefs || card.workPreferences
+                    };
+                  } catch (err) {
+                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
+                    return card;
+                  }
+                })
+              );
+              setUserCards(cardsWithWorkPreferences);
+            }
+            // Reset form and close modal
+            setNewProject({ title: '', description: '', source: '', thumbnail: '' });
+            setShowAddProjectModal(false);
+            showToast('Featured project added successfully!', 'success');
+          },
+          onError: (error) => {
+            console.error('Error adding project:', error);
+            showToast('Failed to add project. Please try again.', 'error');
+          },
+        }
+      );
     } catch (error) {
-      console.error('Error deleting card:', error);
+      console.error('Error adding project:', error);
+      showToast('Failed to add project. Please try again.', 'error');
     } finally {
-      setDeletingCard(false);
+      setAddingProject(false);
     }
+  };
+
+  const handleDeleteProjectClick = (index: number) => {
+    setProjectToDelete(index);
+    setShowDeleteProjectModal(true);
+  };
+
+  const handleDeleteProject = async () => {
+    if (!primaryCard || !currentAccount || projectToDelete === null) return;
+    
+    try {
+      setDeletingProject(true);
+      
+      // Remove project from the list
+      const updatedProjects = primaryCard.featuredProjects.filter((_, i) => i !== projectToDelete);
+      const featuredProjectsJson = updatedProjects.map(p => JSON.stringify(p));
+      
+      const tx = updateFeaturedProjectsTransaction(primaryCard.id, featuredProjectsJson);
+      
+      await signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: async () => {
+            // Clear cache and refetch to get latest data from blockchain
+            if (currentAccount?.address) {
+              clearCache(currentAccount.address);
+              const cards = await getUserCards(currentAccount.address, true);
+              const cardsWithWorkPreferences = await Promise.all(
+                cards.map(async (card) => {
+                  try {
+                    const workPrefs = await getWorkPreferences(card.id);
+                    return {
+                      ...card,
+                      workPreferences: workPrefs || card.workPreferences
+                    };
+                  } catch (err) {
+                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
+                    return card;
+                  }
+                })
+              );
+              setUserCards(cardsWithWorkPreferences);
+            }
+            // Close modal and reset
+            setShowDeleteProjectModal(false);
+            setProjectToDelete(null);
+            showToast('Featured project deleted successfully!', 'success');
+          },
+          onError: (error) => {
+            console.error('Error deleting project:', error);
+            showToast('Failed to delete project. Please try again.', 'error');
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      showToast('Failed to delete project. Please try again.', 'error');
+    } finally {
+      setDeletingProject(false);
+    }
+  };
+
+  // Calculate profile completeness based on real data
+  const calculateProfileCompleteness = (card: DevCardData | null): number => {
+    if (!card) return 0;
+    
+    let score = 0;
+    const fields = [
+      { check: card.name && card.name.trim().length > 0, weight: 15 },
+      { check: card.description && card.description.trim().length > 0, weight: 15 },
+      { check: card.imageUrl && card.imageUrl.trim().length > 0, weight: 10 },
+      { check: card.skills && card.skills.length > 0, weight: 15 },
+      { check: card.technologies && card.technologies.trim().length > 0, weight: 10 },
+      { check: card.contact && card.contact.trim().length > 0, weight: 10 },
+      { check: card.workPreferences && (card.workPreferences.locationPreference || card.workPreferences.availability), weight: 10 },
+      { check: card.featuredProjects && card.featuredProjects.length > 0, weight: 10 },
+      { check: card.socialLinks && (card.socialLinks.github || card.socialLinks.linkedin || card.socialLinks.twitter), weight: 5 },
+    ];
+    
+    fields.forEach(field => {
+      if (field.check) {
+        score += field.weight;
+      }
+    });
+    
+    return Math.min(100, score);
+  };
+
+  // Format date helper function
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   return (
@@ -262,114 +492,8 @@ const MyProfile: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.4 }}
                       >
-                        Manage your public developer profile, availability, and portfolio.
+                        Manage your public profile, availability, and portfolio.
                       </motion.p>
-                    </motion.div>
-                    
-                    {/* Action Buttons */}
-                    <motion.div 
-                      className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.6, delay: 0.5 }}
-                    >
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.6 }}
-                        whileHover={{ 
-                          scale: 1.05, 
-                          y: -2,
-                          boxShadow: "0 10px 25px rgba(168, 85, 247, 0.4)"
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2"
-                      >
-                        <motion.div
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 0.5, delay: 0.8 }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </motion.div>
-                        Preview Profile
-                      </motion.button>
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.7 }}
-                        whileHover={{ 
-                          scale: 1.05, 
-                          y: -2,
-                          boxShadow: "0 10px 25px rgba(34, 197, 94, 0.4)"
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2"
-                      >
-                        <motion.div
-                          animate={{ rotate: [0, 5, -5, 0] }}
-                          transition={{ duration: 0.5, delay: 0.9 }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </motion.div>
-                        Edit Profile
-                      </motion.button>
-                      
-                      {/* Toggle Availability Button */}
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.8 }}
-                        whileHover={{ 
-                          scale: 1.05, 
-                          y: -2,
-                          boxShadow: primaryCard?.openToWork 
-                            ? "0 10px 25px rgba(239, 68, 68, 0.4)" 
-                            : "0 10px 25px rgba(34, 197, 94, 0.4)"
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleToggleAvailability}
-                        disabled={togglingAvailability}
-                        className={`px-6 py-3 font-semibold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
-                          primaryCard?.openToWork 
-                            ? 'bg-red-500 text-white hover:bg-red-600' 
-                            : 'bg-green-500 text-white hover:bg-green-600'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {togglingAvailability ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <motion.div
-                            animate={{ rotate: [0, 5, -5, 0] }}
-                            transition={{ duration: 0.5, delay: 1.0 }}
-                          >
-                            {primaryCard?.openToWork ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
-                          </motion.div>
-                        )}
-                        {primaryCard?.openToWork ? 'Deactivate' : 'Activate'}
-                      </motion.button>
-                      
-                      {/* Delete Card Button */}
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.9 }}
-                        whileHover={{ 
-                          scale: 1.05, 
-                          y: -2,
-                          boxShadow: "0 10px 25px rgba(239, 68, 68, 0.4)"
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="px-6 py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition-all shadow-lg flex items-center justify-center gap-2"
-                      >
-                        <motion.div
-                          animate={{ rotate: [0, 5, -5, 0] }}
-                          transition={{ duration: 0.5, delay: 1.1 }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </motion.div>
-                        Delete Card
-                      </motion.button>
                     </motion.div>
                   </motion.div>
 
@@ -496,6 +620,47 @@ const MyProfile: React.FC = () => {
                             {primaryCard.openToWork ? 'Available' : 'Not Available'}
                           </motion.div>
                         </motion.div>
+                      </motion.div>
+                      
+                      {/* Toggle Availability Button */}
+                      <motion.div 
+                        className="mt-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 1.0 }}
+                      >
+                        <motion.button
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.5, delay: 1.1 }}
+                          whileHover={{ 
+                            scale: 1.05, 
+                            y: -2,
+                            boxShadow: primaryCard?.openToWork 
+                              ? "0 10px 25px rgba(239, 68, 68, 0.4)" 
+                              : "0 10px 25px rgba(34, 197, 94, 0.4)"
+                          }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleToggleAvailability}
+                          disabled={togglingAvailability}
+                          className={`w-full px-6 py-3 font-semibold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
+                            primaryCard?.openToWork 
+                              ? 'bg-red-500 text-white hover:bg-red-600' 
+                              : 'bg-green-500 text-white hover:bg-green-600'
+                          } disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer`}
+                        >
+                          {togglingAvailability ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <motion.div
+                              animate={{ rotate: [0, 5, -5, 0] }}
+                              transition={{ duration: 0.5, delay: 1.0 }}
+                            >
+                              {primaryCard?.openToWork ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
+                            </motion.div>
+                          )}
+                          {primaryCard?.openToWork ? 'Deactivate' : 'Activate'}
+                        </motion.button>
                       </motion.div>
                     </motion.div>
 
@@ -638,7 +803,7 @@ const MyProfile: React.FC = () => {
                               stiffness: 300
                             }}
                           >
-                            92%
+                            {calculateProfileCompleteness(primaryCard)}%
                           </motion.span>
                         </motion.div>
                       </motion.div>
@@ -653,14 +818,14 @@ const MyProfile: React.FC = () => {
                       </motion.p>
 
                       {/* Skills */}
-                      <motion.div 
-                        className="flex flex-wrap gap-2 mb-6"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 1.9 }}
-                      >
-                        {primaryCard.skills.length > 0 ? (
-                          primaryCard.skills.map((skill, index) => (
+                      {primaryCard.skills.length > 0 && (
+                        <motion.div 
+                          className="flex flex-wrap gap-2 mb-6"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.5, delay: 1.9 }}
+                        >
+                          {primaryCard.skills.map((skill, index) => (
                             <motion.span
                               key={`${skill.skill}-${index}`}
                               initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
@@ -681,18 +846,9 @@ const MyProfile: React.FC = () => {
                             >
                               {skill.skill} ({skill.proficiency}/10)
                             </motion.span>
-                          ))
-                        ) : (
-                          <motion.span
-                            initial={{ opacity: 0, scale: 0.5 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5, delay: 2.0 }}
-                            className="px-3 py-1 bg-gray-500/20 text-gray-400 rounded-full text-sm font-medium"
-                          >
-                            No skills added yet
-                          </motion.span>
-                        )}
-                      </motion.div>
+                          ))}
+                        </motion.div>
+                      )}
 
                       {/* Hourly Rate & Location */}
                       <div className="space-y-4">
@@ -700,15 +856,15 @@ const MyProfile: React.FC = () => {
                           <div className="text-sm text-muted-foreground mb-1">Hourly Rate</div>
                           <div className="text-lg font-semibold text-foreground">
                             {primaryCard.workPreferences.hourlyRate 
-                              ? `${primaryCard.workPreferences.hourlyRate} SUI/hr` 
-                              : 'Not specified'
+                              ? `$${primaryCard.workPreferences.hourlyRate}/hr` 
+                              : ''
                             }
                           </div>
                         </div>
                         <div>
                           <div className="text-sm text-muted-foreground mb-1">Availability</div>
                           <div className="text-lg font-semibold text-foreground">
-                            {primaryCard.workPreferences.availability || 'Not specified'}
+                            {primaryCard.workPreferences.availability || ''}
                           </div>
                         </div>
                         <div>
@@ -808,8 +964,8 @@ const MyProfile: React.FC = () => {
                               boxShadow: "0 5px 15px rgba(168, 85, 247, 0.4)"
                             }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => handleCopy(primaryCard.contact || '')}
-                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
+                            onClick={() => handleCopy(primaryCard.contact || '', 'Contact')}
+                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors cursor-pointer"
                           >
                             Copy
                           </motion.button>
@@ -851,7 +1007,7 @@ const MyProfile: React.FC = () => {
                             whileTap={{ scale: 0.9 }}
                             onClick={() => primaryCard.portfolio && window.open(primaryCard.portfolio, '_blank')}
                             disabled={!primaryCard.portfolio}
-                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
                             <ExternalLink className="h-3 w-3" />
                             Open
@@ -897,8 +1053,8 @@ const MyProfile: React.FC = () => {
                               boxShadow: "0 5px 15px rgba(168, 85, 247, 0.4)"
                             }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => handleCopy(currentAccount?.address || '')}
-                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
+                            onClick={() => handleCopy(currentAccount?.address || '', 'Wallet address')}
+                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors cursor-pointer"
                           >
                             Copy
                           </motion.button>
@@ -929,26 +1085,17 @@ const MyProfile: React.FC = () => {
                     >
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-foreground">Featured Work</h3>
-                        <div className="flex gap-2">
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-1"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add Project
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1"
-                          >
-                            <Upload className="h-3 w-3" />
-                            Upload Media
-                          </motion.button>
-                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowAddProjectModal(true)}
+                          className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add
+                        </motion.button>
                       </div>
-
+                      
                       <div className="space-y-4">
                         {primaryCard.featuredProjects.length > 0 ? (
                           primaryCard.featuredProjects.map((project, index) => (
@@ -960,32 +1107,72 @@ const MyProfile: React.FC = () => {
                               className="p-4 bg-accent/20 rounded-xl border border-border"
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`w-10 h-10 bg-gradient-to-br ${
-                                  index % 3 === 0 ? 'from-blue-400 to-blue-600' :
-                                  index % 3 === 1 ? 'from-yellow-400 to-orange-500' :
-                                  'from-green-400 to-emerald-600'
-                                } rounded-lg flex items-center justify-center`}>
-                                  {index % 3 === 0 ? <Building className="h-5 w-5 text-white" /> :
-                                   index % 3 === 1 ? <Zap className="h-5 w-5 text-white" /> :
-                                   <Building className="h-5 w-5 text-white" />}
+                                <div className="relative w-16 h-16 flex-shrink-0">
+                                  {project.thumbnail ? (
+                                    <>
+                                      <img 
+                                        src={project.thumbnail} 
+                                        alt={project.title}
+                                        className="w-16 h-16 object-cover rounded-lg"
+                                        onError={(e) => {
+                                          // Hide image and show fallback
+                                          e.currentTarget.style.display = 'none';
+                                          const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                          if (fallback) fallback.style.display = 'flex';
+                                        }}
+                                      />
+                                      <div 
+                                        className={`hidden w-16 h-16 bg-gradient-to-br ${
+                                          index % 3 === 0 ? 'from-blue-400 to-blue-600' :
+                                          index % 3 === 1 ? 'from-yellow-400 to-orange-500' :
+                                          'from-green-400 to-emerald-600'
+                                        } rounded-lg items-center justify-center`}
+                                      >
+                                        {index % 3 === 0 ? <Building className="h-8 w-8 text-white" /> :
+                                         index % 3 === 1 ? <Zap className="h-8 w-8 text-white" /> :
+                                         <Building className="h-8 w-8 text-white" />}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className={`w-16 h-16 bg-gradient-to-br ${
+                                      index % 3 === 0 ? 'from-blue-400 to-blue-600' :
+                                      index % 3 === 1 ? 'from-yellow-400 to-orange-500' :
+                                      'from-green-400 to-emerald-600'
+                                    } rounded-lg flex items-center justify-center`}>
+                                      {index % 3 === 0 ? <Building className="h-8 w-8 text-white" /> :
+                                       index % 3 === 1 ? <Zap className="h-8 w-8 text-white" /> :
+                                       <Building className="h-8 w-8 text-white" />}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <h4 className="font-semibold text-foreground mb-1">{project.title}</h4>
-                                  <p className="text-sm text-muted-foreground mb-3">Featured project from your portfolio.</p>
+                                  {project.description && (
+                                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{project.description}</p>
+                                  )}
                                   <div className="flex gap-2">
+                                    {project.source && (
+                                      <motion.a
+                                        href={project.source}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        View
+                                      </motion.a>
+                                    )}
                                     <motion.button
                                       whileHover={{ scale: 1.05 }}
                                       whileTap={{ scale: 0.95 }}
-                                      className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
+                                      onClick={() => handleDeleteProjectClick(index)}
+                                      disabled={deletingProject}
+                                      className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      Edit
-                                    </motion.button>
-                                    <motion.button
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors"
-                                    >
-                                      View
+                                      <Trash2 className="h-3 w-3" />
+                                      Delete
                                     </motion.button>
                                   </div>
                                 </div>
@@ -1027,59 +1214,59 @@ const MyProfile: React.FC = () => {
                       }}
                       className={`bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl`}
                     >
-                      <h3 className="text-xl font-bold text-foreground mb-6">Reviews</h3>
+                      <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                        <Users className="h-6 w-6 text-primary" />
+                        Reviews ({primaryCard.reviews.length})
+                      </h3>
                       
                       <div className="space-y-4">
                         {primaryCard.reviews.length > 0 ? (
                           primaryCard.reviews.map((review, index) => (
                             <motion.div
                               key={`${review.reviewer}-${review.timestamp}`}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.3, delay: 0.7 + index * 0.1 }}
-                              className="p-4 bg-accent/20 rounded-xl border border-border"
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.1 }}
+                              className="p-4 bg-background/50 rounded-lg border border-border"
                             >
-                              <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                  {review.reviewer.slice(0, 2).toUpperCase()}
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-foreground">
-                                      {review.reviewer.slice(0, 6)}...{review.reviewer.slice(-4)}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      {[...Array(5)].map((_, i) => (
-                                        <Star 
-                                          key={i}
-                                          className={`h-4 w-4 ${
-                                            i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                          }`} 
-                                        />
-                                      ))}
-                                      <span className="text-sm font-medium text-foreground">{review.rating}</span>
-                                    </div>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`h-3 w-3 ${
+                                          i < review.rating
+                                            ? 'text-yellow-400 fill-current'
+                                            : 'text-muted-foreground'
+                                        }`}
+                                      />
+                                    ))}
                                   </div>
-                                  <p className="text-sm text-muted-foreground mb-2">
-                                    {new Date(review.timestamp).toLocaleDateString()}
-                                  </p>
-                                  <div className="text-xs text-muted-foreground">
-                                    {new Date(review.timestamp).toLocaleDateString()}
-                                  </div>
+                                  <span className="text-sm font-medium text-foreground">{review.rating}/5</span>
                                 </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDate(review.timestamp)}
+                                </span>
                               </div>
+                              {review.reviewer && (
+                                <div className="text-xs text-muted-foreground font-mono mb-2">
+                                  From: {review.reviewer.slice(0, 6)}...{review.reviewer.slice(-4)}
+                                </div>
+                              )}
+                              {review.review_text && (
+                                <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">
+                                  {review.review_text}
+                                </p>
+                              )}
                             </motion.div>
                           ))
                         ) : (
-                          <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: 0.7 }}
-                            className="p-4 bg-accent/20 rounded-xl border border-border text-center"
-                          >
-                            <div className="text-muted-foreground mb-2">No reviews yet</div>
-                            <p className="text-sm text-muted-foreground">Reviews will appear here once you start working with clients!</p>
-                          </motion.div>
+                          <div className="text-center py-8">
+                            <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                            <p className="text-muted-foreground">No reviews yet</p>
+                            <p className="text-sm text-muted-foreground/70 mt-2">Be the first to leave a review!</p>
+                          </div>
                         )}
                       </div>
                     </motion.div>
@@ -1087,19 +1274,124 @@ const MyProfile: React.FC = () => {
                 </motion.div>
             </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Add Project Modal */}
       <AnimatePresence>
-        {showDeleteConfirm && (
+        {showAddProjectModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => !addingProject && setShowAddProjectModal(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card/90 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl max-w-md w-full"
+            >
+              <h3 className="text-xl font-bold text-foreground mb-4">Add Featured Project</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={newProject.title}
+                    onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Project title"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+                  <textarea
+                    value={newProject.description}
+                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Project description"
+                    rows={3}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Source URL *</label>
+                  <input
+                    type="url"
+                    value={newProject.source}
+                    onChange={(e) => setNewProject({ ...newProject, source: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="https://example.com/project"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Thumbnail URL</label>
+                  <input
+                    type="url"
+                    value={newProject.thumbnail}
+                    onChange={(e) => setNewProject({ ...newProject, thumbnail: e.target.value })}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="https://example.com/thumbnail.jpg"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowAddProjectModal(false);
+                    setNewProject({ title: '', description: '', source: '', thumbnail: '' });
+                  }}
+                  disabled={addingProject}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleAddProject}
+                  disabled={addingProject || !newProject.title || !newProject.source}
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {addingProject ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Add Project
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Project Modal */}
+      <AnimatePresence>
+        {showDeleteProjectModal && projectToDelete !== null && primaryCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => !deletingProject && setShowDeleteProjectModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
               className="bg-card/90 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl max-w-md w-full"
             >
               <div className="text-center">
@@ -1110,27 +1402,31 @@ const MyProfile: React.FC = () => {
                 >
                   <Trash2 className="h-8 w-8 text-red-500" />
                 </motion.div>
-                <h3 className="text-xl font-bold text-foreground mb-2">Delete Profile Card</h3>
+                <h3 className="text-xl font-bold text-foreground mb-2">Delete Featured Project</h3>
                 <p className="text-muted-foreground mb-6">
-                  Are you sure you want to delete your developer profile card? This action cannot be undone.
+                  Are you sure you want to delete "{primaryCard.featuredProjects[projectToDelete]?.title || 'this project'}"? This action cannot be undone.
                 </p>
                 <div className="flex gap-3">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    onClick={() => {
+                      setShowDeleteProjectModal(false);
+                      setProjectToDelete(null);
+                    }}
+                    disabled={deletingProject}
+                    className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={handleDeleteCard}
-                    disabled={deletingCard}
+                    onClick={handleDeleteProject}
+                    disabled={deletingProject}
                     className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {deletingCard ? (
+                    {deletingProject ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Deleting...
@@ -1148,6 +1444,44 @@ const MyProfile: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-5 right-5 z-[100]"
+          >
+            <div
+              className={`flex items-center gap-3 pl-4 pr-2 py-3 rounded-lg shadow-2xl border backdrop-blur-xl ${
+                toast.type === 'success'
+                  ? 'bg-green-500/20 border-green-500/40'
+                  : 'bg-red-500/20 border-red-500/40'
+              }`}
+            >
+              {toast.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              )}
+              <span
+                className={`font-medium text-gray-900 dark:text-gray-100`}
+              >
+                {toast.message}
+              </span>
+              <button
+                onClick={closeToast}
+                className={`ml-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </>
   );
 };

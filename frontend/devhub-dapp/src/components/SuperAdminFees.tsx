@@ -97,7 +97,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
           )}
         </div>
         <div className="flex items-center justify-between bg-background p-4 rounded-lg border border-border">
-          <p className="text-lg font-medium">
+          <p className="text-lg font-medium text-foreground">
             Current Platform Fee Balance:
           </p>
           <p className="text-2xl font-bold text-primary">
@@ -154,7 +154,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
                   step="0.01"
                   value={newTradingFee}
                   onChange={(e) => setNewTradingFee(e.target.value)}
-                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground"
+                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground"
                   placeholder="0.10"
                 />
               </div>
@@ -167,7 +167,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
                   step="0.01"
                   value={newListingFee}
                   onChange={(e) => setNewListingFee(e.target.value)}
-                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground"
+                  className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground"
                   placeholder="0.20"
                 />
               </div>
@@ -245,7 +245,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
                 onChange={(e) =>
                   setWithdrawRecipient(e.target.value)
                 }
-                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder-muted-foreground font-mono text-sm"
+                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground font-mono text-sm"
                 placeholder="0x..."
               />
             </div>
@@ -262,7 +262,7 @@ const SuperAdminFees: React.FC<SuperAdminFeesProps> = ({
                   onChange={(e) =>
                     setWithdrawAmount(e.target.value)
                   }
-                  className="flex-1 px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground"
+                  className="flex-1 px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground"
                   placeholder="Enter amount"
                 />
                 <motion.button
