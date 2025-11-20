@@ -11,8 +11,6 @@ import {
   grantAdminRoleTransaction,
   revokeAdminRoleTransaction,
   withdrawFeesTransaction,
-  changePlatformFeeTransaction,
-  changeProjectPostingFeeTransaction,
   getPlatformFeeBalance,
   getPlatformStats,
   getRecentActivity,
@@ -388,10 +386,6 @@ const SuperAdmin: React.FC = () => {
     try {
       const platformFeeInMist = Math.floor(platformFee * 1_000_000_000);
       const projectFeeInMist = Math.floor(projectFee * 1_000_000_000);
-
-      // Create transactions for both fee updates
-      const platformFeeTx = changePlatformFeeTransaction(platformFeeInMist);
-      const projectFeeTx = changeProjectPostingFeeTransaction(projectFeeInMist);
 
       // Combine both transactions
       const combinedTx = new Transaction();

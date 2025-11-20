@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, ExternalLink, Calendar, Code2, Loader2, MessageSquare, Star, MapPin, Briefcase, Globe, Github, Linkedin, Twitter, Award, Users, CheckCircle, Shield, Languages, DollarSign, FolderOpen, X } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
@@ -101,13 +101,6 @@ const CardDetails: React.FC = () => {
 
     fetchCard();
   }, [id, getCardInfo, currentAccount?.address, signAndExecute]);
-
-  // Check if user can review
-  const canReview = useMemo(() => {
-    if (!currentAccount?.address || !card) return false;
-    if (currentAccount.address.toLowerCase() === card.owner.toLowerCase()) return false;
-    return !card.reviews.some(r => r.reviewer.toLowerCase() === currentAccount.address?.toLowerCase());
-  }, [currentAccount?.address, card]);
 
   // Handle review submission
   const handleSubmitReview = async () => {
@@ -236,8 +229,8 @@ const CardDetails: React.FC = () => {
         !lang.includes('String') &&
         lang.trim().length > 0
       )
-    : typeof card.languages === 'string' 
-      ? card.languages.split(',').map((l: string) => l.trim()).filter((l: string) => 
+    : (typeof card.languages === 'string' && card.languages)
+      ? (card.languages as string).split(',').map((l: string) => l.trim()).filter((l: string) => 
           l && !l.includes('vector') && !l.includes('String')
         )
       : [];

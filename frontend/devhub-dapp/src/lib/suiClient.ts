@@ -2802,7 +2802,7 @@ export async function getCardReviews(cardId: number) {
               } as Review;
             }
             return null;
-          }).filter((review: Review | null): review is Review => review !== null && review.reviewer && review.rating > 0);
+          }).filter((review: Review | null): review is Review => review !== null && Boolean(review.reviewer) && review.rating > 0);
         }
       }
     } else if (vectorData === null || vectorData === undefined) {

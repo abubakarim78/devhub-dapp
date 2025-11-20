@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Clock, ArrowUpRight, Star, MapPin, Shield, Eye, MessageSquare, Heart } from 'lucide-react';
+import { Clock, ArrowUpRight } from 'lucide-react';
 import { DevCardData } from '@/lib/suiClient';
 
 export interface Developer {
@@ -32,10 +32,6 @@ interface DeveloperCardProps {
 
 const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
   const technologies = developer.technologies.split(',').map(t => t.trim()).filter(Boolean);
-  
-  const formatRating = (rating: number) => {
-    return (rating / 100).toFixed(1);
-  };
 
   return (
     <motion.div

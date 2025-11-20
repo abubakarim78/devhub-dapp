@@ -953,7 +953,7 @@ const MyProfile: React.FC = () => {
                         {primaryCard.featuredProjects.length > 0 ? (
                           primaryCard.featuredProjects.map((project, index) => (
                             <motion.div
-                              key={project}
+                              key={`${project.title}-${index}`}
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ duration: 0.3, delay: 0.6 + index * 0.1 }}
@@ -970,7 +970,7 @@ const MyProfile: React.FC = () => {
                                    <Building className="h-5 w-5 text-white" />}
                                 </div>
                                 <div className="flex-1">
-                                  <h4 className="font-semibold text-foreground mb-1">{project}</h4>
+                                  <h4 className="font-semibold text-foreground mb-1">{project.title}</h4>
                                   <p className="text-sm text-muted-foreground mb-3">Featured project from your portfolio.</p>
                                   <div className="flex gap-2">
                                     <motion.button
