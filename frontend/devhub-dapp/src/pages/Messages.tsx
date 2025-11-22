@@ -165,9 +165,22 @@ const Messages: React.FC = () => {
     });
   }, []);
 
-  // Load address to name mapping
+  // Load address to name mapping with caching
   const loadAddressToNameMap = useCallback(async () => {
     try {
+      // Try to load from cache first
+      const cachedNameMap = localStorage.getItem('addressToNameMap');
+      if (cachedNameMap) {
+        try {
+          const parsedCache = JSON.parse(cachedNameMap);
+          setAddressToNameMap(parsedCache);
+          console.log('Loaded address to name mapping from cache:', parsedCache);
+        } catch (e) {
+          console.warn('Failed to parse cached name map:', e);
+        }
+      }
+
+      // Fetch fresh data in the background
       const allCards = await getAllCards();
       const nameMap: Record<string, string> = {};
       
@@ -177,8 +190,10 @@ const Messages: React.FC = () => {
         }
       });
       
+      // Update state and cache
       setAddressToNameMap(nameMap);
-      console.log('Loaded address to name mapping:', nameMap);
+      localStorage.setItem('addressToNameMap', JSON.stringify(nameMap));
+      console.log('Loaded fresh address to name mapping:', nameMap);
       return nameMap;
     } catch (error) {
       console.error('Error loading address to name map:', error);
@@ -186,11 +201,24 @@ const Messages: React.FC = () => {
     }
   }, [getAllCards]);
 
-  // Load developer information for all addresses
+  // Load developer information for all addresses with caching
   const loadDeveloperInfo = useCallback(async () => {
     try {
+      // Try to load from cache first
+      const cachedDeveloperMap = localStorage.getItem('addressToDeveloperMap');
+      if (cachedDeveloperMap) {
+        try {
+          const parsedCache = JSON.parse(cachedDeveloperMap);
+          setAddressToDeveloperMap(parsedCache);
+          console.log('Loaded developer info from cache:', Object.keys(parsedCache));
+        } catch (e) {
+          console.warn('Failed to parse cached developer map:', e);
+        }
+      }
+
+      // Fetch fresh data in the background
       const activeCards = await getAllActiveCards();
-      console.log('Loading developer info from cards:', activeCards);
+      console.log('Loading fresh developer info from cards:', activeCards);
       const developerMap: Record<string, { name: string; title: string; imageUrl: string }> = {};
       
       activeCards.forEach((card: any) => {
@@ -203,8 +231,10 @@ const Messages: React.FC = () => {
         }
       });
       
+      // Update state and cache
       setAddressToDeveloperMap(developerMap);
-      console.log('Loaded developer info for addresses:', Object.keys(developerMap));
+      localStorage.setItem('addressToDeveloperMap', JSON.stringify(developerMap));
+      console.log('Loaded fresh developer info for addresses:', Object.keys(developerMap));
       console.log('Developer map:', developerMap);
     } catch (error) {
       console.error('Error loading developer info:', error);
@@ -276,14 +306,18 @@ const Messages: React.FC = () => {
   // Load conversations on component mount
   useEffect(() => {
     if (currentAccount?.address) {
-      // Load address to name mapping and developer info first, then load conversations
+      // Load all data in parallel for faster initial load
       Promise.all([
+        loadConversations(),
         loadAddressToNameMap(),
         loadDeveloperInfo()
-      ]).then(([nameMap]) => {
-        loadConversations();
-        // Also update conversations with the loaded names
-        setTimeout(() => updateConversationNames(nameMap), 100);
+      ]).then(([_, nameMap]) => {
+        // Update conversation names after all data is loaded
+        if (nameMap) {
+          updateConversationNames(nameMap);
+        }
+      }).catch((error) => {
+        console.error('Failed to load messaging data:', error);
       });
     }
   }, [currentAccount?.address]); // Only depend on currentAccount to avoid infinite loops
@@ -446,7 +480,8 @@ const Messages: React.FC = () => {
         console.log('Using empty conversations list as fallback');
       }
       
-      const uiConversations: ConversationData[] = await Promise.all(contractConversations.map(async (conv) => {
+      // First, create conversations without loading messages (to avoid rate limiting)
+      const uiConversations: ConversationData[] = contractConversations.map((conv) => {
         const otherParticipant = conv.participant1 === currentAccount.address ? conv.participant2 : conv.participant1;
         
         // Try to get name from developer map (most reliable source)
@@ -468,69 +503,104 @@ const Messages: React.FC = () => {
           }
         }
         
-        // Load messages for this conversation to calculate unread count
-        let unreadCount = 0;
-        let lastMessage = 'Start a conversation...';
-        let lastMessageTime = 'Just now';
-        
-        try {
-          const messages = await useMessages(conv.id, [conv.participant1, conv.participant2]);
-          
-          if (messages && messages.length > 0) {
-            // Get the last message
-            const lastMsg = messages[messages.length - 1];
-            lastMessage = lastMsg.content || 'Start a conversation...';
-            
-            // Calculate timestamp for last message
-            try {
-              const timestamp = typeof lastMsg.timestamp === 'string' 
-                ? parseInt(lastMsg.timestamp) 
-                : lastMsg.timestamp;
-              const timestampMs = timestamp < 1000000000000 ? timestamp * 1000 : timestamp;
-              lastMessageTime = formatRelativeTime(timestampMs);
-            } catch (e) {
-              lastMessageTime = 'Unknown time';
-            }
-            
-            // Count unread messages (messages from other participant after last seen)
-            const lastSeenKey = `lastSeen-${conv.id}`;
-            const lastSeen = localStorage.getItem(lastSeenKey);
-            const lastSeenTime = lastSeen ? parseInt(lastSeen) : 0;
-            
-            unreadCount = messages.filter(msg => {
-              // Count unread messages from other participant
-              if (msg.sender === currentAccount.address) return false;
-              
-              // Parse message timestamp
-              try {
-                const msgTimestamp = typeof msg.timestamp === 'string' 
-                  ? parseInt(msg.timestamp) 
-                  : msg.timestamp;
-                const msgTimestampMs = msgTimestamp < 1000000000000 ? msgTimestamp * 1000 : msgTimestamp;
-                return msgTimestampMs > lastSeenTime;
-              } catch (e) {
-                return false;
-              }
-            }).length;
-          }
-        } catch (error) {
-          console.warn('Error loading messages for unread count:', error);
-        }
-        
+        // Return conversation without messages initially (load them lazily)
         return {
           id: conv.id,
           participant1: conv.participant1,
           participant2: conv.participant2,
           participantName: participantName,
           messages: [],
-          lastMessage: lastMessage,
-          lastMessageTime: lastMessageTime,
-          unreadCount: unreadCount,
+          lastMessage: 'Start a conversation...',
+          lastMessageTime: 'Just now',
+          unreadCount: 0,
           lastSeen: Date.now()
         };
-      }));
+      });
       
+      // Set conversations immediately (before loading messages)
       setConversations(uiConversations);
+      
+      // Load messages for conversations sequentially with delays (to avoid rate limiting)
+      // This runs asynchronously and updates conversations as messages are loaded
+      if (contractConversations.length > 0) {
+        // Process conversations in batches with delays
+        const processConversations = async () => {
+          for (let i = 0; i < contractConversations.length; i++) {
+            const conv = contractConversations[i];
+            const conversationIndex = i;
+            
+            try {
+              // Add delay between requests to avoid rate limiting (200ms per conversation)
+              if (i > 0) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+              }
+              
+              const messages = await useMessages(conv.id, [conv.participant1, conv.participant2]);
+              
+              if (messages && messages.length > 0) {
+                // Get the last message
+                const lastMsg = messages[messages.length - 1];
+                const lastMessage = lastMsg.content || 'Start a conversation...';
+                
+                // Calculate timestamp for last message
+                let lastMessageTime = 'Just now';
+                try {
+                  const timestamp = typeof lastMsg.timestamp === 'string' 
+                    ? parseInt(lastMsg.timestamp) 
+                    : lastMsg.timestamp;
+                  const timestampMs = timestamp < 1000000000000 ? timestamp * 1000 : timestamp;
+                  lastMessageTime = formatRelativeTime(timestampMs);
+                } catch (e) {
+                  lastMessageTime = 'Unknown time';
+                }
+                
+                // Count unread messages (messages from other participant after last seen)
+                const lastSeenKey = `lastSeen-${conv.id}`;
+                const lastSeen = localStorage.getItem(lastSeenKey);
+                const lastSeenTime = lastSeen ? parseInt(lastSeen) : 0;
+                
+                const unreadCount = messages.filter(msg => {
+                  // Count unread messages from other participant
+                  if (msg.sender === currentAccount.address) return false;
+                  
+                  // Parse message timestamp
+                  try {
+                    const msgTimestamp = typeof msg.timestamp === 'string' 
+                      ? parseInt(msg.timestamp) 
+                      : msg.timestamp;
+                    const msgTimestampMs = msgTimestamp < 1000000000000 ? msgTimestamp * 1000 : msgTimestamp;
+                    return msgTimestampMs > lastSeenTime;
+                  } catch (e) {
+                    return false;
+                  }
+                }).length;
+                
+                // Update conversation with message data
+                setConversations(prev => {
+                  const updated = [...prev];
+                  if (updated[conversationIndex] && updated[conversationIndex].id === conv.id) {
+                    updated[conversationIndex] = {
+                      ...updated[conversationIndex],
+                      lastMessage,
+                      lastMessageTime,
+                      unreadCount
+                    };
+                  }
+                  return updated;
+                });
+              }
+            } catch (error) {
+              console.warn(`Error loading messages for conversation ${conv.id}:`, error);
+              // Continue with next conversation even if this one fails
+            }
+          }
+        };
+        
+        // Start processing asynchronously (don't await)
+        processConversations().catch(error => {
+          console.error('Error processing conversations:', error);
+        });
+      }
       
       const hasToParam = Boolean(searchParams.get('to'));
       if (uiConversations.length > 0 && !selectedMessage && !hasToParam) {
@@ -1057,66 +1127,149 @@ const Messages: React.FC = () => {
       console.log('🚀 Using legacy conversation creation due to SDK compatibility issues');
       const tx = startConversationTransaction(participant2);
       console.log('📝 Transaction created, executing signAndExecute...');
-      signAndExecute(
-        { transaction: tx as any },
-        {
-          onSuccess: async (result) => {
-            console.log('Conversation started successfully:', result);
+      
+      // Wait for transaction confirmation before proceeding
+      const digest = await new Promise<string>((resolve, reject) => {
+        signAndExecute(
+          { transaction: tx as any },
+          {
+            onSuccess: async (result: any) => {
+              try {
+                console.log('Conversation transaction submitted:', result);
+                // Wait for transaction to be confirmed
+                await suiClient.waitForTransaction({ digest: result.digest });
+                console.log('Conversation transaction confirmed');
+                resolve(result.digest);
+              } catch (e) {
+                reject(e);
+              }
+            },
+            onError: reject,
+          }
+        );
+      });
+
+      console.log('Conversation started successfully, digest:', digest);
+      
+      // Function to find and select the new conversation with retries
+      const findAndSelectConversation = async (retries = 5, delay = 500) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            console.log(`Attempting to find new conversation (attempt ${i + 1}/${retries})...`);
             
-            // Reload conversations to show the new one
+            // Reload conversations
             await loadConversations();
             
-            // Find and select the new conversation
-            // We need to wait a bit for the conversation to be indexed
-            setTimeout(async () => {
-              try {
-                const updatedConversations = await useConversations(currentAccount.address);
-                console.log('Updated conversations:', updatedConversations);
-                
-                const newConversation = updatedConversations.find(conv => 
-                  (conv.participant1 === currentAccount.address && conv.participant2 === participant2) ||
-                  (conv.participant2 === currentAccount.address && conv.participant1 === participant2)
-                );
-                
-                console.log('Found new conversation:', newConversation);
-                
-                if (newConversation) {
-                  setSelectedMessage(newConversation.id);
-                  console.log('Selected conversation ID:', newConversation.id);
-                  // Load messages for the new conversation
-                  await loadMessages(newConversation.id);
-                } else {
-                  console.log('No new conversation found, trying to select first available conversation');
-                  // If no specific conversation found, select the first one
-                  if (updatedConversations.length > 0) {
-                    setSelectedMessage(updatedConversations[0].id);
-                    await loadMessages(updatedConversations[0].id);
-                  } else {
-                    // For debugging: let's try to extract the conversation ID from the transaction result
-                    console.log('No conversations found, but conversation was created successfully');
-                    console.log('Transaction result:', result);
-                    // We could potentially extract the conversation ID from the transaction result
-                    // and manually set it here for testing
-                  }
-                }
-              } catch (error) {
-                console.error('Error selecting new conversation:', error);
-              } finally {
-                setIsCreatingConversation(false);
+            // Fetch fresh conversations from the contract
+            const updatedConversations = await useConversations(currentAccount.address, true);
+            console.log('Updated conversations:', updatedConversations);
+            
+            // Normalize addresses for comparison
+            const normalizedParticipant2 = normalizeAddress(participant2);
+            const normalizedCurrentAccount = normalizeAddress(currentAccount.address);
+            
+            console.log('🔍 Looking for conversation with:', {
+              currentAccount: normalizedCurrentAccount,
+              participant2: normalizedParticipant2,
+              availableConversations: updatedConversations.length
+            });
+            
+            const newConversation = updatedConversations.find((conv: any) => {
+              const normP1 = normalizeAddress(conv.participant1);
+              const normP2 = normalizeAddress(conv.participant2);
+              const matches = (
+                (normP1 === normalizedCurrentAccount && normP2 === normalizedParticipant2) ||
+                (normP2 === normalizedCurrentAccount && normP1 === normalizedParticipant2)
+              );
+              
+              if (matches) {
+                console.log('✅ Found matching conversation:', {
+                  id: conv.id,
+                  participant1: normP1,
+                  participant2: normP2
+                });
               }
-            }, 2000); // Wait 2 seconds for indexing
-          },
-          onError: (error) => {
-            console.error('Error starting conversation:', error);
-            setIsCreatingConversation(false);
+              
+              return matches;
+            });
+            
+            if (newConversation) {
+              console.log('✅ Found new conversation:', {
+                id: newConversation.id,
+                participant1: newConversation.participant1,
+                participant2: newConversation.participant2
+              });
+              
+              const newConversationId = newConversation.id;
+              
+              // Immediately set the selected conversation to ensure UI updates
+              setSelectedMessage(newConversationId);
+              console.log('📍 Set selectedMessage to:', newConversationId);
+              
+              // Load messages for the new conversation
+              await loadMessages(newConversationId, true);
+              
+              // Reload conversations to update the UI with the new conversation in the list
+              // This must be done after setting selectedMessage to ensure the UI shows the right conversation
+              await loadConversations();
+              
+              // Double-check that our selected conversation is still in the list after reload
+              // and verify it matches the participant we started with
+              const finalConversations = await useConversations(currentAccount.address, true);
+              const finalVerifiedConversation = finalConversations.find((conv: any) => {
+                const normConvP1 = normalizeAddress(conv.participant1);
+                const normConvP2 = normalizeAddress(conv.participant2);
+                const matches = (
+                  (normConvP1 === normalizedCurrentAccount && normConvP2 === normalizedParticipant2) ||
+                  (normConvP2 === normalizedCurrentAccount && normConvP1 === normalizedParticipant2)
+                );
+                return matches;
+              });
+              
+              if (finalVerifiedConversation && finalVerifiedConversation.id !== newConversationId) {
+                console.log('⚠️ Conversation ID changed after reload, updating selection:', {
+                  oldId: newConversationId,
+                  newId: finalVerifiedConversation.id
+                });
+                setSelectedMessage(finalVerifiedConversation.id);
+                await loadMessages(finalVerifiedConversation.id, true);
+              } else if (!finalVerifiedConversation) {
+                console.warn('⚠️ Conversation not found in final list, keeping original selection');
+              } else {
+                console.log('✅ Conversation verified in final list, selection is correct');
+              }
+              
+              setIsCreatingConversation(false);
+              return;
+            } else {
+              console.log(`⏳ Conversation not found yet, waiting ${delay}ms before retry...`);
+              if (i < retries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                // Exponential backoff
+                delay = Math.min(delay * 1.5, 2000);
+              }
+            }
+          } catch (error) {
+            console.error(`Error finding conversation (attempt ${i + 1}):`, error);
+            if (i < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
           }
         }
-      );
+        
+        // If we get here, we couldn't find the conversation
+        console.warn('⚠️ Could not find new conversation after retries, reloading conversations list');
+        await loadConversations();
+        setIsCreatingConversation(false);
+      };
+
+      // Start finding the conversation
+      await findAndSelectConversation();
     } catch (error) {
       console.error('Error starting conversation:', error);
       setIsCreatingConversation(false);
     }
-  }, [currentAccount?.address, loadConversations, useConversations, loadMessages, isCreatingConversation]);
+  }, [currentAccount?.address, loadConversations, useConversations, loadMessages, isCreatingConversation, suiClient, normalizeAddress, signAndExecute]);
 
   const loadAvailableDevelopers = useCallback(async () => {
     setLoadingDevelopers(true);

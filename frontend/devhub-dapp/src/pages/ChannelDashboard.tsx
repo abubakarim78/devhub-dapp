@@ -879,7 +879,7 @@ const ChannelDashboard: React.FC = () => {
         </motion.div>
       )}
       
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
             {/* Header */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}

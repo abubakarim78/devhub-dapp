@@ -104,7 +104,7 @@ const Dashboard: React.FC = () => {
   const suiClient = useSuiClient();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const { theme } = useTheme();
-  const { getUserCards, useConversations, getAllCards, uploadToWalrus } = useContract();
+  const { getUserCards, useConversations, useMessages, getAllCards, uploadToWalrus } = useContract();
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -434,13 +434,80 @@ const Dashboard: React.FC = () => {
       }
       setWalletBalance(balance);
 
-      // Process unread messages - calculate from messages
-      const unreadMessagesCount = conversations.reduce((total, conv) => {
-        const unread = conv.messages.filter(msg => 
-          msg.sender !== currentAccount.address && !msg.isRead
-        ).length;
-        return total + unread;
-      }, 0);
+      // Process unread messages - load messages for each conversation and calculate unread count
+      let unreadMessagesCount = 0;
+      if (conversations && conversations.length > 0) {
+        // Load messages for each conversation and calculate unread count
+        await Promise.all(conversations.map(async (conv: any) => {
+          try {
+            const messages = await useMessages(conv.id, [conv.participant1, conv.participant2]);
+            
+            if (messages && messages.length > 0) {
+              // Get last seen time from localStorage
+              const lastSeenKey = `lastSeen-${conv.id}`;
+              let lastSeen = localStorage.getItem(lastSeenKey);
+              let lastSeenTime = lastSeen ? parseInt(lastSeen) : 0;
+              
+              // If lastSeen is not set, initialize it to the latest message timestamp
+              // This prevents existing messages from being counted as unread
+              if (lastSeenTime === 0) {
+                // Find the latest message timestamp
+                const latestMessage = messages.reduce((latest: any, msg: any) => {
+                  try {
+                    const msgTimestamp = typeof msg.timestamp === 'string' 
+                      ? parseInt(msg.timestamp) 
+                      : msg.timestamp;
+                    const msgTimestampMs = msgTimestamp < 1000000000000 ? msgTimestamp * 1000 : msgTimestamp;
+                    const latestTimestamp = typeof latest.timestamp === 'string' 
+                      ? parseInt(latest.timestamp) 
+                      : latest.timestamp;
+                    const latestTimestampMs = latestTimestamp < 1000000000000 ? latestTimestamp * 1000 : latestTimestamp;
+                    return msgTimestampMs > latestTimestampMs ? msg : latest;
+                  } catch (e) {
+                    return latest;
+                  }
+                }, messages[0]);
+                
+                if (latestMessage) {
+                  try {
+                    const msgTimestamp = typeof latestMessage.timestamp === 'string' 
+                      ? parseInt(latestMessage.timestamp) 
+                      : latestMessage.timestamp;
+                    lastSeenTime = msgTimestamp < 1000000000000 ? msgTimestamp * 1000 : msgTimestamp;
+                    // Save to localStorage so we don't recalculate every time
+                    localStorage.setItem(lastSeenKey, lastSeenTime.toString());
+                  } catch (e) {
+                    // If we can't parse, use current time
+                    lastSeenTime = Date.now();
+                    localStorage.setItem(lastSeenKey, lastSeenTime.toString());
+                  }
+                }
+              }
+              
+              // Count unread messages (messages from other participant after last seen)
+              const unread = messages.filter((msg: any) => {
+                // Skip messages from current user
+                if (msg.sender === currentAccount.address) return false;
+                
+                // Parse message timestamp
+                try {
+                  const msgTimestamp = typeof msg.timestamp === 'string' 
+                    ? parseInt(msg.timestamp) 
+                    : msg.timestamp;
+                  const msgTimestampMs = msgTimestamp < 1000000000000 ? msgTimestamp * 1000 : msgTimestamp;
+                  return msgTimestampMs > lastSeenTime;
+                } catch (e) {
+                  return false;
+                }
+              }).length;
+              
+              unreadMessagesCount += unread;
+            }
+          } catch (error) {
+            console.warn('Error loading messages for unread count:', error);
+          }
+        }));
+      }
 
       // Phase 2: Fetch projects count and analytics in parallel
       let activeProjectsCount = 0;
@@ -1225,7 +1292,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentAccount?.address, getUserCards, suiClient, useConversations, loadProfileData]);
+  }, [currentAccount?.address, getUserCards, suiClient, useConversations, useMessages, loadProfileData]);
 
   // Handle image file selection
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -30,7 +30,7 @@ import RemoveAdminDialog from "@/components/RemoveAdminDialog";
 
 const SuperAdminSkeletonLoader: React.FC = () => (
   <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Skeleton */}
           <div className="lg:col-span-1">
@@ -525,7 +525,7 @@ const SuperAdmin: React.FC = () => {
 
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <SuperAdminSidebar
               activeTab={activeTab}

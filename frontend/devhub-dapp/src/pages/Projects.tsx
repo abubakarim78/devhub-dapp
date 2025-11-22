@@ -623,7 +623,7 @@ const Projects = () => {
 
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
           <AnimatePresence mode="wait">
             <motion.div
               key="projects-content"
@@ -677,7 +677,7 @@ const Projects = () => {
                     />
                     <input
                       type="text"
-                      placeholder="Search projects..."
+                      placeholder="Search opportunities..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 bg-card/70 backdrop-blur-xl border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder-muted-foreground"

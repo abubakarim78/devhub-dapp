@@ -15,6 +15,10 @@ interface LayoutProps {
    * Whether to apply default padding and spacing. Defaults to true.
    */
   applyDefaultSpacing?: boolean;
+  /**
+   * Whether to allow overflow (needed for sticky positioning). Defaults to false.
+   */
+  allowOverflow?: boolean;
 }
 
 /**
@@ -26,10 +30,15 @@ const Layout: React.FC<LayoutProps> = ({
   showStarBackground = true,
   className = '',
   applyDefaultSpacing = true,
+  allowOverflow = false,
 }) => {
   return (
-    <div className={`relative overflow-hidden bg-background min-h-screen ${className}`}>
-      {showStarBackground && <StarBackground />}
+    <div className={`relative ${allowOverflow ? 'overflow-visible' : 'overflow-hidden'} bg-background min-h-screen ${className}`}>
+      {showStarBackground && (
+        <div className="absolute inset-0 overflow-hidden">
+          <StarBackground />
+        </div>
+      )}
       <div className={`relative z-10 ${applyDefaultSpacing ? '' : ''}`}>
         {children}
       </div>

@@ -492,33 +492,33 @@ const DashboardProposals = () => {
                     }}
                     className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl"
                   >
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                       <h3 className="text-xl font-bold text-foreground">Your Proposals</h3>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className="px-4 py-2 bg-accent/20 text-foreground rounded-lg hover:bg-accent/30 transition-colors flex items-center gap-2"
+                          className="px-3 sm:px-4 py-2 bg-accent/20 text-foreground rounded-lg hover:bg-accent/30 transition-colors flex items-center gap-2 text-sm sm:text-base flex-1 sm:flex-initial"
                         >
-                          <Download className="h-4 w-4" />
-                          Export
+                          <Download className="h-4 w-4 flex-shrink-0" />
+                          <span className="whitespace-nowrap">Export</span>
                         </motion.button>
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={handleRefresh}
                           disabled={loadingApplications}
-                          className="px-4 py-2 bg-accent/20 text-foreground rounded-lg hover:bg-accent/30 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-3 sm:px-4 py-2 bg-accent/20 text-foreground rounded-lg hover:bg-accent/30 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex-1 sm:flex-initial"
                         >
-                          <RefreshCw className={`h-4 w-4 ${loadingApplications ? 'animate-spin' : ''}`} />
-                          Refresh
+                          <RefreshCw className={`h-4 w-4 flex-shrink-0 ${loadingApplications ? 'animate-spin' : ''}`} />
+                          <span className="whitespace-nowrap">Refresh</span>
                         </motion.button>
                       </div>
                     </div>
 
                     {/* Search and Filters */}
-                    <div className="flex flex-col md:flex-row gap-4 mb-6">
-                      <div className="flex-1">
+                    <div className="flex flex-col gap-4 mb-6">
+                      <div className="w-full">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <input
@@ -526,17 +526,17 @@ const DashboardProposals = () => {
                             placeholder="Search proposals..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder-muted-foreground"
+                            className="w-full pl-10 pr-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder-muted-foreground text-sm sm:text-base"
                           />
                         </div>
                       </div>
-                      <div className="flex gap-3">
-                        <select className="px-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent">
+                      <div className="flex flex-col sm:flex-row gap-3 w-full">
+                        <select className="w-full sm:w-auto sm:flex-1 px-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent text-sm sm:text-base">
                           <option>Opportunity: Any</option>
                           <option>Sui Grants</option>
                           <option>Developer Bounties</option>
                         </select>
-                        <select className="px-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <select className="w-full sm:w-auto sm:flex-1 px-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent text-sm sm:text-base">
                           <option>Sort: Recent</option>
                           <option>Sort: Oldest</option>
                           <option>Sort: Budget</option>
@@ -545,7 +545,7 @@ const DashboardProposals = () => {
                     </div>
 
                     {/* Main Tabs - My Proposals vs Applications to My Projects */}
-                    <div className="flex gap-2 mb-6 border-b border-border">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 mb-6 border-b border-border overflow-x-auto">
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -556,7 +556,7 @@ const DashboardProposals = () => {
                           setActiveTab('my-proposals');
                           setCurrentPage(1);
                         }}
-                        className={`px-6 py-3 rounded-t-lg font-medium transition-all border-b-2 ${
+                        className={`px-4 sm:px-6 py-2 sm:py-3 rounded-t-lg font-medium transition-all border-b-2 whitespace-nowrap text-sm sm:text-base ${
                           activeTab === 'my-proposals'
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-transparent text-gray-700 dark:text-foreground hover:bg-accent/30 border-transparent'
@@ -574,16 +574,17 @@ const DashboardProposals = () => {
                           setActiveTab('applications-to-my-projects');
                           setCurrentPage(1);
                         }}
-                        className={`px-6 py-3 rounded-t-lg font-medium transition-all border-b-2 flex items-center gap-2 ${
+                        className={`px-4 sm:px-6 py-2 sm:py-3 rounded-t-lg font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap text-sm sm:text-base ${
                           activeTab === 'applications-to-my-projects'
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-transparent text-gray-700 dark:text-foreground hover:bg-accent/30 border-transparent'
                         }`}
                       >
-                        <Briefcase className="h-4 w-4" />
-                        Applications to My Projects
+                        <Briefcase className="h-4 w-4 flex-shrink-0" />
+                        <span className="hidden sm:inline">Applications to My Projects</span>
+                        <span className="sm:hidden">Applications</span>
                         {projectApplications.reduce((sum, p) => sum + p.applications.length, 0) > 0 && (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary-foreground">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary-foreground flex-shrink-0">
                             {projectApplications.reduce((sum, p) => sum + p.applications.length, 0)}
                           </span>
                         )}
@@ -592,7 +593,7 @@ const DashboardProposals = () => {
 
                     {/* Status Tabs - Only show for My Proposals */}
                     {activeTab === 'my-proposals' && (
-                      <div className="flex gap-2 mb-6">
+                      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
                         {['All', 'Drafts', 'In Review', 'Accepted'].map((tab, index) => {
                           const tabValue = tab.toLowerCase().replace(' ', '-');
                           return (
@@ -604,7 +605,7 @@ const DashboardProposals = () => {
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => setStatusFilter(tabValue)}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
                                 statusFilter === tabValue
                                   ? 'bg-primary text-primary-foreground'
                                   : 'bg-accent/20 text-gray-700 dark:text-foreground hover:bg-accent/30'

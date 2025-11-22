@@ -558,7 +558,7 @@ const CreateCard: React.FC = () => {
                 {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
             </AnimatePresence>
 
-            <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
