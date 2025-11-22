@@ -23,9 +23,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <Layout showStarBackground={showStarBackground} applyDefaultSpacing={false}>
+    <Layout showStarBackground={showStarBackground} applyDefaultSpacing={false} allowOverflow={true}>
       <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
           {/* Mobile Hamburger Button */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -74,13 +74,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             )}
           </AnimatePresence>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
             {/* Desktop Sidebar */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:block self-start">
               <DashboardSidebar />
             </div>
             {/* Main Content */}
-            <main className="lg:col-span-3">
+            <main className="lg:col-span-3 xl:col-span-4">
               {children}
             </main>
           </div>

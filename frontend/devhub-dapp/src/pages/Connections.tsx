@@ -922,7 +922,7 @@ const Connections: React.FC = () => {
                         </div>
 
                         {/* Filter Buttons */}
-                        <div className="flex items-center gap-3 mb-4">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 overflow-x-auto pb-2">
                           {['All', 'Requests', 'Blocked'].map((filter, index) => (
                             <motion.button
                               key={filter}
@@ -932,7 +932,7 @@ const Connections: React.FC = () => {
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => handleFilterChange(filter.toLowerCase())}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
                                 activeFilter === filter.toLowerCase()
                                   ? 'bg-primary text-primary-foreground'
                                   : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
@@ -944,13 +944,13 @@ const Connections: React.FC = () => {
                         </div>
 
                         {/* Skill and Sort Filters */}
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Skill:</span>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">Skill:</span>
                             <select
                               value={selectedSkill}
                               onChange={(e) => setSelectedSkill(e.target.value)}
-                              className="px-3 py-2 bg-background/70 border border-border rounded-lg text-foreground text-sm"
+                              className="px-3 py-2 bg-background/70 border border-border rounded-lg text-foreground text-sm w-full sm:w-auto flex-1 sm:flex-initial"
                             >
                               <option value="any">Any</option>
                               <option value="move">Move</option>
@@ -958,12 +958,12 @@ const Connections: React.FC = () => {
                               <option value="typescript">TypeScript</option>
                             </select>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Sort:</span>
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">Sort:</span>
                             <select
                               value={sortBy}
                               onChange={(e) => setSortBy(e.target.value)}
-                              className="px-3 py-2 bg-background/70 border border-border rounded-lg text-foreground text-sm"
+                              className="px-3 py-2 bg-background/70 border border-border rounded-lg text-foreground text-sm w-full sm:w-auto flex-1 sm:flex-initial"
                             >
                               <option value="recently-active">Recently active</option>
                               <option value="most-followers">Most followers</option>

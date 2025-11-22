@@ -9,7 +9,7 @@ import AdminFeatures from '@/components/common/AdminFeatures';
 
 const AdminSkeletonLoader: React.FC = () => (
     <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="lg:col-span-1">
                         <div className="sticky top-24 bg-secondary/50 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl animate-pulse">
@@ -163,7 +163,7 @@ const AdminPanel: React.FC = () => {
 
     return (
         <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
                         <main className="lg:col-span-3">

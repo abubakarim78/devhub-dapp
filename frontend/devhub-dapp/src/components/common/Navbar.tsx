@@ -94,10 +94,10 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
 
   const navItems: NavItem[] = [
     { href: "/", label: "Home" },
-    { href: "/browse", label: "Browse Developers" },
+    { href: "/browse", label: "Explore" },
     ...(currentAccount
       ? [
-          { href: "/projects", label: "Projects", icon: FolderKanban },
+          { href: "/projects", label: "Opportunities", icon: FolderKanban },
           { href: "/dashboard", label: "Dashboard" },
         ]
       : []),
@@ -116,7 +116,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex justify-between items-center h-16 sm:h-20">
           <Link to="/" className="flex items-center space-x-1.5 sm:space-x-2 group">
             <div className="p-1.5 sm:p-2 bg-primary rounded-lg">
