@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Code2,
   Menu,
   Moon,
   Sun,
@@ -119,9 +118,11 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex justify-between items-center h-16 sm:h-20">
           <Link to="/" className="flex items-center space-x-1.5 sm:space-x-2 group">
-            <div className="p-1.5 sm:p-2 bg-primary rounded-lg">
-              <Code2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
-            </div>
+            <img 
+              src="/DevHub.jpg" 
+              alt="DevHub Logo" 
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover"
+            />
             <span className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">DevHub</span>
           </Link>
 
