@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code2, Twitter, Github, MessageCircle } from 'lucide-react';
+import { Twitter, Github, MessageCircle } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const year = new Date().getFullYear();
@@ -10,9 +10,11 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <div className="p-2 bg-primary rounded-lg">
-                <Code2 className="h-6 w-6 text-primary-foreground" />
-              </div>
+              <img 
+                src="/DevHub.jpg" 
+                alt="DevHub Logo" 
+                className="h-12 w-12 rounded-lg object-cover"
+              />
               <span className="text-2xl font-bold text-foreground">DevHub</span>
             </div>
             <p className="text-sm text-muted-foreground leading-6">
