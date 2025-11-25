@@ -14,7 +14,7 @@ import Connections from "./pages/Connections";
 import CardDetails from "./pages/CardDetails";
 import AdminPanel from "./pages/AdminPanel";
 import SuperAdmin from "./pages/SuperAdmin";
-import Projects from "./pages/Projects";
+import Opportunities from "./pages/Opportunities";
 import ProjectDetails from "./pages/ProjectDetails";
 import ApplyProject from "./pages/ApplyProject";
 import DashboardProjects from "./pages/DashboardProjects";
@@ -169,7 +169,7 @@ function App() {
               <Route path="/browse" element={<Browse />} />
               <Route path="/create" element={<CreateCard />} />
               <Route path="/card/:id" element={<CardDetails />} />
-              <Route path="/projects" element={<Projects />} />
+              <Route path="/opportunities" element={<Opportunities />} />
               <Route path="/projects/:id" element={<ProjectDetails />} />
               <Route path="/projects/:id/apply" element={<ApplyProject />} />
               <Route path="/projects/new" element={<CreateProject />} />

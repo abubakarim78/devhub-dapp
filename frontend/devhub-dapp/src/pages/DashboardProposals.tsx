@@ -66,14 +66,23 @@ const DashboardProposals = () => {
           return;
         }
 
+        console.log('🔍 Fetching proposals for:', currentAccount.address);
         const objects = await suiClient.getOwnedObjects({
           owner: currentAccount.address,
           filter: { StructType: `${PACKAGE_ID}::devhub::Proposal` },
           options: { showContent: true, showType: true },
         });
 
+        console.log(`📋 Found ${objects.data?.length || 0} proposal objects`);
+        
+        // Log raw objects for debugging
+        if (objects.data && objects.data.length > 0) {
+          console.log('📦 Sample proposal object:', JSON.stringify(objects.data[0], null, 2));
+        }
+
         const mapped: Proposal[] = (objects.data || []).map((obj, idx) => {
           const fields = (obj.data && obj.data.content && 'fields' in obj.data.content) ? (obj.data.content as any).fields : {};
+          console.log(`🔍 Parsing proposal ${idx}:`, { objectId: obj.data?.objectId, fields: Object.keys(fields) });
           const title: string = fields.proposal_title || fields.title || 'Untitled';
           const budgetVal: any = fields.budget ?? fields.requested_compensation ?? fields.budget_amount;
           const timelineWeeks: any = fields.timeline_weeks ?? fields.timeline ?? fields.duration_weeks;
@@ -111,7 +120,7 @@ const DashboardProposals = () => {
     };
 
     fetchProposals();
-  }, [currentAccount?.address, suiClient]);
+  }, [currentAccount?.address, suiClient, refreshKey]);
 
   // Fetch applications to my projects
   useEffect(() => {
@@ -262,7 +271,7 @@ const DashboardProposals = () => {
 
   // Refresh handler
   const handleRefresh = () => {
-    console.log('🔄 Refreshing applications...');
+    console.log('🔄 Refreshing proposals and applications...');
     setRefreshKey(prev => prev + 1);
   };
 

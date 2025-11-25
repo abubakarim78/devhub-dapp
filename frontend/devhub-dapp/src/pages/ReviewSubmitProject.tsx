@@ -73,6 +73,15 @@ export default function ReviewSubmitProject() {
         applicationsStatus: form.applicationsStatus,
         devhubMessagesEnabled: Boolean(form.devhubMessagesEnabled),
         attachmentsWalrusBlobIds: form.attachmentsWalrusBlobIds || [],
+        // New fields from redesigned form
+        keyDeliverables: form.keyDeliverables || '',
+        complexityLevel: form.complexityLevel || 'Medium',
+        paymentModel: form.paymentModel || 'Fixed / Hourly / Milestone',
+        preferredStartWindow: form.preferredStartWindow || 'Flexible',
+        niceToHaveSkills: form.niceToHaveSkills || [],
+        repoOrSpecLink: form.repoOrSpecLink || '',
+        applicationType: form.applicationType || 'Open applications & proposals',
+        finalNotes: form.finalNotes || '',
       }, selectedCoins[0]);
 
       await new Promise<void>((resolve, reject) => {
@@ -98,7 +107,7 @@ export default function ReviewSubmitProject() {
       });
       // Small delay to allow indexers/RPC to surface the new object in queries
       await new Promise((r) => setTimeout(r, 1000));
-      navigate("/projects");
+      navigate("/opportunities");
     } catch (e) {
       console.error(e);
     } finally {
@@ -110,7 +119,7 @@ export default function ReviewSubmitProject() {
     <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Review & Submit</h1>
+          <h1 className="text-3xl font-bold text-foreground">Review & Submit</h1>
           <div className="flex gap-3">
             <button
               className="px-4 py-2 rounded-md bg-muted text-foreground/80"
@@ -134,36 +143,85 @@ export default function ReviewSubmitProject() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-card/70 backdrop-blur-xl border border-border rounded-2xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Project Summary</h2>
-            <div className="space-y-3 text-sm">
-              <div><span className="text-muted-foreground">Title:</span> {form.title}</div>
-              <div><span className="text-muted-foreground">Short Summary:</span> {form.shortSummary}</div>
-              <div className="pt-2">
-                <div className="text-muted-foreground mb-1">Description</div>
-                <div className="whitespace-pre-wrap leading-relaxed">{form.description}</div>
+            <h2 className="text-lg font-semibold mb-4 text-foreground">Project Summary</h2>
+            <div className="space-y-4 text-sm text-foreground">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><span className="text-muted-foreground font-medium">Title:</span> <span className="text-foreground">{form.title}</span></div>
+                <div><span className="text-muted-foreground font-medium">Category:</span> <span className="text-foreground">{form.category}</span></div>
+                <div><span className="text-muted-foreground font-medium">Experience:</span> <span className="text-foreground">{form.experienceLevel}</span></div>
+                <div><span className="text-muted-foreground font-medium">Complexity:</span> <span className="text-foreground">{form.complexityLevel}</span></div>
+                <div><span className="text-muted-foreground font-medium">Budget:</span> <span className="text-foreground">${form.budgetMin?.toLocaleString('en-US')} - ${form.budgetMax?.toLocaleString('en-US')}</span></div>
+                <div><span className="text-muted-foreground font-medium">Payment Model:</span> <span className="text-foreground">{form.paymentModel}</span></div>
+                <div><span className="text-muted-foreground font-medium">Timeline:</span> <span className="text-foreground">{form.timelineWeeks} weeks</span></div>
+                <div><span className="text-muted-foreground font-medium">Start Window:</span> <span className="text-foreground">{form.preferredStartWindow}</span></div>
+                <div><span className="text-muted-foreground font-medium">Application Type:</span> <span className="text-foreground">{form.applicationType}</span></div>
+                <div><span className="text-muted-foreground font-medium">Visibility:</span> <span className="text-foreground">{form.visibility}</span></div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Category:</span> {form.category}</div>
-                <div><span className="text-muted-foreground">Experience:</span> {form.experienceLevel}</div>
-                <div><span className="text-muted-foreground">Budget:</span> ${form.budgetMin?.toLocaleString('en-US')} - ${form.budgetMax?.toLocaleString('en-US')}</div>
-                <div><span className="text-muted-foreground">Timeline:</span> {form.timelineWeeks} weeks</div>
+
+              <div className="pt-2 border-t border-border/50">
+                <div className="text-muted-foreground font-medium mb-1">Short Summary</div>
+                <div className="text-foreground">{form.shortSummary}</div>
               </div>
-              {Array.isArray(form.requiredSkills) && form.requiredSkills.length > 0 && (
-                <div className="pt-2">
-                  <div className="text-muted-foreground mb-1 text-xs sm:text-sm">Required Skills</div>
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {form.requiredSkills.map((s: string) => (
-                      <span key={s} className="px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm rounded-full bg-muted">{s}</span>
-                    ))}
-                  </div>
+
+              <div className="pt-2 border-t border-border/50">
+                <div className="text-muted-foreground font-medium mb-1">Description</div>
+                <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">{form.description}</div>
+              </div>
+
+              {form.keyDeliverables && (
+                <div className="pt-2 border-t border-border/50">
+                  <div className="text-muted-foreground font-medium mb-1">Key Deliverables</div>
+                  <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">{form.keyDeliverables}</div>
                 </div>
               )}
+
+              {(Array.isArray(form.requiredSkills) && form.requiredSkills.length > 0) || (Array.isArray(form.niceToHaveSkills) && form.niceToHaveSkills.length > 0) ? (
+                <div className="pt-2 border-t border-border/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Array.isArray(form.requiredSkills) && form.requiredSkills.length > 0 && (
+                      <div>
+                        <div className="text-muted-foreground font-medium mb-2 text-xs sm:text-sm">Required Skills</div>
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                          {form.requiredSkills.map((s: string) => (
+                            <span key={s} className="px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm rounded-full bg-primary/10 text-primary border border-primary/20">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {Array.isArray(form.niceToHaveSkills) && form.niceToHaveSkills.length > 0 && (
+                      <div>
+                        <div className="text-muted-foreground font-medium mb-2 text-xs sm:text-sm">Nice-to-have Skills</div>
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                          {form.niceToHaveSkills.map((s: string) => (
+                            <span key={s} className="px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm rounded-full bg-muted text-muted-foreground border border-border">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {form.repoOrSpecLink && (
+                <div className="pt-2 border-t border-border/50">
+                  <div className="text-muted-foreground font-medium mb-1">Repo / Spec Link</div>
+                  <a href={form.repoOrSpecLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{form.repoOrSpecLink}</a>
+                </div>
+              )}
+
+              {form.finalNotes && (
+                <div className="pt-2 border-t border-border/50">
+                  <div className="text-muted-foreground font-medium mb-1">Final Notes</div>
+                  <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">{form.finalNotes}</div>
+                </div>
+              )}
+
               {Array.isArray(form.attachmentsWalrusBlobIds) && form.attachmentsWalrusBlobIds.length > 0 && (
-                <div className="pt-2">
-                  <div className="text-muted-foreground mb-1">Attachments</div>
-                  <div className="space-y-1 text-xs">
+                <div className="pt-2 border-t border-border/50">
+                  <div className="text-muted-foreground font-medium mb-1">Attachments (Walrus Blob IDs)</div>
+                  <div className="space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-lg border border-border/50">
                     {form.attachmentsWalrusBlobIds.map((id: string) => (
-                      <div key={id} className="truncate">{id}</div>
+                      <div key={id} className="truncate text-foreground/80">{id}</div>
                     ))}
                   </div>
                 </div>
@@ -173,16 +231,16 @@ export default function ReviewSubmitProject() {
 
           <div className="space-y-4 sm:space-y-5 md:space-y-6">
             <div className="bg-card/70 backdrop-blur-xl border border-border rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6">
-              <h3 className="text-xs sm:text-sm font-medium mb-2 sm:mb-3">On-chain Actions</h3>
+              <h3 className="text-xs sm:text-sm font-medium mb-2 sm:mb-3 text-foreground">On-chain Actions</h3>
               <div className="rounded-md border border-primary/30 bg-primary/10 p-2.5 sm:p-3 text-xs sm:text-sm">
-                <div className="font-medium mb-2">Transaction prepared</div>
+                <div className="font-medium mb-2 text-primary">Transaction prepared</div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">Project Creation Fee</span>
-                  <span>{estimatedFeeSui.toFixed(2)} SUI</span>
+                  <span className="text-foreground font-medium">{estimatedFeeSui.toFixed(2)} SUI</span>
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">Publishing To</span>
-                  <span>DevHub Projects</span>
+                  <span className="text-foreground font-medium">DevHub Projects</span>
                 </div>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">

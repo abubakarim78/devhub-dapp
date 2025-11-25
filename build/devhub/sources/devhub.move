@@ -168,6 +168,15 @@ public struct Project has key, store {
     devhub_messages_enabled: bool,
     creation_timestamp: u64,
     attachments_walrus_blob_ids: vector<String>,
+    // New fields from redesigned form
+    key_deliverables: String,
+    complexity_level: String,
+    payment_model: String,
+    preferred_start_window: String,
+    nice_to_have_skills: vector<String>,
+    repo_or_spec_link: String,
+    application_type: String,
+    final_notes: String,
 }
 
 public struct ProjectApplication has key, store {
@@ -764,6 +773,15 @@ public entry fun create_project(
     applications_status: vector<u8>,
     devhub_messages_enabled: bool,
     attachments_walrus_blob_ids: vector<vector<u8>>,
+    // New parameters from redesigned form
+    key_deliverables: vector<u8>,
+    complexity_level: vector<u8>,
+    payment_model: vector<u8>,
+    preferred_start_window: vector<u8>,
+    nice_to_have_skills: vector<vector<u8>>,
+    repo_or_spec_link: vector<u8>,
+    application_type: vector<u8>,
+    final_notes: vector<u8>,
     mut payment: Coin<SUI>,
     clock: &Clock,
     ctx: &mut TxContext
@@ -800,6 +818,15 @@ public entry fun create_project(
         j = j + 1;
     };
 
+    // Process nice-to-have skills
+    let mut nice_to_have_str = vector::empty<String>();
+    let num_nice_to_have = vector::length(&nice_to_have_skills);
+    let mut k = 0;
+    while (k < num_nice_to_have) {
+        vector::push_back(&mut nice_to_have_str, string::utf8(*vector::borrow(&nice_to_have_skills, k)));
+        k = k + 1;
+    };
+
     devhub.project_counter = devhub.project_counter + 1;
     let project_id = devhub.project_counter;
 
@@ -821,6 +848,15 @@ public entry fun create_project(
         devhub_messages_enabled,
         creation_timestamp: clock::timestamp_ms(clock),
         attachments_walrus_blob_ids: blob_ids_str,
+        // New fields
+        key_deliverables: string::utf8(key_deliverables),
+        complexity_level: string::utf8(complexity_level),
+        payment_model: string::utf8(payment_model),
+        preferred_start_window: string::utf8(preferred_start_window),
+        nice_to_have_skills: nice_to_have_str,
+        repo_or_spec_link: string::utf8(repo_or_spec_link),
+        application_type: string::utf8(application_type),
+        final_notes: string::utf8(final_notes),
     };
 
     event::emit(ProjectCreated {
@@ -1834,7 +1870,7 @@ public fun get_project_posting_fee(devhub: &DevHub): u64 { devhub.project_postin
 
 // --- Functions from proposal.move ---
 
-public fun create_platform_statistics(ctx: &mut TxContext) {
+public entry fun create_platform_statistics(ctx: &mut TxContext) {
     transfer::share_object(PlatformStatistics {
         id: object::new(ctx),
         total_submitted: 0,
@@ -1845,7 +1881,7 @@ public fun create_platform_statistics(ctx: &mut TxContext) {
     });
 }
 
-public fun create_proposals_by_status(ctx: &mut TxContext) {
+public entry fun create_proposals_by_status(ctx: &mut TxContext) {
     transfer::share_object(ProposalsByStatus {
         id: object::new(ctx),
         draft: vector::empty(),

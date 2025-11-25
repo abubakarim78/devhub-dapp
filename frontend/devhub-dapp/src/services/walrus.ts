@@ -3,7 +3,7 @@ import axios from 'axios';
 // Working Walrus testnet endpoints - Updated January 2025
 // Publisher: Tudor's endpoint with confirmed CORS support
 // Aggregator: Multiple fallback options
-const WALRUS_PUBLISHER_URL = 'https://publisher.walrus-01.tududes.com';
+const WALRUS_PUBLISHER_URL = 'https://publisher.walrus-testnet.walrus.space';
 const WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus-testnet.walrus.space';
 
 // Backup endpoints in case primary fails
@@ -35,15 +35,21 @@ export class WalrusService {
    */
   static async uploadFile(file: File, userAddress?: string): Promise<WalrusBlob> {
     try {
+      // Check file size (limit to 10MB for testnet publisher)
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      if (file.size > MAX_SIZE) {
+        throw new Error(`File is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Max limit is 10MB.`);
+      }
+
       // Convert file to raw binary data
       const fileData = await file.arrayBuffer();
-      
+
       // Construct URL with send_object_to parameter if userAddress is provided
       let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
       if (userAddress) {
         uploadUrl += `&send_object_to=${userAddress}`;
       }
-      
+
       const response = await axios.put<WalrusUploadResponse>(
         uploadUrl,
         fileData,
@@ -57,9 +63,9 @@ export class WalrusService {
       );
 
       // Extract blob ID from response
-      const blobId = response.data.newlyCreated?.blobObject.blobId || 
-                    response.data.alreadyCertified?.blobId;
-      
+      const blobId = response.data.newlyCreated?.blobObject.blobId ||
+        response.data.alreadyCertified?.blobId;
+
       if (!blobId) {
         throw new Error('Failed to get blob ID from Walrus response');
       }
@@ -90,7 +96,7 @@ export class WalrusService {
         if (error.response && error.response.status >= 500) {
           throw new Error('Server error: Walrus service is experiencing issues. Please try again later.');
         }
-        
+
         const message = error.response?.data?.message || error.message;
         throw new Error(`Failed to upload to Walrus: ${message}`);
       }
@@ -122,6 +128,12 @@ export class WalrusService {
         },
       });
 
+      // Check size of fetched data
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      if (response.data.byteLength > MAX_SIZE) {
+        throw new Error(`Fetched file is too large (${(response.data.byteLength / (1024 * 1024)).toFixed(2)}MB). Max limit is 10MB.`);
+      }
+
       // Construct URL with send_object_to parameter if userAddress is provided
       let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
       if (userAddress) {
@@ -141,9 +153,9 @@ export class WalrusService {
       );
 
       // Extract blob ID from response
-      const blobId = walrusResponse.data.newlyCreated?.blobObject.blobId || 
-                    walrusResponse.data.alreadyCertified?.blobId;
-      
+      const blobId = walrusResponse.data.newlyCreated?.blobObject.blobId ||
+        walrusResponse.data.alreadyCertified?.blobId;
+
       if (!blobId) {
         throw new Error('Failed to get blob ID from Walrus response');
       }
@@ -178,7 +190,7 @@ export class WalrusService {
         if (error.response && error.response.status >= 500) {
           throw new Error('Server error: The URL\'s server is experiencing issues. Please try again later.');
         }
-        
+
         const message = error.response?.data?.message || error.message;
         throw new Error(`Failed to fetch and upload URL: ${message}`);
       }
@@ -198,7 +210,7 @@ export class WalrusService {
    */
   static async checkBlobAvailability(blobId: string, maxRetries: number = 3, delayMs: number = 2000): Promise<boolean> {
     const aggregatorUrls = [WALRUS_AGGREGATOR_URL, BACKUP_AGGREGATOR_URL];
-    
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       // Try both aggregator endpoints
       for (const aggregatorUrl of aggregatorUrls) {
@@ -214,7 +226,7 @@ export class WalrusService {
           console.warn(`Failed to check blob availability on ${aggregatorUrl}:`, error);
         }
       }
-      
+
       if (attempt < maxRetries - 1) {
         // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -227,20 +239,20 @@ export class WalrusService {
    * Wait for blob to become available with progress callback
    */
   static async waitForBlobCertification(
-    blobId: string, 
+    blobId: string,
     onProgress?: (message: string) => void,
     maxWaitTimeMs: number = 30000
   ): Promise<boolean> {
     const startTime = Date.now();
     let attempt = 0;
-    
+
     while (Date.now() - startTime < maxWaitTimeMs) {
       attempt++;
-      
+
       if (onProgress) {
         onProgress(`Checking blob certification (attempt ${attempt})...`);
       }
-      
+
       const isAvailable = await this.checkBlobAvailability(blobId, 1);
       if (isAvailable) {
         if (onProgress) {
@@ -248,11 +260,11 @@ export class WalrusService {
         }
         return true;
       }
-      
+
       // Wait 3 seconds before next check
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
-    
+
     if (onProgress) {
       onProgress('Blob certification is taking longer than expected. The blob should become available soon.');
     }
@@ -268,7 +280,7 @@ export class WalrusService {
     const jsonData = JSON.stringify(metadata, null, 2);
     const encoder = new TextEncoder();
     const binaryData = encoder.encode(jsonData);
-    
+
     try {
       // Construct URL with send_object_to parameter if userAddress is provided
       let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
@@ -287,9 +299,9 @@ export class WalrusService {
         }
       );
 
-      const blobId = response.data.newlyCreated?.blobObject.blobId || 
-                    response.data.alreadyCertified?.blobId;
-      
+      const blobId = response.data.newlyCreated?.blobObject.blobId ||
+        response.data.alreadyCertified?.blobId;
+
       if (!blobId) {
         throw new Error('Failed to get blob ID from Walrus response');
       }
@@ -322,7 +334,7 @@ export class WalrusService {
   static validateUrlForUpload(url: string): { isValid: boolean; message: string; suggestions: string[] } {
     try {
       const parsedUrl = new URL(url);
-      
+
       // Check if it's already a Walrus URL
       if (this.isWalrusUrl(url)) {
         return {
@@ -347,7 +359,7 @@ export class WalrusService {
       ];
 
       const domain = parsedUrl.hostname.toLowerCase();
-      const supportsCors = corsKnownDomains.some(knownDomain => 
+      const supportsCors = corsKnownDomains.some(knownDomain =>
         domain.includes(knownDomain)
       );
 
@@ -370,7 +382,7 @@ export class WalrusService {
         'pinterest.com'
       ];
 
-      const isBlocked = blockedDomains.some(blockedDomain => 
+      const isBlocked = blockedDomains.some(blockedDomain =>
         domain.includes(blockedDomain)
       );
 

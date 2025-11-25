@@ -65,6 +65,9 @@ interface ConversationData {
   lastSeen?: number; // Unix timestamp for last seen
 }
 
+// Global set to track pending conversation creations across component remounts (Strict Mode)
+const pendingCreations = new Set<string>();
+
 const Messages: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
@@ -396,7 +399,7 @@ const Messages: React.FC = () => {
     const conversationKey = `${currentAccount.address}-${to}`;
     
     // Check if we've already processed this conversation
-    if (processedConversationRef.current.has(conversationKey)) {
+    if (processedConversationRef.current.has(conversationKey) || pendingCreations.has(conversationKey)) {
       console.log('🚫 Conversation already processed, skipping...', conversationKey);
       return;
     }
@@ -405,6 +408,7 @@ const Messages: React.FC = () => {
     
     // Mark as processed
     processedConversationRef.current.add(conversationKey);
+    pendingCreations.add(conversationKey);
     
     // Try to find or create conversation, then select it
     (async () => {
@@ -428,6 +432,7 @@ const Messages: React.FC = () => {
         console.error('Failed to open or create conversation from link:', e);
         // Remove from processed set on error so it can be retried
         processedConversationRef.current.delete(conversationKey);
+        pendingCreations.delete(conversationKey);
       }
     })();
     // Only run on mount or when ?to changes
@@ -460,7 +465,7 @@ const Messages: React.FC = () => {
     }
   }, [selectedMessage]);
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (forceRefresh: boolean = false) => {
     if (!currentAccount?.address) return;
     
     setLoading(true);
@@ -471,7 +476,7 @@ const Messages: React.FC = () => {
       
       let contractConversations: any[] = [];
       try {
-        contractConversations = await useConversations(currentAccount.address);
+        contractConversations = await useConversations(currentAccount.address, forceRefresh);
         console.log('Loaded legacy conversations:', contractConversations);
       } catch (error) {
         console.warn('Failed to load conversations from contract:', error);
@@ -1152,13 +1157,13 @@ const Messages: React.FC = () => {
       console.log('Conversation started successfully, digest:', digest);
       
       // Function to find and select the new conversation with retries
-      const findAndSelectConversation = async (retries = 5, delay = 500) => {
+      const findAndSelectConversation = async (retries = 10, delay = 1000) => {
         for (let i = 0; i < retries; i++) {
           try {
             console.log(`Attempting to find new conversation (attempt ${i + 1}/${retries})...`);
             
             // Reload conversations
-            await loadConversations();
+            await loadConversations(true);
             
             // Fetch fresh conversations from the contract
             const updatedConversations = await useConversations(currentAccount.address, true);
@@ -1211,7 +1216,7 @@ const Messages: React.FC = () => {
               
               // Reload conversations to update the UI with the new conversation in the list
               // This must be done after setting selectedMessage to ensure the UI shows the right conversation
-              await loadConversations();
+              await loadConversations(true);
               
               // Double-check that our selected conversation is still in the list after reload
               // and verify it matches the participant we started with
@@ -1259,7 +1264,7 @@ const Messages: React.FC = () => {
         
         // If we get here, we couldn't find the conversation
         console.warn('⚠️ Could not find new conversation after retries, reloading conversations list');
-        await loadConversations();
+        await loadConversations(true);
         setIsCreatingConversation(false);
       };
 
