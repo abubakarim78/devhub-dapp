@@ -75,8 +75,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </AnimatePresence>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-            {/* Desktop Sidebar */}
-            <div className="hidden lg:block self-start">
+            {/* Desktop Sidebar - Fixed position, spacer div to maintain grid layout */}
+            <div className="hidden lg:block lg:self-start">
               <DashboardSidebar />
             </div>
             {/* Main Content */}
