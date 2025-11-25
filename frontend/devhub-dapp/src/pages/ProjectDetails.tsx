@@ -402,7 +402,7 @@ const ProjectDetails: React.FC = () => {
               {error || "The project you're looking for doesn't exist or could not be loaded."}
             </p>
             <Link
-              to="/projects"
+              to="/opportunities"
               className="inline-block px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg shadow-primary/25"
             >
               Browse Projects
@@ -428,7 +428,7 @@ const ProjectDetails: React.FC = () => {
               transition={{ duration: 0.4 }}
             >
               <Link 
-                to="/projects" 
+                to="/opportunities" 
                 className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors group"
               >
                 <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
@@ -719,16 +719,22 @@ const ProjectDetails: React.FC = () => {
                   )}
                   
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={!isOwner ? { scale: 1.02 } : {}}
+                    whileTap={!isOwner ? { scale: 0.98 } : {}}
                     onClick={() => {
-                      // Navigate to messages or open contact modal
-                      navigate(`/dashboard-messages?project=${id}`);
+                      if (isOwner) return; // Disabled for owner
+                      // Navigate to messages with owner address
+                      navigate(`/dashboard-messages?to=${project.owner}`);
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-accent transition-colors border border-border"
+                    disabled={isOwner}
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-semibold rounded-lg transition-colors border border-border ${
+                      isOwner 
+                        ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50' 
+                        : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                    }`}
                   >
                     <MessageSquare className="h-5 w-5" />
-                    Message Owner
+                    {isOwner ? 'You are the owner' : 'Message Owner'}
                   </motion.button>
                 </div>
               </motion.div>

@@ -12,7 +12,7 @@ import {
   Users,
   CheckCircle,
   XCircle,
-  ExternalLink,
+  MessageSquare,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { PACKAGE_ID, DEVHUB_OBJECT_ID } from "@/lib/suiClient";
@@ -33,7 +33,7 @@ interface Project {
   creation_timestamp: number;
 }
 
-const Projects = () => {
+const Opportunities = () => {
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
   const navigate = useNavigate();
@@ -626,7 +626,7 @@ const Projects = () => {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
           <AnimatePresence mode="wait">
             <motion.div
-              key="projects-content"
+              key="opportunities-content"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -645,9 +645,9 @@ const Projects = () => {
                     <FolderKanban className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Projects</h1>
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Browse Opportunities</h1>
                     <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-0.5 sm:mt-1">
-                      Browse and manage development projects
+                      Discover and apply to exciting development opportunities
                     </p>
                   </div>
                 </div>
@@ -658,7 +658,7 @@ const Projects = () => {
                   className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-lg text-sm sm:text-base w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span>Create Project</span>
+                  <span>Create Opportunity</span>
                 </motion.button>
               </motion.div>
 
@@ -713,7 +713,7 @@ const Projects = () => {
                 </div>
               </motion.div>
 
-              {/* Projects Grid */}
+              {/* Opportunities Grid */}
               <AnimatePresence mode="wait">
                 {loading ? (
                   <motion.div
@@ -727,7 +727,7 @@ const Projects = () => {
                   </motion.div>
                 ) : filteredProjects.length > 0 ? (
                   <motion.div
-                    key="projects-grid"
+                    key="opportunities-grid"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -824,12 +824,25 @@ const Projects = () => {
                               View Details
                             </motion.button>
                             <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => navigate(`/projects/${project.id}`)}
-                              className="px-4 py-2 bg-secondary/50 text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                              whileHover={project.owner !== currentAccount?.address ? { scale: 1.05 } : {}}
+                              whileTap={project.owner !== currentAccount?.address ? { scale: 0.95 } : {}}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (project.owner === currentAccount?.address) {
+                                  return; // Disabled for owner
+                                }
+                                navigate(`/dashboard-messages?to=${project.owner}`);
+                              }}
+                              disabled={project.owner === currentAccount?.address}
+                              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                                project.owner === currentAccount?.address
+                                  ? 'bg-muted/50 text-muted-foreground cursor-not-allowed opacity-50'
+                                  : 'bg-secondary/50 text-secondary-foreground hover:bg-secondary/80'
+                              }`}
+                              title={project.owner === currentAccount?.address ? "You are the owner" : "Message Owner"}
                             >
-                              <ExternalLink size={16} />
+                              <MessageSquare size={16} />
+                              <span className="sr-only">{project.owner === currentAccount?.address ? "You are the owner" : "Message Owner"}</span>
                             </motion.button>
                           </div>
                         </motion.div>
@@ -852,12 +865,12 @@ const Projects = () => {
                       <FolderKanban className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     </motion.div>
                     <h3 className="text-xl font-semibold text-foreground mb-2">
-                      No projects found
+                      No opportunities found
                     </h3>
                     <p className="text-muted-foreground mb-6">
                       {currentAccount
-                        ? "Be the first to create a project!"
-                        : "Connect your wallet to view and create projects"}
+                        ? "Be the first to create an opportunity!"
+                        : "Connect your wallet to view and create opportunities"}
                     </p>
                     {currentAccount && (
                       <motion.button
@@ -867,7 +880,7 @@ const Projects = () => {
                         className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                       >
                         <Plus size={20} />
-                        Create Your First Project
+                        Create Your First Opportunity
                       </motion.button>
                     )}
                   </motion.div>
@@ -880,4 +893,4 @@ const Projects = () => {
   );
 };
 
-export default Projects;
+export default Opportunities;
