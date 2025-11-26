@@ -1293,11 +1293,11 @@ export default function ApplyProject() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.25 }}
-                className="flex gap-3 justify-end"
+                className="grid grid-cols-2 sm:flex sm:flex-row gap-3 justify-end"
               >
                 <button
                   onClick={() => navigate(-1)}
-                  className="px-4 py-2 rounded-md bg-muted text-foreground/80 hover:bg-muted/80 transition-colors"
+                  className="w-full px-4 py-2 rounded-md bg-muted text-foreground/80 hover:bg-muted/80 transition-colors text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -1321,7 +1321,7 @@ export default function ApplyProject() {
                       }
                     }
                   }}
-                  className={`px-6 py-2 rounded-md flex items-center gap-2 transition-colors ${
+                  className={`w-full px-4 sm:px-6 py-2 rounded-md flex items-center justify-center gap-2 transition-colors text-sm sm:text-base ${
                     disabled
                       ? "bg-muted text-foreground/50 cursor-not-allowed"
                       : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"

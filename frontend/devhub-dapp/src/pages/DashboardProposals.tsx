@@ -369,7 +369,7 @@ const DashboardProposals = () => {
                    </div>
                     
                     {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 mt-4 md:mt-0">
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -380,7 +380,7 @@ const DashboardProposals = () => {
                           boxShadow: "0 10px 25px rgba(168, 85, 247, 0.4)"
                         }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center gap-2"
+                        className="w-full px-4 sm:px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <ArrowLeft className="h-4 w-4" />
                         Back
@@ -395,7 +395,7 @@ const DashboardProposals = () => {
                           boxShadow: "0 10px 25px rgba(34, 197, 94, 0.4)"
                         }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2"
+                        className="w-full px-4 sm:px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <Plus className="h-4 w-4" />
                         New Proposal
@@ -894,7 +894,7 @@ const DashboardProposals = () => {
                       delay: 1.2,
                       ease: [0.25, 0.46, 0.45, 0.94]
                     }}
-                    className="flex justify-end gap-3"
+                    className="grid grid-cols-2 sm:flex sm:flex-row justify-end gap-3"
                   >
                     <motion.button
                       initial={{ opacity: 0, x: -20 }}
@@ -906,7 +906,7 @@ const DashboardProposals = () => {
                         boxShadow: "0 10px 25px rgba(168, 85, 247, 0.4)"
                       }}
                       whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 bg-accent/20 text-foreground font-semibold rounded-xl hover:bg-accent/30 transition-all shadow-lg flex items-center gap-2"
+                      className="w-full px-4 sm:px-6 py-3 bg-accent/20 text-foreground font-semibold rounded-xl hover:bg-accent/30 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       <motion.div
                         animate={{ rotate: [0, -5, 5, 0] }}
@@ -914,7 +914,7 @@ const DashboardProposals = () => {
                       >
                         <ArrowLeft className="h-4 w-4" />
                       </motion.div>
-                      Back to Dashboard
+                      <span className="hidden sm:inline">Back to </span>Dashboard
                     </motion.button>
                     <motion.button
                       initial={{ opacity: 0, x: 20 }}
@@ -926,7 +926,7 @@ const DashboardProposals = () => {
                         boxShadow: "0 10px 25px rgba(34, 197, 94, 0.4)"
                       }}
                       whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2"
+                      className="w-full px-4 sm:px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       <motion.div
                         animate={{ rotate: [0, 5, -5, 0] }}

@@ -846,7 +846,7 @@ const Connections: React.FC = () => {
                     </div>
                     
                     {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 mt-4 md:mt-0">
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -858,10 +858,10 @@ const Connections: React.FC = () => {
                         }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleGenerateInviteLink}
-                        className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2"
+                        className="w-full px-4 sm:px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <LinkIcon className="h-4 w-4" />
-                        Invite via Link
+                        <span className="hidden sm:inline">Invite via </span>Link
                       </motion.button>
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
@@ -874,10 +874,10 @@ const Connections: React.FC = () => {
                         }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/browse')}
-                        className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2"
+                        className="w-full px-4 sm:px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <UserPlus className="h-4 w-4" />
-                        Find Developers
+                        Find Devs
                       </motion.button>
                     </div>
                   </motion.div>

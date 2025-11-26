@@ -1424,12 +1424,12 @@ const Dashboard: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
+            className="w-24 h-24 sm:w-32 sm:h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
           >
-            <User className="h-16 w-16 text-primary" />
+            <User className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
           </motion.div>
-          <h2 className="text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
-          <p className="text-muted-foreground mb-8 text-lg">You need to connect your Sui wallet to access your dashboard.</p>
+          <h2 className="text-2xl sm:text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
+          <p className="text-sm sm:text-lg text-muted-foreground mb-8">You need to connect your Sui wallet to access your dashboard.</p>
           <div className="bg-primary/10 backdrop-blur-sm p-6 rounded-xl border border-primary/30 max-w-md mx-auto">
             <p className="text-primary">
               Connect your wallet to view and manage your developer card.
@@ -1497,8 +1497,8 @@ const Dashboard: React.FC = () => {
                     </div>
                     
                     {/* Search and Action Buttons */}
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <div className="flex-1 max-w-md">
+                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+                      <div className="flex-1 max-w-md w-full md:w-auto">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                           <input
@@ -1508,13 +1508,13 @@ const Dashboard: React.FC = () => {
                           />
                         </div>
                       </div>
-                      <div className="flex gap-3 items-center">
+                      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 w-full md:w-auto">
                         {userCards.length === 0 && (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => navigate('/create')}
-                            className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg"
+                            className="w-full px-4 sm:px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg text-sm sm:text-base"
                           >
                             Create Profile
                           </motion.button>
@@ -1523,7 +1523,7 @@ const Dashboard: React.FC = () => {
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => navigate('/projects/new')}
-                          className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all shadow-lg"
+                          className="w-full px-4 sm:px-6 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all shadow-lg text-sm sm:text-base"
                         >
                           Post a Project
                         </motion.button>
@@ -1532,10 +1532,10 @@ const Dashboard: React.FC = () => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => setShowProfileSettings(true)}
-                            className="px-6 py-3 bg-secondary text-secondary-foreground font-semibold rounded-xl hover:bg-secondary/80 transition-all shadow-lg flex items-center gap-2"
+                            className="w-full px-4 sm:px-6 py-3 bg-secondary text-secondary-foreground font-semibold rounded-xl hover:bg-secondary/80 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base col-span-2 sm:col-span-1"
                           >
                             <Settings className="h-4 w-4" />
-                            Profile Settings
+                            <span className="hidden sm:inline">Profile </span>Settings
                           </motion.button>
                         )}
                       </div>
@@ -1549,64 +1549,64 @@ const Dashboard: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.2 }}
                       whileHover={{ scale: 1.02, y: -5 }}
-                      className={`rounded-2xl p-6 shadow-2xl cursor-pointer transition-all ${
+                      className={`rounded-2xl p-4 sm:p-6 shadow-2xl cursor-pointer transition-all ${
                         theme === 'dark' 
                           ? 'bg-gradient-to-br from-primary/20 to-primary/30 border border-primary/30 text-primary-foreground' 
                           : 'bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 text-primary'
                       }`}
                     >
-                      <div className="text-3xl font-bold mb-2">
-                        {loading ? <Loader2 className="h-8 w-8 animate-spin" /> : stats.activeProjects}
+                      <div className="text-2xl sm:text-3xl font-bold mb-2">
+                        {loading ? <Loader2 className="h-5 w-5 sm:h-8 sm:w-8 animate-spin" /> : stats.activeProjects}
                       </div>
-                      <div className={`font-medium ${theme === 'dark' ? 'text-primary-foreground/80' : 'text-primary/80'}`}>Active Projects</div>
+                      <div className={`font-medium text-xs sm:text-sm ${theme === 'dark' ? 'text-primary-foreground/80' : 'text-primary/80'}`}>Active Projects</div>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.3 }}
                       whileHover={{ scale: 1.02, y: -5 }}
-                      className={`rounded-2xl p-6 shadow-2xl cursor-pointer transition-all ${
+                      className={`rounded-2xl p-4 sm:p-6 shadow-2xl cursor-pointer transition-all ${
                         theme === 'dark' 
                           ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/30 border border-blue-500/30 text-blue-100' 
                           : 'bg-gradient-to-br from-blue-500/10 to-blue-600/20 border border-blue-500/20 text-blue-600'
                       }`}
                     >
-                      <div className="text-3xl font-bold mb-2">
-                        {loading ? <Loader2 className="h-8 w-8 animate-spin" /> : stats.newMessages}
+                      <div className="text-2xl sm:text-3xl font-bold mb-2">
+                        {loading ? <Loader2 className="h-5 w-5 sm:h-8 sm:w-8 animate-spin" /> : stats.newMessages}
                       </div>
-                      <div className={`font-medium ${theme === 'dark' ? 'text-blue-100/80' : 'text-blue-600/80'}`}>New Messages</div>
+                      <div className={`font-medium text-xs sm:text-sm ${theme === 'dark' ? 'text-blue-100/80' : 'text-blue-600/80'}`}>New Messages</div>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.4 }}
                       whileHover={{ scale: 1.02, y: -5 }}
-                      className={`rounded-2xl p-6 shadow-2xl cursor-pointer transition-all ${
+                      className={`rounded-2xl p-4 sm:p-6 shadow-2xl cursor-pointer transition-all ${
                         theme === 'dark' 
                           ? 'bg-gradient-to-br from-green-500/20 to-green-600/30 border border-green-500/30 text-green-100' 
                           : 'bg-gradient-to-br from-green-500/10 to-green-600/20 border border-green-500/20 text-green-600'
                       }`}
                     >
-                      <div className="text-3xl font-bold mb-2">
-                        {loading ? <Loader2 className="h-8 w-8 animate-spin" /> : stats.profileViews}
+                      <div className="text-2xl sm:text-3xl font-bold mb-2">
+                        {loading ? <Loader2 className="h-5 w-5 sm:h-8 sm:w-8 animate-spin" /> : stats.profileViews}
                       </div>
-                      <div className={`font-medium ${theme === 'dark' ? 'text-green-100/80' : 'text-green-600/80'}`}>Profile Views</div>
+                      <div className={`font-medium text-xs sm:text-sm ${theme === 'dark' ? 'text-green-100/80' : 'text-green-600/80'}`}>Profile Views</div>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.5 }}
                       whileHover={{ scale: 1.02, y: -5 }}
-                      className={`rounded-2xl p-6 shadow-2xl cursor-pointer transition-all ${
+                      className={`rounded-2xl p-4 sm:p-6 shadow-2xl cursor-pointer transition-all ${
                         theme === 'dark' 
                           ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/30 border border-orange-500/30 text-orange-100' 
                           : 'bg-gradient-to-br from-orange-500/10 to-orange-600/20 border border-orange-500/20 text-orange-600'
                       }`}
                     >
-                      <div className="text-3xl font-bold mb-2">
-                        {loading ? <Loader2 className="h-8 w-8 animate-spin" /> : `${stats.profileHealth}%`}
+                      <div className="text-2xl sm:text-3xl font-bold mb-2">
+                        {loading ? <Loader2 className="h-5 w-5 sm:h-8 sm:w-8 animate-spin" /> : `${stats.profileHealth}%`}
                       </div>
-                      <div className={`font-medium ${theme === 'dark' ? 'text-orange-100/80' : 'text-orange-600/80'}`}>Profile Health</div>
+                      <div className={`font-medium text-xs sm:text-sm ${theme === 'dark' ? 'text-orange-100/80' : 'text-orange-600/80'}`}>Profile Health</div>
                     </motion.div>
                   </div>
 
@@ -1624,19 +1624,19 @@ const Dashboard: React.FC = () => {
                           : 'hover:border-blue-500/30'
                       }`}
                     >
-                  <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                    <Activity className="h-6 w-6 text-primary" />
+                  <h3 className="text-lg sm:text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                    <Activity className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                     Recent Activity
                   </h3>
                       <div className="space-y-4">
                         {loading ? (
                           <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
                           </div>
                         ) : activities.length === 0 ? (
                           <div className="text-center py-8">
-                            <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p className="text-muted-foreground">No recent activity</p>
+                            <Activity className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-sm sm:text-base text-muted-foreground">No recent activity</p>
                           </div>
                         ) : (
                           activities.map((activity, index) => (
@@ -1697,24 +1697,24 @@ const Dashboard: React.FC = () => {
                           : 'hover:border-green-500/30'
                       }`}
                     >
-                  <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                    <Wallet className="h-6 w-6 text-primary" />
+                  <h3 className="text-lg sm:text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                    <Wallet className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                     Wallet Overview
                   </h3>
                   <div className="space-y-4">
-                    <div className="text-3xl font-bold text-foreground">
+                    <div className="text-2xl sm:text-3xl font-bold text-foreground">
                       {loading ? (
-                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <Loader2 className="h-5 w-5 sm:h-8 sm:w-8 animate-spin" />
                       ) : (
                         `${walletBalance} SUI`
                       )}
                     </div>
-                      <div className="flex gap-3">
+                      <div className="grid grid-cols-2 sm:flex gap-3">
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => setShowReceiveModal(true)}
-                          className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-2"
+                          className="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
                         >
                           <Download className="h-4 w-4" />
                           Receive
@@ -1723,7 +1723,7 @@ const Dashboard: React.FC = () => {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => setShowSendModal(true)}
-                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                          className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
                         >
                           <Send className="h-4 w-4" />
                           Send
@@ -1812,14 +1812,14 @@ const Dashboard: React.FC = () => {
                       }`}
                     >
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                      <Users className="h-6 w-6 text-primary" />
+                    <h3 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
+                      <Users className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                       Suggested Developers
                     </h3>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="text-sm text-primary hover:text-primary/80 transition-colors"
+                      className="text-xs sm:text-sm text-primary hover:text-primary/80 transition-colors"
                     >
                       <Link to="/browse">View All</Link>
                     </motion.button>
@@ -1827,12 +1827,12 @@ const Dashboard: React.FC = () => {
                       <div className="space-y-4">
                         {loading ? (
                           <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
                           </div>
                         ) : suggestedDevelopers.length === 0 ? (
                           <div className="text-center py-8">
-                            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p className="text-muted-foreground">No suggested developers</p>
+                            <Users className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-sm sm:text-base text-muted-foreground">No suggested developers</p>
                           </div>
                         ) : (
                           suggestedDevelopers.map((developer, index) => (
@@ -1930,19 +1930,19 @@ const Dashboard: React.FC = () => {
                           : 'hover:border-orange-500/30'
                       }`}
                     >
-                  <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                    <Briefcase className="h-6 w-6 text-primary" />
+                  <h3 className="text-lg sm:text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                     Open Projects
                   </h3>
                       <div className="space-y-4">
                         {loading ? (
                           <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
                           </div>
                         ) : openProjects.length === 0 ? (
                           <div className="text-center py-8">
-                            <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p className="text-muted-foreground">No open projects</p>
+                            <Briefcase className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-sm sm:text-base text-muted-foreground">No open projects</p>
                           </div>
                         ) : (
                           openProjects.map((project, index) => (

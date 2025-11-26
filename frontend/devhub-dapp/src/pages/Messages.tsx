@@ -1433,7 +1433,7 @@ const Messages: React.FC = () => {
                           setShowDeveloperSelector(true);
                           loadAvailableDevelopers();
                         }}
-                        className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center justify-center gap-2"
+                        className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center justify-center gap-2"
                       >
                         <MessageSquare className="h-4 w-4" />
                         + New Message
