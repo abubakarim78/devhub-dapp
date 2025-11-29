@@ -74,7 +74,10 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
 
   useEffect(() => {
     if (currentAccount) {
+      // Only show Super Admin link to the publisher address (super_admin)
       isSuperAdmin(currentAccount.address).then(setIsSuperAdminUser);
+    } else {
+      setIsSuperAdminUser(false);
     }
   }, [currentAccount, isSuperAdmin]);
 
@@ -103,7 +106,10 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         ]
       : []),
-    ...(currentAccount && isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+    // Publisher (super admin) should NOT see regular Admin link - only Super Admin
+    // Regular admins see Admin link, publisher sees Super Admin link (mutually exclusive)
+    ...(currentAccount && isAdmin && !isSuperAdminUser ? [{ href: "/admin", label: "Admin" }] : []),
+    // Only show Super Admin link to the publisher address (super_admin)
     ...(currentAccount && isSuperAdminUser ? [{ href: "/super-admin", label: "Super Admin" }] : []),
   ];
 

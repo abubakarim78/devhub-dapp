@@ -747,15 +747,25 @@ const CardDetails: React.FC = () => {
                     </motion.button>
                   )}
                   
-                  <motion.a
-                    href={`mailto:${card.contact}?subject=Request%20Intro%20Call&body=Hi%20${encodeURIComponent(card.name)}%2C%0A%0AI%20would%20like%20to%20schedule%20an%20intro%20call%20with%20you.%0A%0AThank%20you%21`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-background border border-border text-foreground font-semibold rounded-lg hover:bg-accent transition-colors mb-4"
-                  >
-                    <Calendar className="h-5 w-5" />
-                    Request Intro Call
-                  </motion.a>
+                  {isOwner ? (
+                    <motion.button
+                      disabled
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-muted border border-border text-muted-foreground font-semibold rounded-lg cursor-not-allowed opacity-60 mb-4"
+                    >
+                      <Calendar className="h-5 w-5" />
+                      Request Intro Call
+                    </motion.button>
+                  ) : (
+                    <motion.a
+                      href={`mailto:${card.contact}?subject=Request%20Intro%20Call&body=Hi%20${encodeURIComponent(card.name)}%2C%0A%0AI%20would%20like%20to%20schedule%20an%20intro%20call%20with%20you.%0A%0AThank%20you%21`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-background border border-border text-foreground font-semibold rounded-lg hover:bg-accent transition-colors mb-4"
+                    >
+                      <Calendar className="h-5 w-5" />
+                      Request Intro Call
+                    </motion.a>
+                  )}
                   
                   <a href={`mailto:${card.contact}`} className="flex items-center gap-4 p-4 bg-background hover:bg-accent rounded-xl transition-all group border border-border hover:border-primary/50">
                     <div className="p-3 bg-primary/10 text-primary rounded-lg">

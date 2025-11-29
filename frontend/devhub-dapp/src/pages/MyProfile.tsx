@@ -67,6 +67,14 @@ const MyProfile: React.FC = () => {
         
         // Fetch cards first and show them immediately
         const cards = await getUserCards(currentAccount.address);
+        
+        // If no cards found, that's not an error - just set empty array
+        if (!cards || cards.length === 0) {
+          setUserCards([]);
+          setLoading(false);
+          return;
+        }
+        
         setUserCards(cards); // Show cards immediately
         
         // Then fetch work preferences in parallel (non-blocking)
@@ -89,7 +97,17 @@ const MyProfile: React.FC = () => {
         setUserCards(cardsWithWorkPreferences);
       } catch (err) {
         console.error('Error fetching user cards:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch profile data');
+        // Only set error if it's a real error, not just "no cards found"
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch profile data';
+        // Check if the error is about no cards/profile not found
+        if (errorMessage.toLowerCase().includes('no cards') || 
+            errorMessage.toLowerCase().includes('not found') ||
+            errorMessage.toLowerCase().includes('no profile')) {
+          // This is not a real error, just no profile exists
+          setUserCards([]);
+        } else {
+          setError(errorMessage);
+        }
       } finally {
         setLoading(false);
       }
@@ -100,6 +118,30 @@ const MyProfile: React.FC = () => {
 
   // Get the primary card (first card or most recent)
   const primaryCard = userCards.length > 0 ? userCards[0] : null;
+
+  // User not connected state - check first
+  if (!currentAccount) {
+    return (
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
+          >
+            <User className="h-16 w-16 text-primary" />
+          </motion.div>
+          <h2 className="text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
+          <p className="text-muted-foreground mb-8 text-lg">You need to connect your Sui wallet to access your profile.</p>
+          <div className="bg-primary/10 backdrop-blur-sm p-6 rounded-xl border border-primary/30 max-w-md mx-auto">
+            <p className="text-primary">
+              Connect your wallet to view and manage your developer profile.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (loading || contractLoading) {
@@ -120,7 +162,34 @@ const MyProfile: React.FC = () => {
     );
   }
 
-  // Error state
+  // No profile found state - check before error state
+  if (!primaryCard || userCards.length === 0) {
+    return (
+      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
+          >
+            <User className="h-16 w-16 text-primary" />
+          </motion.div>
+          <h2 className="text-4xl font-bold text-foreground mb-4">No Profile Found</h2>
+          <p className="text-muted-foreground mb-8 text-lg">You don't have a developer profile yet. Create one to showcase your skills and connect with other developers.</p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => window.location.href = '/create'}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors text-lg font-semibold"
+          >
+            Create Your Profile
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state - only show for real errors (when we have cards but something else failed)
   if (error || contractError) {
     return (
       <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
@@ -147,56 +216,6 @@ const MyProfile: React.FC = () => {
     );
   }
 
-  // No profile found state
-  if (!primaryCard) {
-    return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
-          >
-            <User className="h-16 w-16 text-primary" />
-          </motion.div>
-          <h2 className="text-4xl font-bold text-foreground mb-4">No Profile Found</h2>
-          <p className="text-muted-foreground mb-8 text-lg">You don't have a developer profile yet.</p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => window.location.href = '/create'}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
-          >
-            Create Profile
-          </motion.button>
-        </div>
-      </div>
-    );
-  }
-
-  // User not connected state
-  if (!currentAccount) {
-    return (
-      <div className="bg-background min-h-screen pt-16 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-32 h-32 bg-primary/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/30"
-          >
-            <User className="h-16 w-16 text-primary" />
-          </motion.div>
-          <h2 className="text-4xl font-bold text-foreground mb-4">Connect Your Wallet</h2>
-          <p className="text-muted-foreground mb-8 text-lg">You need to connect your Sui wallet to access your profile.</p>
-          <div className="bg-primary/10 backdrop-blur-sm p-6 rounded-xl border border-primary/30 max-w-md mx-auto">
-            <p className="text-primary">
-              Connect your wallet to view and manage your developer profile.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const handleCopy = (text: string, label: string = 'Text') => {
     if (!text) {

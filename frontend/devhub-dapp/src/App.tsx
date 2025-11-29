@@ -89,12 +89,14 @@ function App() {
       // Check cache first
       const cachedStatus = getCachedAdminStatus(address);
       if (cachedStatus !== null) {
+        console.log(`📋 Using cached admin status for ${address}: ${cachedStatus}`);
         setIsAdminUser(cachedStatus);
         return;
       }
 
       // Check admin status silently in the background
       try {
+        console.log(`🔍 Checking admin status for address: ${address}`);
         // Add timeout to the admin check
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error("Admin check timeout")), 15000);
@@ -107,14 +109,22 @@ function App() {
           timeoutPromise,
         ]);
 
+        console.log(`✅ Admin status check completed for ${address}: ${adminStatus}`);
         setIsAdminUser(adminStatus);
         setCachedAdminStatus(address, adminStatus);
-      } catch (error) {
-        console.error("Error checking admin status:", error);
-        setIsAdminUser(false);
-
-        // Cache failed result as false for shorter duration
-        setCachedAdminStatus(address, false);
+      } catch (error: any) {
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        console.error("❌ Error checking admin status in App.tsx:", errorMessage);
+        
+        // Only set to false if it's not a timeout (timeout might be transient)
+        if (errorMessage.includes("timeout")) {
+          console.warn("⚠️ Admin check timed out, will retry on next check");
+          // Don't cache timeout errors, allow retry
+        } else {
+          setIsAdminUser(false);
+          // Cache failed result as false for shorter duration
+          setCachedAdminStatus(address, false);
+        }
       }
     },
     [isAdmin, getCachedAdminStatus, setCachedAdminStatus],

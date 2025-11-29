@@ -712,21 +712,129 @@ const Connections: React.FC = () => {
         true
       );
       
-      await signAndExecute({
+      // Optimistically remove from suggestions immediately for better UX
+      setSuggestions(prev => prev.filter(suggestion => suggestion.id !== id));
+      
+      const result = await signAndExecute({
         transaction: tx,
       });
-
-      // Remove from suggestions and reload
-      setSuggestions(prev => prev.filter(suggestion => suggestion.id !== id));
-      // Reload suggestions to get fresh filtered list
-      setTimeout(() => loadSuggestions(), 1000);
+      
+      console.log('✅ Connection request sent successfully:', result);
+      
+      // Wait a bit for the transaction to be indexed, then reload all data
+      setTimeout(async () => {
+        try {
+          // Reload suggestions to get fresh filtered list
+          await loadSuggestions();
+          
+          // Reload connections
+          await loadConnections();
+          
+          // Reload sent requests to show the pending request
+          const sentEvents = await client.queryEvents({
+            query: {
+              MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent`
+            },
+            limit: 100,
+            order: 'descending'
+          });
+          
+          const acceptedEvents = await client.queryEvents({
+            query: {
+              MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
+            },
+            limit: 100,
+            order: 'descending'
+          });
+          
+          const declinedEvents = await client.queryEvents({
+            query: {
+              MoveEventType: `${PACKAGE_ID}::connections::ConnectionDeclined`
+            },
+            limit: 100,
+            order: 'descending'
+          });
+          
+          // Create maps to track most recent status
+          const acceptedConnections = new Map<string, number>();
+          const declinedConnections = new Map<string, number>();
+          
+          for (const event of acceptedEvents.data) {
+            if (event.parsedJson) {
+              const { user1, user2 } = event.parsedJson as any;
+              if (user1 === currentAccount.address || user2 === currentAccount.address) {
+                const otherUser = user1 === currentAccount.address ? user2 : user1;
+                const normalized = normalizeAddr(otherUser);
+                const timestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+                const existingTimestamp = acceptedConnections.get(normalized) || 0;
+                if (timestamp > existingTimestamp) {
+                  acceptedConnections.set(normalized, timestamp);
+                }
+              }
+            }
+          }
+          
+          for (const event of declinedEvents.data) {
+            if (event.parsedJson) {
+              const { from: _from, to } = event.parsedJson as any;
+              const normalized = normalizeAddr(to);
+              const timestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+              const existingTimestamp = declinedConnections.get(normalized) || 0;
+              if (timestamp > existingTimestamp) {
+                declinedConnections.set(normalized, timestamp);
+              }
+            }
+          }
+          
+          const allCards = await getAllCards();
+          const sentRequestEvents: any[] = [];
+          
+          for (const event of sentEvents.data) {
+            if (event.parsedJson) {
+              const { from, to } = event.parsedJson as any;
+              if (normalizeAddr(from) === normalizeAddr(currentAccount.address)) {
+                const toNormalized = normalizeAddr(to);
+                const recipientCard = allCards.find(card => normalizeAddr(card.owner) === toNormalized);
+                
+                const acceptedTimestamp = acceptedConnections.get(toNormalized) || 0;
+                const declinedTimestamp = declinedConnections.get(toNormalized) || 0;
+                const sentTimestamp = typeof event.timestampMs === 'number' ? event.timestampMs : parseInt(String(event.timestampMs || 0));
+                
+                const isMostRecent = sentTimestamp > acceptedTimestamp && sentTimestamp > declinedTimestamp;
+                
+                if (isMostRecent || (acceptedTimestamp === 0 && declinedTimestamp === 0)) {
+                  sentRequestEvents.push({
+                    id: `sent-${to}`,
+                    recipient: to,
+                    name: recipientCard?.name || `${to.slice(0, 8)}...`,
+                    avatar: buildAvatarFor(recipientCard?.name || '', normalizeAddr(to), recipientCard),
+                    skills: recipientCard?.technologies || 'Developer',
+                    timestamp: event.timestampMs,
+                    status: 'Pending Response',
+                    cardId: typeof recipientCard?.id === 'number' ? recipientCard.id : undefined,
+                  });
+                }
+              }
+            }
+          }
+          
+          setSentRequests(sentRequestEvents);
+        } catch (error) {
+          console.error('Error reloading data after connection request:', error);
+          // Reload suggestions anyway to ensure UI is in sync
+          loadSuggestions();
+        }
+      }, 2000); // Wait 2 seconds for transaction to be indexed
       
     } catch (error) {
-      console.error('Error connecting:', error);
+      console.error('❌ Error sending connection request:', error);
+      // Re-add to suggestions if the request failed
+      loadSuggestions();
+      alert(`Failed to send connection request: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setProcessing(null);
     }
-  }, [currentAccount?.address, loadSuggestions]);
+  }, [currentAccount?.address, loadSuggestions, loadConnections, client, normalizeAddr, getAllCards, buildAvatarFor]);
 
 
   const handleStartChat = useCallback(async (participant: string) => {

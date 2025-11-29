@@ -4,8 +4,8 @@ import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 
 
 // Contract configuration
-export const PACKAGE_ID = '0x20d8fcad4e3a8b06909bcac0af6eb4f9af79e8763886f981a33f6d464cd3f95d';
-export const DEVHUB_OBJECT_ID = '0x1d027e217465668282ea809d90b385f96f18dbea57e60e983dd386d45acb17a2';
+export const PACKAGE_ID = '0x172f2e5b357b990f0822b12b6b7a2fce87a157cb87c5e1f6611441073a54f5cc';
+export const DEVHUB_OBJECT_ID = '0x867d6ffe856e794f81b0c45b401a5d96583f9c2239042bdf208207ae067c59e6';
 // ConnectionStore is a shared object - we'll query for it dynamically
 export const CONNECTION_STORE_ID = ''; // Will be fetched dynamically
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
@@ -14,7 +14,7 @@ export const PROJECT_POSTING_FEE = 200_000_000; // 0.2 SUI in MIST
 // Initialize Sui client with messaging SDK
 // Note: Due to version compatibility issues, we'll use a simpler approach
 export const suiClient = new SuiClient({
-  url: getFullnodeUrl('testnet'),
+  url: getFullnodeUrl('devnet'),
   mvr: {
     overrides: {
       packages: {
@@ -2517,7 +2517,7 @@ export async function getCardInfo(cardId: number) {
         return cleaned;
       };
 
-      // Conservative cleaning specifically for the "about" field to remove single leading character artifacts
+      // Enhanced cleaning specifically for the "about" field to remove leading character artifacts
       const sanitizeAboutString = (str: any): string => {
         if (typeof str !== 'string') {
           const parsed = parseReturnValue(str);
@@ -2529,8 +2529,8 @@ export async function getCardInfo(cardId: number) {
         // Start with standard cleaning
         let cleaned = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
         
-        // Only remove a SINGLE leading character if it's clearly an artifact
-        // This is more conservative to avoid removing legitimate text
+        // Remove leading artifacts more aggressively
+        // This handles cases like ";Creating", "EBuilding", "3I", etc.
         
         if (cleaned.length > 1) {
           const firstChar = cleaned.charAt(0);
@@ -2543,26 +2543,35 @@ export async function getCardInfo(cardId: number) {
           const isCapitalLetter = /^[A-Z]$/.test(firstChar);
           const isSymbol = /^[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]$/.test(firstChar);
           const isSecondCharCapital = /^[A-Z]$/.test(secondChar);
-          const isCommonWordStarter = ['I', 'A', 'T', 'W', 'H', 'Y', 'O'].includes(secondChar);
+          const isCommonWordStarter = ['I', 'A', 'T', 'W', 'H', 'Y', 'O', 'B', 'C', 'D', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'U', 'V', 'X', 'Z'].includes(secondChar);
           const isThirdCharWordStart = thirdChar === ' ' || (thirdChar === thirdChar.toLowerCase() && thirdChar !== '' && /^[a-z]$/.test(thirdChar));
           const hasTextAfter = cleaned.length > 2; // There's content after the first two chars
           
-          // Remove single leading character if it's clearly an artifact:
-          // Priority 1: Digits are always artifacts if followed by ANY capital letter (like "3I", "4I", "4Design")
-          // Priority 2: Lowercase/symbol/capital + capital common word starter (like "cI", "!I", "DI")
-          // Must have actual text content after
-          
-          // More aggressive for digits - remove if digit + ANY capital letter, regardless of third char
-          // This catches cases like "4Design", "3I", "2A", etc.
+          // Priority 1: Remove digits followed by ANY capital letter (like "3I", "4I", "4Design", "5Building")
           if (isSingleDigit && isSecondCharCapital && hasTextAfter) {
             cleaned = cleaned.substring(1).trim();
           }
-          // For other characters, require third char to be space or lowercase and common word starter
+          // Priority 2: Remove symbols/punctuation followed by capital letter (like ";Creating", "!Building", ":Design")
+          else if (isSymbol && isSecondCharCapital && hasTextAfter) {
+            cleaned = cleaned.substring(1).trim();
+          }
+          // Priority 3: Remove single capital letter if followed by another capital letter that starts a word
+          // This catches cases like "EBuilding", "IDesign", "ABuilding" where the first letter is an artifact
+          else if (isCapitalLetter && isSecondCharCapital && hasTextAfter) {
+            // Additional check: if the second char is a common word starter, it's likely an artifact
+            // Also check if third char is lowercase (indicating a word start) or space
+            if (isCommonWordStarter && (isThirdCharWordStart || thirdChar === '')) {
+              cleaned = cleaned.substring(1).trim();
+            }
+          }
+          // Priority 4: Remove lowercase letter + capital letter if it looks like an artifact
+          // This catches cases like "cI", "dA", etc. where first char is clearly not part of the word
           else if (
-            isThirdCharWordStart && // Must be followed by actual word content
-            isSecondCharCapital && // Second char must be capital
-            isCommonWordStarter && // Second char must be a common word starter
-            (isLowercaseLetter || isSymbol || isCapitalLetter) // First char can be lowercase, symbol, or capital
+            isLowercaseLetter && 
+            isSecondCharCapital && 
+            isCommonWordStarter && 
+            isThirdCharWordStart &&
+            hasTextAfter
           ) {
             cleaned = cleaned.substring(1).trim();
           }

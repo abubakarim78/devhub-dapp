@@ -623,34 +623,21 @@ const Dashboard: React.FC = () => {
       // Phase 3: Fetch transaction history (can be done in parallel with other operations)
       const fetchTransactionHistory = async () => {
         try {
-          const response = await fetch('https://fullnode.testnet.sui.io:443', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'suix_queryTransactionBlocks',
-              params: [
-                {
-                  filter: {
-                    FromAddress: currentAccount.address
-                  },
-                  options: {
-                    showInput: true,
-                    showEffects: true,
-                    showEvents: true,
-                    showBalanceChanges: true,
-                  }
-                },
-                null,
-                10,
-                true
-              ],
-            }),
+          const result = await suiClient.queryTransactionBlocks({
+            filter: {
+              FromAddress: currentAccount.address
+            },
+            options: {
+              showInput: true,
+              showEffects: true,
+              showEvents: true,
+              showBalanceChanges: true,
+            },
+            limit: 10,
+            order: 'descending',
           });
 
-          const result = await response.json();
-          const transactions = result.result || { data: [] };
+          const transactions = result || { data: [] };
 
           if (transactions.data && transactions.data.length > 0) {
 
@@ -797,31 +784,19 @@ const Dashboard: React.FC = () => {
           );
 
           // Also fetch connection transactions in parallel
-          const connectionTxPromise = fetch('https://fullnode.testnet.sui.io:443', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'suix_queryTransactionBlocks',
-              params: [
-                {
-                  filter: {
-                    FromAddress: currentAccount.address,
-                    MoveFunction: `${PACKAGE_ID}::connections::accept_connection_request`
-                  },
-                  options: {
-                    showInput: true,
-                    showEffects: true,
-                    showEvents: true,
-                  }
-                },
-                null,
-                5,
-                true
-              ],
-            }),
-          }).then(res => res.json()).catch(() => ({ result: { data: [] } }));
+          const connectionTxPromise = suiClient.queryTransactionBlocks({
+            filter: {
+              FromAddress: currentAccount.address,
+              MoveFunction: `${PACKAGE_ID}::connections::accept_connection_request`
+            },
+            options: {
+              showInput: true,
+              showEffects: true,
+              showEvents: true,
+            },
+            limit: 5,
+            order: 'descending',
+          }).catch(() => ({ data: [] }));
 
           const [eventResults, connectionTxResult] = await Promise.all([
             Promise.all(eventPromises),
@@ -968,7 +943,7 @@ const Dashboard: React.FC = () => {
           });
 
           // Process connection transactions
-          const connectionTransactions = connectionTxResult.result || { data: [] };
+          const connectionTransactions = connectionTxResult?.data ? { data: connectionTxResult.data } : { data: [] };
           if (connectionTransactions.data && connectionTransactions.data.length > 0) {
             for (const tx of connectionTransactions.data) {
               const timestamp = tx.timestampMs ? Number(tx.timestampMs) : Date.now();

@@ -32,9 +32,10 @@ const AdminSkeletonLoader: React.FC = () => (
 
 const AdminPanel: React.FC = () => {
     const currentAccount = useCurrentAccount();
-    const { isAdmin: checkIsAdmin, getAdmins, getSuperAdmin } = useContract();
+    const { isAdmin: checkIsAdmin, isSuperAdmin: checkIsSuperAdmin, getAdmins, getSuperAdmin } = useContract();
 
     const [adminVerified, setAdminVerified] = useState<boolean | null>(null);
+    const [isSuperAdminUser, setIsSuperAdminUser] = useState<boolean>(false);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<AdminTab>('overview');
     const [admins, setAdmins] = useState<string[]>([]);
@@ -95,6 +96,18 @@ const AdminPanel: React.FC = () => {
 
         setLoading(true);
         try {
+            // First check if user is super admin (publisher) - they should NOT have admin access
+            const isSuperAdminResult = await checkIsSuperAdmin(currentAccount.address);
+            setIsSuperAdminUser(isSuperAdminResult);
+            
+            if (isSuperAdminResult) {
+                console.log('⚠️ Publisher (super admin) attempted to access Admin panel - denying access');
+                setAdminVerified(false);
+                setLoading(false);
+                return;
+            }
+
+            // Only check regular admin status if not super admin
             const isAdminResult = await checkIsAdmin(currentAccount.address, true);
             setAdminVerified(isAdminResult);
             if (isAdminResult) {
@@ -106,7 +119,7 @@ const AdminPanel: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [currentAccount, checkIsAdmin, fetchAdminData]);
+    }, [currentAccount, checkIsAdmin, checkIsSuperAdmin, fetchAdminData]);
 
     useEffect(() => {
         verifyAdminAccess();
@@ -148,7 +161,16 @@ const AdminPanel: React.FC = () => {
                             <Shield className="h-16 w-16 text-destructive" />
                         </div>
                         <h2 className="text-3xl font-bold text-foreground mb-4">Access Denied</h2>
-                        <p className="text-muted-foreground mb-6">You are not authorized to access the admin panel.</p>
+                        <p className="text-muted-foreground mb-6">
+                            {isSuperAdminUser 
+                                ? "The publisher address (super admin) should use the Super Admin panel instead."
+                                : "You are not authorized to access the admin panel."}
+                        </p>
+                        {isSuperAdminUser && (
+                            <p className="text-sm text-muted-foreground/80 mb-6">
+                                Please navigate to the Super Admin page for publisher-specific features.
+                            </p>
+                        )}
                         <button
                             onClick={verifyAdminAccess}
                             className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg shadow-primary/25 flex items-center space-x-2 mx-auto"
