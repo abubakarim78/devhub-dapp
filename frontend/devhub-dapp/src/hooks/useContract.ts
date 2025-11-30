@@ -321,7 +321,6 @@ const cleanAboutText = (text: string): string => {
     const isCapitalLetter = /^[A-Z]$/.test(firstChar);
     const isSymbol = /^[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]$/.test(firstChar);
     const isSecondCharCapital = /^[A-Z]$/.test(secondChar);
-    const isSecondCharLowercase = /^[a-z]$/.test(secondChar);
     const isCommonWordStarter = ['I', 'A', 'T', 'W', 'H', 'Y', 'O', 'B', 'C', 'D', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'U', 'V', 'X', 'Z'].includes(secondChar);
     const isThirdCharWordStart = thirdChar === ' ' || (thirdChar === thirdChar.toLowerCase() && thirdChar !== '' && /^[a-z]$/.test(thirdChar));
     const hasTextAfter = cleaned.length > 2; // There's content after the first two chars

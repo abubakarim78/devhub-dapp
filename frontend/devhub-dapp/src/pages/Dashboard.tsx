@@ -654,8 +654,8 @@ const Dashboard: React.FC = () => {
             for (const tx of transactions.data.slice(0, 4)) {
               try {
                 const txDetails = tx;
-                const digest = tx.digest || tx.transaction?.digest;
-                const timestamp = tx.timestampMs ? Number(tx.timestampMs) : Date.now();
+                const digest = (tx as any).digest || (tx as any).transaction?.digest || '';
+                const timestamp = (tx as any).timestampMs ? Number((tx as any).timestampMs) : Date.now();
                 const timestampStr = formatTimestamp(timestamp);
 
                 let txType: 'sent' | 'received' | 'other' = 'other';
@@ -709,11 +709,11 @@ const Dashboard: React.FC = () => {
                 }
 
                 if (txType === 'other' && txDetails.transaction?.data) {
-                  const txData = txDetails.transaction.data;
-                  if (txData.kind === 'ProgrammableTransaction') {
+                  const txData = txDetails.transaction.data as any;
+                  if (txData?.kind === 'ProgrammableTransaction') {
                     const calls = txData.transaction?.transactions || [];
                     for (const call of calls) {
-                      if (call.kind === 'TransferObjects') {
+                      if (call?.kind === 'TransferObjects') {
                         txType = 'sent';
                         description = 'Transfer transaction';
                       }
@@ -731,9 +731,10 @@ const Dashboard: React.FC = () => {
                   description: description
                 });
               } catch (txDetailError) {
-                console.error(`Error processing transaction ${tx.digest || 'unknown'}:`, txDetailError);
-                const timestamp = tx.timestampMs ? Number(tx.timestampMs) : Date.now();
-                const digest = tx.digest || tx.transaction?.digest || `tx-${timestamp}`;
+                const txAny = tx as any;
+                console.error(`Error processing transaction ${txAny.digest || 'unknown'}:`, txDetailError);
+                const timestamp = txAny.timestampMs ? Number(txAny.timestampMs) : Date.now();
+                const digest = txAny.digest || txAny.transaction?.digest || `tx-${timestamp}`;
                 txHistory.push({
                   id: digest,
                   type: 'other',
@@ -787,7 +788,11 @@ const Dashboard: React.FC = () => {
           const connectionTxPromise = suiClient.queryTransactionBlocks({
             filter: {
               FromAddress: currentAccount.address,
-              MoveFunction: `${PACKAGE_ID}::connections::accept_connection_request`
+              MoveFunction: {
+                package: PACKAGE_ID,
+                module: 'connections',
+                function: 'accept_connection_request'
+              }
             },
             options: {
               showInput: true,
@@ -946,9 +951,10 @@ const Dashboard: React.FC = () => {
           const connectionTransactions = connectionTxResult?.data ? { data: connectionTxResult.data } : { data: [] };
           if (connectionTransactions.data && connectionTransactions.data.length > 0) {
             for (const tx of connectionTransactions.data) {
-              const timestamp = tx.timestampMs ? Number(tx.timestampMs) : Date.now();
+              const txAny = tx as any;
+              const timestamp = txAny.timestampMs ? Number(txAny.timestampMs) : Date.now();
               activityItems.push({
-                id: tx.digest || `connection-${timestamp}`,
+                id: txAny.digest || `connection-${timestamp}`,
                 type: 'connection',
                 title: 'Connection accepted',
                 description: 'You accepted a connection request',

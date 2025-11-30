@@ -3516,6 +3516,88 @@ function parseProjectApplication(value: any): ProjectApplication | null {
   }
 }
 
+// Helper function to inspect a transaction and see what data was stored
+export async function inspectApplicationTransaction(digest: string, client?: SuiClient) {
+  try {
+    const clientToUse = client || suiClient;
+    console.log('🔍 Inspecting transaction:', digest);
+    
+    const tx = await clientToUse.getTransactionBlock({
+      digest,
+      options: {
+        showInput: true,
+        showEffects: true,
+        showEvents: true,
+        showObjectChanges: true,
+        showBalanceChanges: true,
+      },
+    });
+
+    console.log('📋 Transaction details:', JSON.stringify(tx, null, 2));
+
+    // Find created Proposal objects
+    const createdProposals = tx.objectChanges?.filter(
+      (change: any) => change.type === 'created' && 
+      (change.objectType?.includes('Proposal') || change.objectType?.includes('proposal'))
+    ) || [];
+
+    console.log(`📦 Found ${createdProposals.length} created Proposal objects`);
+
+    // Fetch each proposal object to see its data
+    for (const proposal of createdProposals) {
+      if ('objectId' in proposal) {
+        const proposalId = proposal.objectId;
+        console.log(`\n🔍 Fetching Proposal object: ${proposalId}`);
+        
+        try {
+          const proposalObj = await clientToUse.getObject({
+            id: proposalId,
+            options: {
+              showContent: true,
+              showType: true,
+              showOwner: true,
+            },
+          });
+
+          console.log(`📄 Proposal ${proposalId} data:`, JSON.stringify(proposalObj, null, 2));
+          
+          if (proposalObj.data?.content && 'fields' in proposalObj.data.content) {
+            const fields = (proposalObj.data.content as any).fields;
+            console.log(`📋 Proposal fields:`, Object.keys(fields));
+            console.log(`📋 Proposal field values:`, {
+              proposal_title: fields.proposal_title || fields.proposalTitle,
+              your_role: fields.your_role || fields.yourRole,
+              proposal_summary: fields.proposal_summary || fields.proposalSummary,
+              applicant_address: fields.applicant_address || fields.applicantAddress,
+              start_date: fields.start_date || fields.startDate,
+              requested_compensation: fields.requested_compensation || fields.requestedCompensation,
+              application_status: fields.application_status || fields.applicationStatus,
+            });
+          }
+        } catch (e) {
+          console.error(`❌ Error fetching proposal ${proposalId}:`, e);
+        }
+      }
+    }
+
+    // Check events for application data
+    const events = tx.events || [];
+    console.log(`\n📊 Found ${events.length} events`);
+    events.forEach((event: any, idx: number) => {
+      console.log(`Event ${idx}:`, {
+        type: event.type,
+        parsedJson: event.parsedJson,
+        bcs: event.bcs,
+      });
+    });
+
+    return tx;
+  } catch (error) {
+    console.error('❌ Error inspecting transaction:', error);
+    throw error;
+  }
+}
+
 // Get project applications
 export async function getProjectApplications(projectId: number, client?: SuiClient) {
   try {
@@ -3582,7 +3664,30 @@ export async function getProjectApplications(projectId: number, client?: SuiClie
     }
 
     console.log('📋 Vector data length:', vectorData.length);
-    console.log('📋 First item structure:', vectorData[0] ? JSON.stringify(vectorData[0], null, 2) : 'empty');
+    if (vectorData.length > 0) {
+      console.log('📋 First item structure:', JSON.stringify(vectorData[0], null, 2));
+      console.log('📋 First item type:', typeof vectorData[0], Array.isArray(vectorData[0]) ? 'array' : 'object');
+      if (vectorData[0] && typeof vectorData[0] === 'object' && !Array.isArray(vectorData[0])) {
+        console.log('📋 First item keys:', Object.keys(vectorData[0]));
+        if (vectorData[0].fields) {
+          console.log('📋 First item fields keys:', Object.keys(vectorData[0].fields));
+          console.log('📋 First item fields sample:', {
+            id: vectorData[0].fields.id,
+            applicant_address: vectorData[0].fields.applicant_address,
+            your_role: vectorData[0].fields.your_role,
+            proposal_summary: vectorData[0].fields.proposal_summary,
+            start_date: vectorData[0].fields.start_date,
+          });
+        }
+        // Check if it has an objectId - if so, we can fetch it directly
+        if (vectorData[0].objectId) {
+          console.log('📋 First item has objectId:', vectorData[0].objectId);
+        }
+      } else if (Array.isArray(vectorData[0])) {
+        console.log('📋 First item is array with length:', vectorData[0].length);
+        console.log('📋 First item array sample:', vectorData[0].slice(0, 5));
+      }
+    }
 
     // Parse each application in the vector
     applications = vectorData
@@ -3592,6 +3697,94 @@ export async function getProjectApplications(projectId: number, client?: SuiClie
 
           // If item is already an object with expected fields
           if (item && typeof item === 'object' && !Array.isArray(item)) {
+            // Check if it has struct fields (like fields.id, fields.applicant_address, etc.)
+            if (item.fields) {
+              const fields = item.fields;
+              try {
+                // Helper to safely get and parse string fields
+                const getStringField = (fieldName: string): string => {
+                  const value = fields[fieldName];
+                  if (!value) return '';
+                  if (typeof value === 'string') return value;
+                  const parsed = parseReturnValue(value);
+                  return typeof parsed === 'string' ? parsed : String(parsed || '');
+                };
+
+                // Helper to safely get and parse address fields
+                const getAddressField = (fieldName: string): string => {
+                  const value = fields[fieldName];
+                  if (!value) return '';
+                  if (typeof value === 'string' && value.startsWith('0x')) return value;
+                  return bytesToHexAddress(value);
+                };
+
+                // Helper to safely get and parse ID fields
+                const getIdField = (fieldName: string): string => {
+                  const value = fields[fieldName];
+                  if (!value) return '';
+                  if (typeof value === 'object' && value.id) return String(value.id);
+                  return String(value);
+                };
+
+                // Helper to safely get and parse Option fields
+                const getOptionField = (fieldName: string): string | undefined => {
+                  const value = fields[fieldName];
+                  if (!value) return undefined;
+                  // Handle Option<String> - could be { Some: value } or just the value
+                  if (typeof value === 'object' && value.Some !== undefined) {
+                    const parsed = parseReturnValue(value.Some);
+                    return typeof parsed === 'string' ? parsed : undefined;
+                  }
+                  const parsed = parseReturnValue(value);
+                  return typeof parsed === 'string' ? parsed : undefined;
+                };
+
+                const app: ProjectApplication = {
+                  id: getIdField('id'),
+                  projectId: getIdField('project_id') || String(projectId),
+                  applicantAddress: getAddressField('applicant_address'),
+                  yourRole: getStringField('your_role'),
+                  availabilityHrsPerWeek: parseU64Value(fields.availability_hrs_per_week || 0),
+                  startDate: getStringField('start_date'),
+                  expectedDurationWeeks: parseU64Value(fields.expected_duration_weeks || 0),
+                  proposalSummary: getStringField('proposal_summary'),
+                  requestedCompensation: parseU64Value(fields.requested_compensation || 0),
+                  milestonesCount: parseU64Value(fields.milestones_count || 0),
+                  githubRepoLink: getStringField('github_repo_link'),
+                  onChainAddress: getAddressField('on_chain_address'),
+                  teamMembers: Array.isArray(fields.team_members)
+                    ? fields.team_members.map((m: any) => {
+                        const parsed = parseReturnValue(m);
+                        return typeof parsed === 'string' ? parsed : String(parsed || '');
+                      })
+                    : [],
+                  applicationStatus: getStringField('application_status') || 'Pending',
+                  submissionTimestamp: parseU64Value(fields.submission_timestamp || 0),
+                  coverLetterWalrusBlobId: getOptionField('cover_letter_walrus_blob_id'),
+                  portfolioWalrusBlobIds: Array.isArray(fields.portfolio_walrus_blob_ids)
+                    ? fields.portfolio_walrus_blob_ids.map((p: any) => {
+                        const parsed = parseReturnValue(p);
+                        return typeof parsed === 'string' ? parsed : String(parsed || '');
+                      })
+                    : [],
+                  proposalId: fields.proposal_id ? getIdField('proposal_id') : undefined,
+                };
+                console.log(`✅ Parsed application ${index} from struct fields:`, {
+                  id: app.id,
+                  applicantAddress: app.applicantAddress,
+                  yourRole: app.yourRole,
+                  proposalSummary: app.proposalSummary?.substring(0, 50),
+                  applicationStatus: app.applicationStatus,
+                  startDate: app.startDate,
+                  rawFields: Object.keys(fields)
+                });
+                return app;
+              } catch (e) {
+                console.error(`❌ Error parsing application ${index} from struct fields:`, e, fields);
+              }
+            }
+            
+            // Try the existing parseProjectApplication function
             if (item.id || item.applicantAddress || item.yourRole) {
               const parsed = parseProjectApplication(item);
               if (parsed) {
@@ -3618,35 +3811,95 @@ export async function getProjectApplications(projectId: number, client?: SuiClie
             }
 
             // Try to parse assuming fields are in struct order
-            // Note: The actual order depends on BCS encoding, but typically:
-            // id (UID), project_id (ID), applicant_address (address), etc.
+            // Based on Move struct: id (UID), project_id (ID), applicant_address (address), 
+            // your_role (String), availability_hrs_per_week (u64), start_date (String), etc.
             try {
-              const app: ProjectApplication = {
-                id: fields[0] ? String(fields[0]) : '',
-                projectId: fields[1] ? String(fields[1]) : String(projectId),
-                applicantAddress: fields[2] ? bytesToHexAddress(fields[2]) : '',
-                yourRole: fields[3] ? (Array.isArray(fields[3]) ? decodeBytesToString(fields[3]) : String(fields[3])) : '',
-                availabilityHrsPerWeek: Number(fields[4] || 0),
-                startDate: fields[5] ? (Array.isArray(fields[5]) ? decodeBytesToString(fields[5]) : String(fields[5])) : '',
-                expectedDurationWeeks: Number(fields[6] || 0),
-                proposalSummary: fields[7] ? (Array.isArray(fields[7]) ? decodeBytesToString(fields[7]) : String(fields[7])) : '',
-                requestedCompensation: Number(fields[8] || 0),
-                milestonesCount: Number(fields[9] || 0),
-                githubRepoLink: fields[10] ? (Array.isArray(fields[10]) ? decodeBytesToString(fields[10]) : String(fields[10])) : '',
-                onChainAddress: fields[11] ? bytesToHexAddress(fields[11]) : '',
-                teamMembers: Array.isArray(fields[12])
-                  ? fields[12].map((m: any) => Array.isArray(m) ? decodeBytesToString(m) : String(m))
-                  : [],
-                applicationStatus: fields[13] ? (Array.isArray(fields[13]) ? decodeBytesToString(fields[13]) : String(fields[13])) : 'Pending',
-                submissionTimestamp: Number(fields[14] || 0),
-                coverLetterWalrusBlobId: fields[15] ? (Array.isArray(fields[15]) ? decodeBytesToString(fields[15]) : String(fields[15])) : undefined,
-                portfolioWalrusBlobIds: Array.isArray(fields[16])
-                  ? fields[16].map((p: any) => Array.isArray(p) ? decodeBytesToString(p) : String(p))
-                  : [],
-                proposalId: fields[17] ? String(fields[17]) : undefined,
+              // Helper to safely parse string fields
+              const parseStringField = (field: any): string => {
+                if (!field) return '';
+                if (typeof field === 'string') return field;
+                const parsed = parseReturnValue(field);
+                return typeof parsed === 'string' ? parsed : '';
               };
 
-              console.log(`✅ Parsed application ${index} from array`);
+              // Helper to safely parse number fields
+              const parseNumberField = (field: any): number => {
+                if (typeof field === 'number') return field;
+                if (typeof field === 'string') {
+                  const num = Number(field);
+                  return isNaN(num) ? 0 : num;
+                }
+                return parseU64Value(field);
+              };
+
+              // Helper to safely parse address fields
+              const parseAddressField = (field: any): string => {
+                if (!field) return '';
+                if (typeof field === 'string' && field.startsWith('0x')) return field;
+                return bytesToHexAddress(field);
+              };
+
+              // Helper to safely parse ID fields
+              const parseIdField = (field: any): string => {
+                if (!field) return '';
+                if (typeof field === 'object' && field.id) return String(field.id);
+                return String(field);
+              };
+
+              // Based on the Move struct order:
+              // 0: id (UID)
+              // 1: project_id (ID)
+              // 2: applicant_address (address)
+              // 3: your_role (String)
+              // 4: availability_hrs_per_week (u64)
+              // 5: start_date (String)
+              // 6: expected_duration_weeks (u64)
+              // 7: proposal_summary (String)
+              // 8: requested_compensation (u64)
+              // 9: milestones_count (u64)
+              // 10: github_repo_link (String)
+              // 11: on_chain_address (address)
+              // 12: team_members (vector<String>)
+              // 13: application_status (String)
+              // 14: submission_timestamp (u64)
+              // 15: cover_letter_walrus_blob_id (Option<String>)
+              // 16: portfolio_walrus_blob_ids (vector<String>)
+              // 17: proposal_id (Option<ID>)
+
+              const app: ProjectApplication = {
+                id: parseIdField(fields[0]),
+                projectId: parseIdField(fields[1]) || String(projectId),
+                applicantAddress: parseAddressField(fields[2]),
+                yourRole: parseStringField(fields[3]),
+                availabilityHrsPerWeek: parseNumberField(fields[4]),
+                startDate: parseStringField(fields[5]),
+                expectedDurationWeeks: parseNumberField(fields[6]),
+                proposalSummary: parseStringField(fields[7]),
+                requestedCompensation: parseNumberField(fields[8]),
+                milestonesCount: parseNumberField(fields[9]),
+                githubRepoLink: parseStringField(fields[10]),
+                onChainAddress: parseAddressField(fields[11]),
+                teamMembers: Array.isArray(fields[12])
+                  ? fields[12].map((m: any) => parseStringField(m))
+                  : [],
+                applicationStatus: parseStringField(fields[13]) || 'Pending',
+                submissionTimestamp: parseNumberField(fields[14]),
+                coverLetterWalrusBlobId: fields[15] ? parseStringField(fields[15]) : undefined,
+                portfolioWalrusBlobIds: Array.isArray(fields[16])
+                  ? fields[16].map((p: any) => parseStringField(p))
+                  : [],
+                proposalId: fields[17] ? parseIdField(fields[17]) : undefined,
+              };
+
+              console.log(`✅ Parsed application ${index} from array:`, {
+                id: app.id,
+                applicantAddress: app.applicantAddress,
+                yourRole: app.yourRole,
+                proposalSummary: app.proposalSummary?.substring(0, 50),
+                applicationStatus: app.applicationStatus,
+                startDate: app.startDate,
+                fieldsLength: fields.length
+              });
               return app;
             } catch (e) {
               console.error(`❌ Error parsing application ${index} from array:`, e, item);
@@ -5674,6 +5927,7 @@ export async function getProposalDetails(proposalId: string) {
 
 export async function getUserProposals(userProposalsId: string) {
   try {
+    console.log('🔍 Fetching user proposals from:', userProposalsId);
     const result = await suiClient.devInspectTransactionBlock({
       transactionBlock: (() => {
         const tx = new Transaction();
@@ -5688,12 +5942,65 @@ export async function getUserProposals(userProposalsId: string) {
       sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
     });
 
-    if (result.results?.[0]?.returnValues) {
-      return parseReturnValue(result.results[0].returnValues[0]) as string[];
+    console.log('📥 Raw getUserProposals result:', JSON.stringify(result, null, 2));
+
+    if (!result.results?.[0]?.returnValues) {
+      console.log('⚠️ No return values found for getUserProposals');
+      return [];
     }
-    return [];
+
+    const returnValue = result.results[0].returnValues[0];
+    console.log('📊 getUserProposals return value:', JSON.stringify(returnValue, null, 2));
+
+    // The contract returns &vector<ID>
+    // Handle different return value formats
+    let proposalIds: string[] = [];
+
+    // If it's [type, data] format
+    if (Array.isArray(returnValue) && returnValue.length === 2) {
+      const [type, data] = returnValue;
+      console.log('📦 Type:', type, 'Data:', data);
+      if (Array.isArray(data)) {
+        proposalIds = data.map((id: any) => {
+          // ID can be a string, object with id field, or byte array
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id.id) return String(id.id);
+          if (Array.isArray(id)) {
+            // Try to parse as address/ID
+            return bytesToHexAddress(id);
+          }
+          return String(id);
+        }).filter(id => id && id !== '');
+      }
+    } else if (Array.isArray(returnValue)) {
+      // Direct array of IDs
+      proposalIds = returnValue.map((id: any) => {
+        if (typeof id === 'string') return id;
+        if (typeof id === 'object' && id.id) return String(id.id);
+        if (Array.isArray(id)) {
+          return bytesToHexAddress(id);
+        }
+        return String(id);
+      }).filter(id => id && id !== '');
+    } else if (returnValue && typeof returnValue === 'object') {
+      // Might be an object with a 'data' field
+      const data = returnValue.data || returnValue.value || returnValue;
+      if (Array.isArray(data)) {
+        proposalIds = data.map((id: any) => {
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id.id) return String(id.id);
+          if (Array.isArray(id)) {
+            return bytesToHexAddress(id);
+          }
+          return String(id);
+        }).filter(id => id && id !== '');
+      }
+    }
+
+    console.log(`✅ Parsed ${proposalIds.length} proposal IDs:`, proposalIds);
+    return proposalIds;
   } catch (error) {
-    console.error('Error getting user proposals:', error);
+    console.error('❌ Error getting user proposals:', error);
     return [];
   }
 }
@@ -6461,118 +6768,234 @@ export async function getRecentActivity(): Promise<Array<{
   status: string;
 }>> {
   try {
-    // Query events from the contract
+    console.log('🔍 Fetching activity events from package:', PACKAGE_ID);
+    
+    // Query events from the contract - events are in different modules
     const events = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${PACKAGE_ID}::devhub::AdminRoleGranted`
+        MoveEventType: `${PACKAGE_ID}::admin::AdminRoleGranted`
       },
       limit: 10,
       order: 'descending'
     });
+    console.log(`📊 AdminRoleGranted events: ${events.data.length}`);
 
     const adminRevokedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${PACKAGE_ID}::devhub::AdminRoleRevoked`
+        MoveEventType: `${PACKAGE_ID}::admin::AdminRoleRevoked`
       },
       limit: 10,
       order: 'descending'
     });
+    console.log(`📊 AdminRoleRevoked events: ${adminRevokedEvents.data.length}`);
 
     const feeWithdrawnEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${PACKAGE_ID}::devhub::PlatformFeesWithdrawn`
+        MoveEventType: `${PACKAGE_ID}::admin::PlatformFeesWithdrawn`
       },
       limit: 10,
       order: 'descending'
     });
+    console.log(`📊 PlatformFeesWithdrawn events: ${feeWithdrawnEvents.data.length}`);
 
     const cardCreatedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${PACKAGE_ID}::devhub::CardCreated`
+        MoveEventType: `${PACKAGE_ID}::card::CardCreated`
       },
       limit: 5,
       order: 'descending'
     });
+    console.log(`📊 CardCreated events: ${cardCreatedEvents.data.length}`);
 
     const projectCreatedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated`
+        MoveEventType: `${PACKAGE_ID}::project::ProjectCreated`
       },
       limit: 10,
       order: 'descending'
     });
+    console.log(`📊 ProjectCreated events: ${projectCreatedEvents.data.length}`);
 
-    const allEvents = [
-      ...events.data,
-      ...adminRevokedEvents.data,
-      ...feeWithdrawnEvents.data,
-      ...cardCreatedEvents.data,
-      ...projectCreatedEvents.data
-    ].sort((a, b) => Number(b.timestampMs || 0) - Number(a.timestampMs || 0));
+    // Also try querying by package to get all events
+    let allPackageEvents: any[] = [];
+    try {
+      const packageEvents = await suiClient.queryEvents({
+        query: {
+          Package: PACKAGE_ID
+        },
+        limit: 50,
+        order: 'descending'
+      });
+      console.log(`📊 All package events: ${packageEvents.data.length}`);
+      allPackageEvents = packageEvents.data;
+    } catch (e) {
+      console.warn('⚠️ Could not query all package events:', e);
+    }
+
+    // Combine all events and remove duplicates based on transaction digest
+    const eventMap = new Map<string, any>();
+    
+    [...events.data, ...adminRevokedEvents.data, ...feeWithdrawnEvents.data, 
+     ...cardCreatedEvents.data, ...projectCreatedEvents.data, ...allPackageEvents].forEach(event => {
+      const key = `${event.id.txDigest}-${event.id.eventSeq}`;
+      if (!eventMap.has(key)) {
+        eventMap.set(key, event);
+      }
+    });
+
+    const allEvents = Array.from(eventMap.values()).sort((a, b) => 
+      Number(b.timestampMs || 0) - Number(a.timestampMs || 0)
+    );
+
+    console.log('📊 Total events fetched:', allEvents.length);
+    console.log('📊 Sample event structure:', allEvents[0] ? JSON.stringify(allEvents[0], null, 2) : 'No events');
 
     return allEvents.slice(0, 20).map((event) => {
-      const timestamp = new Date(Number(event.timestampMs || 0));
-      const now = new Date();
-      const diffMs = now.getTime() - timestamp.getTime();
+      try {
+        const timestamp = new Date(Number(event.timestampMs || 0));
+        const now = new Date();
+        const diffMs = now.getTime() - timestamp.getTime();
 
-      let when: string;
-      if (diffMs < 60000) { // Less than 1 minute
-        when = `${Math.floor(diffMs / 1000)}s ago`;
-      } else if (diffMs < 3600000) { // Less than 1 hour
-        when = `${Math.floor(diffMs / 60000)}m ago`;
-      } else if (diffMs < 86400000) { // Less than 1 day
-        when = `${Math.floor(diffMs / 3600000)}h ago`;
-      } else {
-        when = `${Math.floor(diffMs / 86400000)}d ago`;
+        let when: string;
+        if (diffMs < 60000) { // Less than 1 minute
+          when = `${Math.floor(diffMs / 1000)}s ago`;
+        } else if (diffMs < 3600000) { // Less than 1 hour
+          when = `${Math.floor(diffMs / 60000)}m ago`;
+        } else if (diffMs < 86400000) { // Less than 1 day
+          when = `${Math.floor(diffMs / 3600000)}h ago`;
+        } else {
+          when = `${Math.floor(diffMs / 86400000)}d ago`;
+        }
+
+        // Helper to safely extract event data
+        const getEventData = (): any => {
+          // Try parsedJson first
+          if (event.parsedJson) {
+            return event.parsedJson;
+          }
+          // Try bcs if available
+          if (event.bcs) {
+            // BCS data might need decoding, but for now return as is
+            return event.bcs;
+          }
+          // Try the event data directly
+          return event;
+        };
+
+        const eventData = getEventData();
+        console.log('🔍 Event data:', {
+          type: event.type,
+          parsedJson: event.parsedJson,
+          bcs: event.bcs,
+          eventData
+        });
+
+        let type: string;
+        let actor: string;
+        let details: string;
+        let status: string;
+
+        // Helper to safely get address field
+        const getAddress = (fieldName: string): string => {
+          if (!eventData) return 'Unknown';
+          const value = eventData[fieldName];
+          if (!value) return 'Unknown';
+          if (typeof value === 'string') return value;
+          // Try to parse as address from bytes
+          if (Array.isArray(value)) {
+            return bytesToHexAddress(value);
+          }
+          return String(value);
+        };
+
+        // Helper to safely get string field
+        const getString = (fieldName: string): string => {
+          if (!eventData) return '';
+          const value = eventData[fieldName];
+          if (!value) return '';
+          if (typeof value === 'string') return value;
+          // Try to parse BCS-encoded string
+          if (Array.isArray(value)) {
+            return parseReturnValue(value);
+          }
+          return String(value);
+        };
+
+        // Helper to safely get number field
+        const getNumber = (fieldName: string): number => {
+          if (!eventData) return 0;
+          const value = eventData[fieldName];
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const num = Number(value);
+            return isNaN(num) ? 0 : num;
+          }
+          return parseU64Value(value);
+        };
+
+        if (event.type.includes('AdminRoleGranted')) {
+          type = 'Role Granted';
+          actor = getAddress('admin');
+          details = `Granted Admin role to ${actor}`;
+          status = 'success';
+        } else if (event.type.includes('AdminRoleRevoked')) {
+          type = 'Role Revoked';
+          actor = getAddress('admin');
+          details = `Revoked Admin role from ${actor}`;
+          status = 'success';
+        } else if (event.type.includes('PlatformFeesWithdrawn')) {
+          type = 'Withdrawal';
+          actor = getAddress('admin');
+          const amount = getNumber('amount');
+          const recipient = getAddress('recipient');
+          const amountInSui = (amount / 1_000_000_000).toFixed(2);
+          details = `Withdrew ${amountInSui} SUI to ${recipient}`;
+          status = 'success';
+        } else if (event.type.includes('CardCreated')) {
+          type = 'Card Created';
+          actor = getAddress('owner');
+          const name = getString('name');
+          const cardId = getNumber('card_id');
+          details = name ? `Card "${name}" (ID: ${cardId}) created by ${actor}` : `Card (ID: ${cardId}) created by ${actor}`;
+          status = 'success';
+        } else if (event.type.includes('ProjectCreated')) {
+          type = 'Project Created';
+          actor = getAddress('owner');
+          const title = getString('title');
+          const projectId = eventData?.project_id ? String(eventData.project_id) : 'Unknown';
+          details = title ? `Project "${title}" (ID: ${projectId}) created by ${actor}` : `Project (ID: ${projectId}) created by ${actor}`;
+          status = 'success';
+        } else {
+          type = 'Platform Activity';
+          actor = 'System';
+          details = 'Platform activity detected';
+          status = 'info';
+        }
+
+        // Format actor address for display
+        const formattedActor = actor && actor.length > 20 
+          ? `${actor.slice(0, 8)}...${actor.slice(-8)}` 
+          : actor || 'Unknown';
+
+        return {
+          when,
+          type,
+          actor: formattedActor,
+          details,
+          txStatus: 'Confirmed',
+          status
+        };
+      } catch (e) {
+        console.error('❌ Error parsing event:', e, event);
+        return {
+          when: 'Unknown',
+          type: 'Error',
+          actor: 'System',
+          details: 'Failed to parse event data',
+          txStatus: 'Error',
+          status: 'error'
+        };
       }
-
-      let type: string;
-      let actor: string;
-      let details: string;
-      let status: string;
-
-      if (event.type.includes('AdminRoleGranted')) {
-        type = 'Role Granted';
-        actor = (event.parsedJson as any)?.admin || 'Unknown';
-        details = `Granted Admin to ${actor}`;
-        status = 'success';
-      } else if (event.type.includes('AdminRoleRevoked')) {
-        type = 'Role Revoked';
-        actor = (event.parsedJson as any)?.admin || 'Unknown';
-        details = `Revoked Admin from ${actor}`;
-        status = 'success';
-      } else if (event.type.includes('PlatformFeesWithdrawn')) {
-        type = 'Withdrawal';
-        actor = (event.parsedJson as any)?.admin || 'Unknown';
-        const amount = (event.parsedJson as any)?.amount ? (Number((event.parsedJson as any).amount) / 1_000_000_000).toFixed(2) : '0';
-        details = `Withdrew ${amount} SUI to ${(event.parsedJson as any)?.recipient || 'Unknown'}`;
-        status = 'success';
-      } else if (event.type.includes('CardCreated')) {
-        type = 'Card Created';
-        actor = (event.parsedJson as any)?.owner || 'Unknown';
-        details = `New developer card created by ${actor}`;
-        status = 'success';
-      } else if (event.type.includes('ProjectCreated')) {
-        type = 'Project Created';
-        actor = (event.parsedJson as any)?.owner || 'Unknown';
-        const title = (event.parsedJson as any)?.title || 'Untitled Project';
-        details = `New project "${title}" created by ${actor}`;
-        status = 'success';
-      } else {
-        type = 'Platform Activity';
-        actor = 'System';
-        details = 'Platform activity detected';
-        status = 'info';
-      }
-
-      return {
-        when,
-        type,
-        actor: actor.length > 20 ? `${actor.slice(0, 8)}...${actor.slice(-8)}` : actor,
-        details,
-        txStatus: 'Confirmed',
-        status
-      };
     });
   } catch (error) {
     console.error('Error fetching activity data:', error);
@@ -6592,25 +7015,25 @@ export async function getActivityStats(): Promise<{
     const [adminEvents, feeEvents, cardEvents, projectEvents] = await Promise.all([
       suiClient.queryEvents({
         query: {
-          MoveEventType: `${PACKAGE_ID}::devhub::AdminRoleGranted`
+          MoveEventType: `${PACKAGE_ID}::admin::AdminRoleGranted`
         },
         limit: 100
       }),
       suiClient.queryEvents({
         query: {
-          MoveEventType: `${PACKAGE_ID}::devhub::PlatformFeesWithdrawn`
+          MoveEventType: `${PACKAGE_ID}::admin::PlatformFeesWithdrawn`
         },
         limit: 100
       }),
       suiClient.queryEvents({
         query: {
-          MoveEventType: `${PACKAGE_ID}::devhub::CardCreated`
+          MoveEventType: `${PACKAGE_ID}::card::CardCreated`
         },
         limit: 100
       }),
       suiClient.queryEvents({
         query: {
-          MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated`
+          MoveEventType: `${PACKAGE_ID}::project::ProjectCreated`
         },
         limit: 100
       })
