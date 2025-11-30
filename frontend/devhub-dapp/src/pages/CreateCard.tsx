@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import {
   User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle,
   X, CloudUpload, ArrowRight, ArrowLeft, Plus, Trash2
@@ -123,6 +123,7 @@ const CreateCard: React.FC = () => {
     const navigate = useNavigate();
     const currentAccount = useCurrentAccount();
     const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+    const suiClient = useSuiClient();
     const { uploadToWalrus, uploadUrlToWalrus, walrusUploading, walrusProgress } = useContract();
   
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -347,31 +348,29 @@ const CreateCard: React.FC = () => {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`https://fullnode.testnet.sui.io:443`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 1,
-                    method: 'suix_getCoins',
-                    params: [currentAccount.address, '0x2::sui::SUI'],
-                }),
+            // Use SuiClient to get coins from the correct network (devnet)
+            const coins = await suiClient.getCoins({
+                owner: currentAccount.address,
+                coinType: '0x2::sui::SUI',
+                limit: 50,
             });
-            const coins = await response.json();
-            if (!coins.result?.data?.length) {
+            
+            if (!coins.data || coins.data.length === 0) {
                 throw new Error('No SUI coins found in wallet');
             }
+            
             const ESTIMATED_GAS = 1000000;
             const TOTAL_NEEDED = PLATFORM_FEE + ESTIMATED_GAS;
-            let totalBalance = 0;
-            const selectedCoins = [];
-            for (const coin of coins.result.data) {
-                const balance = parseInt(coin.balance);
-                selectedCoins.push(coin.coinObjectId);
+            let totalBalance = BigInt(0);
+            
+            // Check if user has enough balance
+            for (const coin of coins.data) {
+                const balance = BigInt(coin.balance);
                 totalBalance += balance;
-                if (totalBalance >= TOTAL_NEEDED) break;
+                if (totalBalance >= BigInt(TOTAL_NEEDED)) break;
             }
-            if (totalBalance < TOTAL_NEEDED) {
+            
+            if (totalBalance < BigInt(TOTAL_NEEDED)) {
                 throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1000000000).toFixed(3)} SUI.`);
             }
 
@@ -404,7 +403,33 @@ const CreateCard: React.FC = () => {
                 languages: formData.languages,
                 avatarWalrusBlobId: walrusImageBlobId,
             };
-            const tx = createCardTransaction(cardDataForTransaction, selectedCoins[0]);
+            
+            // Fetch coins again right before creating transaction to ensure they're fresh
+            const freshCoins = await suiClient.getCoins({
+                owner: currentAccount.address,
+                coinType: '0x2::sui::SUI',
+                limit: 50,
+            });
+            
+            if (!freshCoins.data || freshCoins.data.length === 0) {
+                throw new Error('No SUI coins found in wallet');
+            }
+            
+            // Use the first coin that has enough balance
+            let paymentCoinId = null;
+            for (const coin of freshCoins.data) {
+                const balance = BigInt(coin.balance);
+                if (balance >= BigInt(PLATFORM_FEE)) {
+                    paymentCoinId = coin.coinObjectId;
+                    break;
+                }
+            }
+            
+            if (!paymentCoinId) {
+                throw new Error('No coin with sufficient balance found');
+            }
+            
+            const tx = createCardTransaction(cardDataForTransaction, paymentCoinId);
             signAndExecute(
                 { transaction: tx },
                 {

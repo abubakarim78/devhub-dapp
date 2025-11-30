@@ -262,13 +262,39 @@ export default function ApplyProject() {
           console.log('📝 Creating both helper objects in one transaction...');
           setError("Creating required objects... Please approve the transaction.");
           const txBatch = createHelperObjectsBatchTransaction();
+          let batchCreatedUserProposalsId: string | null = null;
           await new Promise<void>((resolve, reject) => {
             signExecute(
-              { transaction: txBatch, options: { showEffects: true } } as any,
+              { transaction: txBatch, options: { showEffects: true, showObjectChanges: true } } as any,
               {
                 onSuccess: async (res: any) => {
                   try {
                     console.log('✅ Helper objects created, digest:', res.digest);
+                    
+                    // Try to get transaction details with object changes
+                    const txDetails = await client.getTransactionBlock({
+                      digest: res.digest,
+                      options: {
+                        showEffects: true,
+                        showObjectChanges: true,
+                        showInput: false,
+                      }
+                    });
+                    console.log('📦 Transaction details:', txDetails);
+                    console.log('📦 Object changes from details:', txDetails.objectChanges);
+                    
+                    // Try to extract UserProposals object ID from transaction details
+                    if (txDetails.objectChanges) {
+                      const createdUserProposals = txDetails.objectChanges.find(
+                        (change: any) => change.type === 'created' && 
+                        change.objectType?.includes('UserProposals')
+                      );
+                      if (createdUserProposals && 'objectId' in createdUserProposals) {
+                        batchCreatedUserProposalsId = createdUserProposals.objectId;
+                        console.log('✅ Found UserProposals ID from batch transaction details:', batchCreatedUserProposalsId);
+                      }
+                    }
+                    
                     await client.waitForTransaction({ digest: res.digest });
                     await afterSuccessPersistSharedIds(res.digest);
                     resolve();
@@ -286,14 +312,38 @@ export default function ApplyProject() {
           });
           setError(null);
           
-          // Fetch created objects
-          const owned = await client.getOwnedObjects({
-            owner: account.address,
-            filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
-            options: { showType: true },
-          });
-          ensuredUserProposalsId = owned.data?.[0]?.data?.objectId || null;
-          setUserProposalsId(ensuredUserProposalsId);
+          // Use object ID from transaction if available, otherwise query for it
+          if (batchCreatedUserProposalsId) {
+            ensuredUserProposalsId = batchCreatedUserProposalsId;
+            setUserProposalsId(ensuredUserProposalsId);
+            console.log('✅ UserProposals ID (from batch transaction details):', ensuredUserProposalsId);
+          } else {
+            // Fallback: Query for the created UserProposals object
+            console.log(`🔍 Querying for UserProposals with PACKAGE_ID: ${PACKAGE_ID}`);
+            const owned = await client.getOwnedObjects({
+              owner: account.address,
+              filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+              options: { showType: true },
+            });
+            console.log('📦 Query result:', owned);
+            console.log('📦 Query data:', owned.data);
+            
+            ensuredUserProposalsId = owned.data?.[0]?.data?.objectId || null;
+            if (!ensuredUserProposalsId) {
+              // Try querying all owned objects to see what we have
+              const allOwned = await client.getOwnedObjects({
+                owner: account.address,
+                options: { showType: true },
+              });
+              console.log('📦 All owned objects:', allOwned.data?.map(obj => ({
+                objectId: obj.data?.objectId,
+                type: obj.data?.type
+              })));
+              throw new Error(`Failed to create UserProposals object. PACKAGE_ID: ${PACKAGE_ID}. Please check if the package ID is correct.`);
+            }
+            setUserProposalsId(ensuredUserProposalsId);
+            console.log('✅ UserProposals ID (from query):', ensuredUserProposalsId);
+          }
           
           const cached = localStorage.getItem("devhub_proposals_by_status_id");
           if (cached) {
@@ -310,13 +360,40 @@ export default function ApplyProject() {
           console.log('📝 Creating UserProposals object...');
           setError("Creating your proposals object... Please approve the transaction.");
           const txCreateUser = createUserProposalsObjectTransaction();
+          let createdObjectId: string | null = null;
           await new Promise<void>((resolve, reject) => {
             signExecute(
-              { transaction: txCreateUser } as any,
+              { transaction: txCreateUser, options: { showEffects: true, showObjectChanges: true } } as any,
               {
                 onSuccess: async (res: any) => {
                   try {
                     console.log('✅ UserProposals created, digest:', res.digest);
+                    console.log('📦 Full transaction result:', JSON.stringify(res, null, 2));
+                    
+                    // Try to get transaction details with object changes
+                    const txDetails = await client.getTransactionBlock({
+                      digest: res.digest,
+                      options: {
+                        showEffects: true,
+                        showObjectChanges: true,
+                        showInput: false,
+                      }
+                    });
+                    console.log('📦 Transaction details:', txDetails);
+                    console.log('📦 Object changes from details:', txDetails.objectChanges);
+                    
+                    // Try to extract object ID from transaction details
+                    if (txDetails.objectChanges) {
+                      const createdObject = txDetails.objectChanges.find(
+                        (change: any) => change.type === 'created' && 
+                        change.objectType?.includes('UserProposals')
+                      );
+                      if (createdObject && 'objectId' in createdObject) {
+                        createdObjectId = createdObject.objectId;
+                        console.log('✅ Found UserProposals ID from transaction details:', createdObjectId);
+                      }
+                    }
+                    
                     await client.waitForTransaction({ digest: res.digest });
                     resolve();
                   } catch (e) {
@@ -332,17 +409,39 @@ export default function ApplyProject() {
             );
           });
           setError(null);
-          const again = await client.getOwnedObjects({
-            owner: account.address,
-            filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
-            options: { showType: true },
-          });
-          ensuredUserProposalsId = again.data?.[0]?.data?.objectId || null;
-          if (!ensuredUserProposalsId) {
-            throw new Error("Failed to create UserProposals object");
+          
+          // Use object ID from transaction if available, otherwise query for it
+          if (createdObjectId) {
+            ensuredUserProposalsId = createdObjectId;
+            setUserProposalsId(ensuredUserProposalsId);
+            console.log('✅ UserProposals ID (from transaction details):', ensuredUserProposalsId);
+          } else {
+            // Fallback: Query for the created object
+            console.log(`🔍 Querying for UserProposals with PACKAGE_ID: ${PACKAGE_ID}`);
+            const again = await client.getOwnedObjects({
+              owner: account.address,
+              filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+              options: { showType: true },
+            });
+            console.log('📦 Query result:', again);
+            console.log('📦 Query data:', again.data);
+            
+            ensuredUserProposalsId = again.data?.[0]?.data?.objectId || null;
+            if (!ensuredUserProposalsId) {
+              // Try querying all owned objects to see what we have
+              const allOwned = await client.getOwnedObjects({
+                owner: account.address,
+                options: { showType: true },
+              });
+              console.log('📦 All owned objects:', allOwned.data?.map(obj => ({
+                objectId: obj.data?.objectId,
+                type: obj.data?.type
+              })));
+              throw new Error(`Failed to create UserProposals object. PACKAGE_ID: ${PACKAGE_ID}. Please check if the package ID is correct.`);
+            }
+            setUserProposalsId(ensuredUserProposalsId);
+            console.log('✅ UserProposals ID (from query):', ensuredUserProposalsId);
           }
-          setUserProposalsId(ensuredUserProposalsId);
-          console.log('✅ UserProposals ID:', ensuredUserProposalsId);
         } else if (needsProposalsByStatus) {
           // Only ProposalsByStatus missing
           console.log('📝 Creating ProposalsByStatus object...');
@@ -458,37 +557,17 @@ export default function ApplyProject() {
         
         // Validate object exists and has data
         if (!obj.data) {
-          throw new Error(`ProposalsByStatus object ${ensuredProposalsByStatusId} not found`);
-        }
-        
-        // Validate it's the correct type
-        const expectedType = `${PACKAGE_ID}::devhub::ProposalsByStatus`;
-        const actualType = obj.data?.type;
-        if (!actualType) {
-          throw new Error('ProposalsByStatus object has no type information');
-        }
-        
-        if (actualType !== expectedType) {
-          const objectPackageId = actualType.split('::')[0];
-          console.warn(`⚠️ PACKAGE ID MISMATCH DETECTED: 
-            Expected: ${expectedType}
-            Got: ${actualType}
-            
-            The ProposalsByStatus object was created with a different package ID.
-            Automatically recreating it with the new package ID...
-            
-            Current PACKAGE_ID: ${PACKAGE_ID}
-            Object's package ID: ${objectPackageId}`);
+          console.warn(`⚠️ ProposalsByStatus object ${ensuredProposalsByStatusId} not found. It may have been created with a different package ID. Recreating...`);
           
           // Clear the old cached ID so it gets recreated
           localStorage.removeItem("devhub_proposals_by_status_id");
           setProposalsByStatusId(null);
           ensuredProposalsByStatusId = null;
           
-          console.log('🔄 Cleared old ProposalsByStatus ID. Creating new one with correct package ID...');
+          console.log('🔄 Cleared old ProposalsByStatus ID. Creating new one...');
           
-          // Recreate the ProposalsByStatus object with the new package ID
-          setError("Recreating ProposalsByStatus object with new package ID... Please approve the transaction.");
+          // Recreate the ProposalsByStatus object
+          setError("Recreating ProposalsByStatus object... Please approve the transaction.");
           const txCreatePBS = createProposalsByStatusTransaction();
           await new Promise<void>((resolve, reject) => {
             signExecute(
@@ -531,12 +610,6 @@ export default function ApplyProject() {
               throw new Error(`New ProposalsByStatus object ${ensuredProposalsByStatusId} not found`);
             }
             
-            // Verify it has the correct package ID now
-            const newType = newObj.data.type;
-            if (newType !== expectedType) {
-              throw new Error(`New ProposalsByStatus still has wrong package ID: ${newType}`);
-            }
-            
             // Extract shared version from the new object
             if (newObj.data.owner && typeof newObj.data.owner === 'object' && 'Shared' in newObj.data.owner) {
               const sharedOwner = (newObj.data.owner as any).Shared;
@@ -549,62 +622,164 @@ export default function ApplyProject() {
                 
                 if (!isNaN(versionNum) && versionNum > 0) {
                   proposalsByStatusSharedVersion = versionNum;
+                  console.log('✅ Using shared version from recreated object:', proposalsByStatusSharedVersion);
+                }
+              }
+            }
+          } else {
+            throw new Error("Failed to retrieve new ProposalsByStatus object ID after recreation");
+          }
+          
+          // Skip the rest of the validation since we've already recreated and validated
+          // Continue to the transaction creation below
+        } else {
+          // Object exists, continue with validation
+          // Validate it's the correct type
+          const expectedType = `${PACKAGE_ID}::devhub::ProposalsByStatus`;
+          const actualType = obj.data?.type;
+          if (!actualType) {
+            throw new Error('ProposalsByStatus object has no type information');
+          }
+          
+          if (actualType !== expectedType) {
+            const objectPackageId = actualType.split('::')[0];
+            console.warn(`⚠️ PACKAGE ID MISMATCH DETECTED: 
+              Expected: ${expectedType}
+              Got: ${actualType}
+              
+              The ProposalsByStatus object was created with a different package ID.
+              Automatically recreating it with the new package ID...
+              
+              Current PACKAGE_ID: ${PACKAGE_ID}
+              Object's package ID: ${objectPackageId}`);
+            
+            // Clear the old cached ID so it gets recreated
+            localStorage.removeItem("devhub_proposals_by_status_id");
+            setProposalsByStatusId(null);
+            ensuredProposalsByStatusId = null;
+            
+            console.log('🔄 Cleared old ProposalsByStatus ID. Creating new one with correct package ID...');
+            
+            // Recreate the ProposalsByStatus object with the new package ID
+            setError("Recreating ProposalsByStatus object with new package ID... Please approve the transaction.");
+            const txCreatePBS = createProposalsByStatusTransaction();
+            await new Promise<void>((resolve, reject) => {
+              signExecute(
+                { transaction: txCreatePBS, options: { showEffects: true } } as any,
+                {
+                  onSuccess: async (res: any) => {
+                    try {
+                      console.log('✅ New ProposalsByStatus created, digest:', res.digest);
+                      await client.waitForTransaction({ digest: res.digest });
+                      await afterSuccessPersistSharedIds(res.digest);
+                      resolve();
+                    } catch (e) {
+                      console.error('Error waiting for ProposalsByStatus transaction:', e);
+                      reject(e);
+                    }
+                  },
+                  onError: (error) => {
+                    console.error('Error creating ProposalsByStatus:', error);
+                    reject(error);
+                  },
+                }
+              );
+            });
+            setError(null);
+            
+            // Fetch the newly created object ID
+            const cached = localStorage.getItem("devhub_proposals_by_status_id");
+            if (cached) {
+              ensuredProposalsByStatusId = cached;
+              setProposalsByStatusId(cached);
+              console.log('✅ New ProposalsByStatus ID:', ensuredProposalsByStatusId);
+              
+              // Re-fetch the object to get the shared version
+              const newObj = await client.getObject({ 
+                id: ensuredProposalsByStatusId, 
+                options: { showType: true, showOwner: true, showContent: true } 
+              });
+              
+              if (!newObj.data) {
+                throw new Error(`New ProposalsByStatus object ${ensuredProposalsByStatusId} not found`);
+              }
+              
+              // Verify it has the correct package ID now
+              const newType = newObj.data.type;
+              if (newType !== expectedType) {
+                throw new Error(`New ProposalsByStatus still has wrong package ID: ${newType}`);
+              }
+              
+              // Extract shared version from the new object
+              if (newObj.data.owner && typeof newObj.data.owner === 'object' && 'Shared' in newObj.data.owner) {
+                const sharedOwner = (newObj.data.owner as any).Shared;
+                const sharedVersion = sharedOwner?.initial_shared_version;
+                
+                if (sharedVersion !== undefined && sharedVersion !== null) {
+                  const versionNum = typeof sharedVersion === 'string' 
+                    ? Number(sharedVersion) 
+                    : Number(sharedVersion);
+                  
+                  if (!isNaN(versionNum) && versionNum > 0) {
+                    proposalsByStatusSharedVersion = versionNum;
+                  } else {
+                    throw new Error(`Invalid shared version format: ${sharedVersion}`);
+                  }
                 } else {
-                  throw new Error(`Invalid shared version format: ${sharedVersion}`);
+                  throw new Error('New shared object missing initial_shared_version');
                 }
               } else {
-                throw new Error('New shared object missing initial_shared_version');
+                throw new Error(`New object ${ensuredProposalsByStatusId} is not a shared object`);
+              }
+              
+              console.log('✅ New ProposalsByStatus object validated:', { 
+                objectId: ensuredProposalsByStatusId,
+                type: newType,
+                sharedVersion: proposalsByStatusSharedVersion
+              });
+            } else {
+              throw new Error("Failed to retrieve new ProposalsByStatus object ID");
+            }
+            
+            // Skip the rest of the validation since we've already recreated and validated
+            // proposalsByStatusSharedVersion is already set above, so we can continue
+          } else {
+            // Object exists with correct package ID, continue with validation and extract shared version
+            // Extract shared version - REQUIRED for sharedObjectRef
+            if (obj.data.owner && typeof obj.data.owner === 'object' && 'Shared' in obj.data.owner) {
+              const sharedOwner = (obj.data.owner as any).Shared;
+              const sharedVersion = sharedOwner?.initial_shared_version;
+              
+              if (sharedVersion !== undefined && sharedVersion !== null) {
+                // Ensure it's a valid number
+                const versionNum = typeof sharedVersion === 'string' 
+                  ? Number(sharedVersion) 
+                  : Number(sharedVersion);
+                
+                if (!isNaN(versionNum) && versionNum > 0) {
+                  proposalsByStatusSharedVersion = versionNum;
+                } else {
+                  throw new Error(`Invalid shared version format: ${sharedVersion} (type: ${typeof sharedVersion})`);
+                }
+              } else {
+                throw new Error('Shared object missing initial_shared_version');
               }
             } else {
-              throw new Error(`New object ${ensuredProposalsByStatusId} is not a shared object`);
+              throw new Error(`Object ${ensuredProposalsByStatusId} is not a shared object. Owner: ${JSON.stringify(obj.data.owner)}`);
             }
             
-            console.log('✅ New ProposalsByStatus object validated:', { 
+            console.log('✅ Fetched proposalsByStatus object (arg_idx 2):', { 
               objectId: ensuredProposalsByStatusId,
-              type: newType,
-              sharedVersion: proposalsByStatusSharedVersion
+              type: obj.data.type,
+              owner: obj.data.owner,
+              sharedVersion: proposalsByStatusSharedVersion,
+              isValid: !!proposalsByStatusSharedVersion
             });
-          } else {
-            throw new Error("Failed to retrieve new ProposalsByStatus object ID");
-          }
-          
-          // Skip the rest of the validation and continue with the new object
-          return; // Exit early, we've already set proposalsByStatusSharedVersion
-        }
-        
-        // Extract shared version - REQUIRED for sharedObjectRef
-        if (obj.data.owner && typeof obj.data.owner === 'object' && 'Shared' in obj.data.owner) {
-          const sharedOwner = (obj.data.owner as any).Shared;
-          const sharedVersion = sharedOwner?.initial_shared_version;
-          
-          if (sharedVersion !== undefined && sharedVersion !== null) {
-            // Ensure it's a valid number
-            const versionNum = typeof sharedVersion === 'string' 
-              ? Number(sharedVersion) 
-              : Number(sharedVersion);
             
-            if (!isNaN(versionNum) && versionNum > 0) {
-              proposalsByStatusSharedVersion = versionNum;
-            } else {
-              throw new Error(`Invalid shared version format: ${sharedVersion} (type: ${typeof sharedVersion})`);
+            if (!proposalsByStatusSharedVersion) {
+              throw new Error('Failed to extract valid initialSharedVersion from proposalsByStatus object');
             }
-          } else {
-            throw new Error('Shared object missing initial_shared_version');
           }
-        } else {
-          throw new Error(`Object ${ensuredProposalsByStatusId} is not a shared object. Owner: ${JSON.stringify(obj.data.owner)}`);
-        }
-        
-        console.log('✅ Fetched proposalsByStatus object (arg_idx 2):', { 
-          objectId: ensuredProposalsByStatusId,
-          type: obj.data.type,
-          owner: obj.data.owner,
-          sharedVersion: proposalsByStatusSharedVersion,
-          isValid: !!proposalsByStatusSharedVersion
-        });
-        
-        if (!proposalsByStatusSharedVersion) {
-          throw new Error('Failed to extract valid initialSharedVersion from proposalsByStatus object');
         }
       } catch (e) {
         console.error('❌ Error fetching proposalsByStatus object:', e);
@@ -634,6 +809,10 @@ export default function ApplyProject() {
       
       // Use the new PTB function for a single transaction
       // Note: Objects must exist (we've ensured they do above)
+      if (!proposalsByStatusSharedVersion) {
+        throw new Error('Failed to get proposalsByStatus shared version');
+      }
+      
       const tx = applyToProjectPTB({
         userProposalsId: ensuredUserProposalsId,
         proposalsByStatusId: ensuredProposalsByStatusId,
@@ -1293,11 +1472,11 @@ export default function ApplyProject() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.25 }}
-                className="flex gap-3 justify-end"
+                className="grid grid-cols-2 sm:flex sm:flex-row gap-3 justify-end"
               >
                 <button
                   onClick={() => navigate(-1)}
-                  className="px-4 py-2 rounded-md bg-muted text-foreground/80 hover:bg-muted/80 transition-colors"
+                  className="w-full px-4 py-2 rounded-md bg-muted text-foreground/80 hover:bg-muted/80 transition-colors text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -1321,7 +1500,7 @@ export default function ApplyProject() {
                       }
                     }
                   }}
-                  className={`px-6 py-2 rounded-md flex items-center gap-2 transition-colors ${
+                  className={`w-full px-4 sm:px-6 py-2 rounded-md flex items-center justify-center gap-2 transition-colors text-sm sm:text-base ${
                     disabled
                       ? "bg-muted text-foreground/50 cursor-not-allowed"
                       : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"

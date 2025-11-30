@@ -167,12 +167,16 @@ const SuperAdmin: React.FC = () => {
 
     try {
       setLoading(true);
+      // Only the publisher address (super_admin) can access this page
       const isAuth = await checkIsSuperAdmin(currentAccount.address);
       setIsAuthorized(isAuth);
       if (isAuth) {
         await fetchAllData();
+      } else {
+        console.warn(`⚠️ Access denied: ${currentAccount.address} is not the publisher (super_admin)`);
       }
     } catch (err) {
+      console.error("❌ Error verifying super admin status:", err);
       setError("Failed to verify super admin status.");
       setIsAuthorized(false);
     } finally {
@@ -516,7 +520,10 @@ const SuperAdmin: React.FC = () => {
               Access Denied
             </h2>
             <p className="text-muted-foreground mb-6">
-              You are not authorized to access the super admin panel.
+              Only the contract publisher address can access the super admin panel.
+            </p>
+            <p className="text-sm text-muted-foreground/80">
+              This page is restricted to the address that published the DevHub contract.
             </p>
           </motion.div>
         </div>

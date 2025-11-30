@@ -307,8 +307,8 @@ const cleanAboutText = (text: string): string => {
   // Start with standard cleaning
   let cleaned = cleanTextString(text);
 
-  // Only remove a SINGLE leading character if it's clearly an artifact
-  // This is more conservative to avoid removing legitimate text
+  // Remove leading artifacts more aggressively
+  // This handles cases like ";Creating", "EBuilding", "3I", etc.
   
   if (cleaned.length > 1) {
     const firstChar = cleaned.charAt(0);
@@ -321,26 +321,35 @@ const cleanAboutText = (text: string): string => {
     const isCapitalLetter = /^[A-Z]$/.test(firstChar);
     const isSymbol = /^[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]$/.test(firstChar);
     const isSecondCharCapital = /^[A-Z]$/.test(secondChar);
-    const isCommonWordStarter = ['I', 'A', 'T', 'W', 'H', 'Y', 'O'].includes(secondChar);
+    const isCommonWordStarter = ['I', 'A', 'T', 'W', 'H', 'Y', 'O', 'B', 'C', 'D', 'E', 'F', 'G', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'U', 'V', 'X', 'Z'].includes(secondChar);
     const isThirdCharWordStart = thirdChar === ' ' || (thirdChar === thirdChar.toLowerCase() && thirdChar !== '' && /^[a-z]$/.test(thirdChar));
     const hasTextAfter = cleaned.length > 2; // There's content after the first two chars
     
-    // Remove single leading character if it's clearly an artifact:
-    // Priority 1: Digits are always artifacts if followed by ANY capital letter (like "3I", "4I", "4Design")
-    // Priority 2: Lowercase/symbol/capital + capital common word starter (like "cI", "!I", "DI")
-    // Must have actual text content after
-    
-    // More aggressive for digits - remove if digit + ANY capital letter, regardless of third char
-    // This catches cases like "4Design", "3I", "2A", etc.
+    // Priority 1: Remove digits followed by ANY capital letter (like "3I", "4I", "4Design", "5Building")
     if (isSingleDigit && isSecondCharCapital && hasTextAfter) {
       cleaned = cleaned.substring(1).trim();
     }
-    // For other characters, require third char to be space or lowercase and common word starter
+    // Priority 2: Remove symbols/punctuation followed by capital letter (like ";Creating", "!Building", ":Design")
+    else if (isSymbol && isSecondCharCapital && hasTextAfter) {
+      cleaned = cleaned.substring(1).trim();
+    }
+    // Priority 3: Remove single capital letter if followed by another capital letter that starts a word
+    // This catches cases like "EBuilding", "IDesign", "ABuilding" where the first letter is an artifact
+    else if (isCapitalLetter && isSecondCharCapital && hasTextAfter) {
+      // Additional check: if the second char is a common word starter, it's likely an artifact
+      // Also check if third char is lowercase (indicating a word start) or space
+      if (isCommonWordStarter && (isThirdCharWordStart || thirdChar === '')) {
+        cleaned = cleaned.substring(1).trim();
+      }
+    }
+    // Priority 4: Remove lowercase letter + capital letter if it looks like an artifact
+    // This catches cases like "cI", "dA", etc. where first char is clearly not part of the word
     else if (
-      isThirdCharWordStart && // Must be followed by actual word content
-      isSecondCharCapital && // Second char must be capital
-      isCommonWordStarter && // Second char must be a common word starter
-      (isLowercaseLetter || isSymbol || isCapitalLetter) // First char can be lowercase, symbol, or capital
+      isLowercaseLetter && 
+      isSecondCharCapital && 
+      isCommonWordStarter && 
+      isThirdCharWordStart &&
+      hasTextAfter
     ) {
       cleaned = cleaned.substring(1).trim();
     }
@@ -1617,48 +1626,55 @@ export function useContract() {
 
       try {
         console.log(`🔍 Checking admin status for: ${address}`);
+        console.log(`📦 Using PACKAGE_ID: ${PACKAGE_ID}`);
+        console.log(`📦 Using DEVHUB_OBJECT_ID: ${DEVHUB_OBJECT_ID}`);
 
+        // Use getAdmins and check if address is in the list
+        // IMPORTANT: Publisher (super_admin) should NOT have regular admin access
+        // This is a workaround since is_admin function doesn't exist in devhub module
         const adminStatus = await withRetry(async () => {
-          const tx = new Transaction();
-          tx.moveCall({
-            target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_ADMIN}`,
-            arguments: [tx.object(DEVHUB_OBJECT_ID), tx.pure.address(address)],
-          });
+          const [admins, superAdminAddr] = await Promise.all([
+            getAdminsFromContract(),
+            getSuperAdmin(),
+          ]);
 
-          const result = await client.devInspectTransactionBlock({
-            transactionBlock: tx as any,
-            sender:
-              "0x0000000000000000000000000000000000000000000000000000000000000000", // ✅ Neutral sender
-          });
+          console.log(`📋 Admins list:`, admins);
+          console.log(`📋 Super admin:`, superAdminAddr);
 
-          console.log(`📥 Admin check result:`, result);
+          // Normalize addresses for comparison (remove leading zeros, ensure lowercase)
+          const normalizeAddress = (addr: string) => addr.toLowerCase().trim();
+          const normalizedAddress = normalizeAddress(address);
 
-          if (result.results?.[0]?.returnValues?.[0]) {
-            const [bytes] = result.results[0].returnValues[0];
-            console.log(`📊 Raw bytes:`, bytes);
-
-            // ✅ Proper boolean parsing
-            let isAdminResult: boolean;
-            if (Array.isArray(bytes)) {
-              isAdminResult = bytes[0] === 1; // Move boolean is 1 for true, 0 for false
-            } else {
-              isAdminResult = bytes === 1 || bytes === true;
-            }
-
-            console.log(`👑 Admin status for ${address}:`, isAdminResult);
-            return isAdminResult;
+          // Explicitly exclude super admin (publisher) from regular admin access
+          if (superAdminAddr && normalizeAddress(superAdminAddr) === normalizedAddress) {
+            console.log(`👑 Address ${address} is super admin (publisher) - NOT granting regular admin access`);
+            return false; // Publisher should only have super admin access, not regular admin
           }
-          return false;
+
+          // Check if address is in admins list (excluding super admin)
+          const isInAdmins = admins.some(
+            (adminAddr) => normalizeAddress(adminAddr) === normalizedAddress
+          );
+
+          console.log(`👑 Admin status for ${address}:`, isInAdmins);
+          return isInAdmins;
         });
 
         cacheRef.current.adminStatus.set(address, setCacheEntry(adminStatus));
         return adminStatus;
-      } catch (err) {
+      } catch (err: any) {
+        // Check if error is about package not existing
+        const errorMessage = err?.message || err?.toString() || '';
+        if (errorMessage.includes('Package object does not exist') || 
+            errorMessage.includes('does not exist with ID')) {
+          console.warn(`⚠️ Package ${PACKAGE_ID} does not exist on the network. This may be normal if the package hasn't been published yet.`);
+          return false;
+        }
         console.error(`❌ Error checking admin status:`, err);
         return false; // ✅ Always default to false on error
       }
     },
-    [client, isCacheValid, setCacheEntry, withRetry],
+    [isCacheValid, setCacheEntry, withRetry],
   );
 
   const isSuperAdmin = useCallback(
@@ -1668,46 +1684,45 @@ export function useContract() {
       try {
         console.log(`🔍 Checking super admin status for: ${address}`);
 
+        // Only the publisher address (super_admin) can be a super admin
+        // This checks if the given address matches the contract's super_admin (publisher)
+        // Use getSuperAdmin and check if address matches
+        // This is a workaround since is_super_admin function doesn't exist in devhub module
         const superAdminStatus = await withRetry(async () => {
-          const tx = new Transaction();
-          tx.moveCall({
-            target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_SUPER_ADMIN}`,
-            arguments: [tx.object(DEVHUB_OBJECT_ID), tx.pure.address(address)],
-          });
+          const superAdminAddr = await getSuperAdmin();
 
-          const result = await client.devInspectTransactionBlock({
-            transactionBlock: tx as any,
-            sender:
-              "0x0000000000000000000000000000000000000000000000000000000000000000", // ✅ Neutral sender
-          });
+          console.log(`📋 Super admin address:`, superAdminAddr);
 
-          console.log(`📥 Super admin check result:`, result);
-
-          if (result.results?.[0]?.returnValues?.[0]) {
-            const [bytes] = result.results[0].returnValues[0];
-            console.log(`📊 Raw bytes:`, bytes);
-
-            // ✅ Proper boolean parsing
-            let isSuperAdminResult: boolean;
-            if (Array.isArray(bytes)) {
-              isSuperAdminResult = bytes[0] === 1; // Move boolean is 1 for true, 0 for false
-            } else {
-              isSuperAdminResult = bytes === 1 || bytes === true;
-            }
-
-            console.log(`👑 Super admin status for ${address}:`, isSuperAdminResult);
-            return isSuperAdminResult;
+          if (!superAdminAddr) {
+            console.log(`⚠️ No super admin found`);
+            return false;
           }
-          return false;
+
+          // Normalize addresses for comparison (remove leading zeros, ensure lowercase)
+          const normalizeAddress = (addr: string) => addr.toLowerCase().trim();
+          const normalizedAddress = normalizeAddress(address);
+          const normalizedSuperAdmin = normalizeAddress(superAdminAddr);
+
+          const isSuperAdminResult = normalizedSuperAdmin === normalizedAddress;
+
+          console.log(`👑 Super admin status for ${address}:`, isSuperAdminResult);
+          return isSuperAdminResult;
         });
 
         return superAdminStatus;
-      } catch (err) {
+      } catch (err: any) {
+        // Check if error is about package not existing
+        const errorMessage = err?.message || err?.toString() || '';
+        if (errorMessage.includes('Package object does not exist') || 
+            errorMessage.includes('does not exist with ID')) {
+          console.warn(`⚠️ Package ${PACKAGE_ID} does not exist on the network. This may be normal if the package hasn't been published yet.`);
+          return false;
+        }
         console.error(`❌ Error checking super admin status:`, err);
         return false; // ✅ Always default to false on error
       }
     },
-    [client, withRetry],
+    [withRetry],
   );
 
   const getAdmins = useCallback(

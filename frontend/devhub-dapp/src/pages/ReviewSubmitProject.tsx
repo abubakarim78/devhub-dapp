@@ -27,35 +27,57 @@ export default function ReviewSubmitProject() {
     if (!account?.address) return;
     setSubmitting(true);
     try {
-      // Fetch user's SUI coins
-      const response = await fetch(`https://fullnode.testnet.sui.io:443`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'suix_getCoins',
-          params: [account.address, '0x2::sui::SUI'],
-        }),
+      // Fetch user's SUI coins from devnet
+      const coins = await client.getCoins({
+        owner: account.address,
+        coinType: '0x2::sui::SUI',
+        limit: 50,
       });
-      const coins = await response.json();
-      if (!coins.result?.data?.length) {
+      
+      if (!coins.data || coins.data.length === 0) {
         throw new Error('No SUI coins found in wallet');
       }
 
       // Select coins to cover the project posting fee + gas
       const ESTIMATED_GAS = 1_000_000; // 1 MIST estimated gas
       const TOTAL_NEEDED = PROJECT_POSTING_FEE + ESTIMATED_GAS;
-      let totalBalance = 0;
+      let totalBalance = BigInt(0);
       const selectedCoins: string[] = [];
-      for (const coin of coins.result.data) {
-        const balance = parseInt(coin.balance);
+      
+      // Fetch fresh coins right before transaction
+      const freshCoins = await client.getCoins({
+        owner: account.address,
+        coinType: '0x2::sui::SUI',
+        limit: 50,
+      });
+      
+      if (!freshCoins.data || freshCoins.data.length === 0) {
+        throw new Error('No SUI coins found in wallet');
+      }
+      
+      for (const coin of freshCoins.data) {
+        const balance = BigInt(coin.balance);
         selectedCoins.push(coin.coinObjectId);
         totalBalance += balance;
-        if (totalBalance >= TOTAL_NEEDED) break;
+        if (totalBalance >= BigInt(TOTAL_NEEDED)) break;
       }
-      if (totalBalance < TOTAL_NEEDED) {
+      
+      if (totalBalance < BigInt(TOTAL_NEEDED)) {
         throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1_000_000_000).toFixed(3)} SUI (${(PROJECT_POSTING_FEE / 1_000_000_000).toFixed(3)} SUI fee + gas).`);
+      }
+      
+      // Use the first coin with sufficient balance
+      let paymentCoinId = null;
+      for (const coin of freshCoins.data) {
+        const balance = BigInt(coin.balance);
+        if (balance >= BigInt(PROJECT_POSTING_FEE)) {
+          paymentCoinId = coin.coinObjectId;
+          break;
+        }
+      }
+      
+      if (!paymentCoinId) {
+        throw new Error('No coin with sufficient balance found');
       }
 
       const tx = createProjectTransaction({
@@ -82,7 +104,7 @@ export default function ReviewSubmitProject() {
         repoOrSpecLink: form.repoOrSpecLink || '',
         applicationType: form.applicationType || 'Open applications & proposals',
         finalNotes: form.finalNotes || '',
-      }, selectedCoins[0]);
+      }, paymentCoinId);
 
       await new Promise<void>((resolve, reject) => {
         signExecute(

@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-// Working Walrus testnet endpoints - Updated January 2025
+// Working Walrus endpoints - Updated January 2025
+// Note: Walrus currently only provides testnet endpoints. These endpoints work across networks
+// as Walrus is network-agnostic for blob storage. If devnet-specific endpoints become available,
+// they should be added here with network detection logic.
 // Publisher: Tudor's endpoint with confirmed CORS support
 // Aggregator: Multiple fallback options
 const WALRUS_PUBLISHER_URL = 'https://publisher.walrus-testnet.walrus.space';

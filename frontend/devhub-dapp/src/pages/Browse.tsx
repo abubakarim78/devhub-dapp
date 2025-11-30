@@ -159,9 +159,9 @@ const Browse: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">Loading Developers...</h2>
-          <p className="text-muted-foreground">Fetching the latest talent from the blockchain</p>
+          <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 text-primary animate-spin mx-auto mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">Loading Developers...</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Fetching the latest talent from the blockchain</p>
         </div>
       </div>
     );
@@ -171,12 +171,12 @@ const Browse: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background relative">
         <div className="text-center max-w-md mx-auto px-4 relative z-10">
-          <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-foreground mb-3">{error}</h2>
-          <p className="text-muted-foreground mb-8">Please check your connection and refresh the page.</p>
+          <AlertCircle className="h-10 w-10 sm:h-16 sm:w-16 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl sm:text-3xl font-bold text-foreground mb-3">{error}</h2>
+          <p className="text-sm sm:text-base text-muted-foreground mb-8">Please check your connection and refresh the page.</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
+            className="px-6 sm:px-8 py-2 sm:py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors cursor-pointer text-sm sm:text-base"
           >
             Retry
           </button>
@@ -320,17 +320,17 @@ const Browse: React.FC = () => {
                     animate={{ opacity: 1 }} 
                     className="col-span-full"
                   >
-                    <div className="text-center py-16 bg-secondary/20 rounded-2xl border border-border">
-                      <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Search className="h-10 w-10 text-muted-foreground" />
+                    <div className="text-center py-12 sm:py-16 bg-secondary/20 rounded-2xl border border-border">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <Search className="h-6 w-6 sm:h-10 sm:w-10 text-muted-foreground" />
                       </div>
-                      <h3 className="text-2xl font-bold text-foreground mb-3">No Developers Found</h3>
-                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-3">No Developers Found</h3>
+                      <p className="text-sm sm:text-base text-muted-foreground mb-6 max-w-md mx-auto">
                         Try adjusting your filters to find the perfect talent.
                       </p>
                       <button 
                         onClick={resetFilters} 
-                        className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-all"
+                        className="px-5 sm:px-6 py-2 sm:py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-all text-sm sm:text-base"
                       >
                         Clear Filters
                       </button>

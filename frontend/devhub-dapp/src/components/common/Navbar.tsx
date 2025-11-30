@@ -7,6 +7,9 @@ import {
   Sun,
   X,
   FolderKanban,
+  Home,
+  Search,
+  LayoutDashboard,
 } from "lucide-react";
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -71,7 +74,10 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
 
   useEffect(() => {
     if (currentAccount) {
+      // Only show Super Admin link to the publisher address (super_admin)
       isSuperAdmin(currentAccount.address).then(setIsSuperAdminUser);
+    } else {
+      setIsSuperAdminUser(false);
     }
   }, [currentAccount, isSuperAdmin]);
 
@@ -92,16 +98,28 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
   }, []);
 
   const navItems: NavItem[] = [
-    { href: "/", label: "Home" },
-    { href: "/browse", label: "Explore" },
+    { href: "/", label: "Home", icon: Home },
+    { href: "/browse", label: "Explore", icon: Search },
     ...(currentAccount
       ? [
           { href: "/opportunities", label: "Opportunities", icon: FolderKanban },
-          { href: "/dashboard", label: "Dashboard" },
+          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         ]
       : []),
-    ...(currentAccount && isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+    // Publisher (super admin) should NOT see regular Admin link - only Super Admin
+    // Regular admins see Admin link, publisher sees Super Admin link (mutually exclusive)
+    ...(currentAccount && isAdmin && !isSuperAdminUser ? [{ href: "/admin", label: "Admin" }] : []),
+    // Only show Super Admin link to the publisher address (super_admin)
     ...(currentAccount && isSuperAdminUser ? [{ href: "/super-admin", label: "Super Admin" }] : []),
+  ];
+
+  // Get first 4 nav items for mobile icon display
+  // Always show 4 icons: Home, Explore, Opportunities, Dashboard
+  const mobileNavItems = [
+    { href: "/", label: "Home", icon: Home },
+    { href: "/browse", label: "Explore", icon: Search },
+    { href: "/opportunities", label: "Opportunities", icon: FolderKanban },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ];
 
   return (
@@ -115,15 +133,15 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="flex justify-between items-center h-16 sm:h-20">
-          <Link to="/" className="flex items-center space-x-1.5 sm:space-x-2 group">
+      <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-8 xl:px-10">
+        <div className="flex justify-between items-start lg:items-center py-2 lg:py-0 min-h-[64px] lg:h-16 sm:lg:h-20">
+          <Link to="/" className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2 group flex-shrink-0 pt-1 lg:pt-0">
             <img 
               src="/DevHub.jpg" 
               alt="DevHub Logo" 
-              className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover"
+              className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-lg object-cover"
             />
-            <span className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">DevHub</span>
+            <span className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-foreground hidden xs:inline">DevHub</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -135,19 +153,77 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
             ))}
           </nav>
 
-          {/* Right Side */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="hidden sm:block">
-              <ConnectButton />
+          {/* Mobile Right Side with Icons - Two Rows */}
+          <div className="lg:hidden flex flex-col items-end gap-1.5 min-w-0 flex-shrink-0 pt-1">
+            {/* Top Row: Home + Explore + Dashboard (Stats) + Connect + Theme + Menu */}
+            <div className="flex items-center gap-0.5 flex-shrink-0" style={{ maxWidth: '100%', flexWrap: 'nowrap' }}>
+              {mobileNavItems.slice(0, 2).map((item) => {
+                const Icon = item.icon || Home;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={`p-1 rounded-lg transition-colors flex-shrink-0 ${
+                      isActive(item.href)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    }`}
+                    title={item.label}
+                  >
+                    <Icon size={16} />
+                  </Link>
+                );
+              })}
+              {/* Dashboard (Stats) icon - before Connect */}
+              {mobileNavItems[3] && (
+                <Link
+                  to={mobileNavItems[3].href}
+                  className={`p-1 rounded-lg transition-colors flex-shrink-0 ${
+                    isActive(mobileNavItems[3].href)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`}
+                  title={mobileNavItems[3].label}
+                >
+                  <LayoutDashboard size={16} />
+                </Link>
+              )}
+              <div className="flex-shrink-0" style={{ fontSize: '0.7rem', lineHeight: '1' }}>
+                <ConnectButton />
+              </div>
+              <div className="flex-shrink-0 p-1">
+                <ThemeSwitcher />
+              </div>
+              <button
+                aria-label="Toggle menu"
+                className="inline-flex items-center justify-center rounded-lg p-1 text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0"
+                onClick={() => setMobileOpen(!mobileOpen)}
+              >
+                {mobileOpen ? <X size={16} /> : <Menu size={16} />}
+              </button>
             </div>
+            {/* Bottom Row: Opportunities icon */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {mobileNavItems[2] && (
+                <Link
+                  to={mobileNavItems[2].href}
+                  className={`p-1 sm:p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                    isActive(mobileNavItems[2].href)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`}
+                  title={mobileNavItems[2].label}
+                >
+                  <FolderKanban size={16} className="sm:w-[18px] sm:h-[18px]" />
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Right Side */}
+          <div className="hidden lg:flex items-center space-x-2 sm:space-x-3">
+            <ConnectButton />
             <ThemeSwitcher />
-            <button
-              aria-label="Toggle menu"
-              className="lg:hidden inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-accent"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? <X /> : <Menu />}
-            </button>
           </div>
         </div>
       </div>

@@ -311,5 +311,7 @@ class DevHubSealClient {
 }
 
 // Export singleton instance
+// Note: Seal only supports testnet/mainnet, not devnet. Using testnet as fallback.
+// This is a legacy client and is deprecated in favor of the new messaging SDK.
 export const sealClient = new DevHubSealClient('testnet');
 export default sealClient;

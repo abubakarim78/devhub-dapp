@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,10 +14,29 @@ import {
   Calendar,
   DollarSign,
   Clock,
-  ExternalLink
+  ExternalLink,
+  CheckCircle,
+  XCircle,
+  Eye,
+  X,
+  Mail,
+  Github,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import Layout from "@/components/common/Layout";
-import { PACKAGE_ID, DEVHUB_OBJECT_ID, ProjectApplication, getProjectApplications, getProjectInfo } from "@/lib/suiClient";
+import { 
+  PACKAGE_ID, 
+  DEVHUB_OBJECT_ID, 
+  ProjectApplication, 
+  getProjectApplications, 
+  getProjectInfo,
+  updateProposalStatusTransaction,
+  createPlatformStatisticsTransaction,
+  getUserProposals,
+  getProposalsByStatus,
+  getProposalDetails
+} from "@/lib/suiClient";
 
 interface Proposal {
   id: string;
@@ -45,6 +64,7 @@ interface ProjectWithApplications {
 const DashboardProposals = () => {
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
+  const { mutate: signExecute } = useSignAndExecuteTransaction();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [projectApplications, setProjectApplications] = useState<ProjectWithApplications[]>([]);
   const [quickStats, setQuickStats] = useState<QuickStats>({ submitted: 0, inReview: 0, accepted: 0, rejected: 0 });
@@ -55,6 +75,71 @@ const DashboardProposals = () => {
   const proposalsPerPage = 4;
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedApplication, setSelectedApplication] = useState<ProjectApplication | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [proposalsByStatusId, setProposalsByStatusId] = useState<string | null>(null);
+  const [platformStatisticsId, setPlatformStatisticsId] = useState<string | null>(null);
+  const [userProposalsId, setUserProposalsId] = useState<string | null>(null);
+
+  // Discover helper objects (proposalsByStatusId, platformStatisticsId, and userProposalsId)
+  useEffect(() => {
+    const discover = async () => {
+      if (!currentAccount?.address) return;
+      try {
+        // 1) UserProposals (owned by user)
+        const owned = await suiClient.getOwnedObjects({
+          owner: currentAccount.address,
+          filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+          options: { showType: true, showContent: true },
+        });
+        console.log(`🔍 Found ${owned.data?.length || 0} UserProposals objects`);
+        if (owned.data && owned.data.length > 0) {
+          const foundId = owned.data[0].data?.objectId || null;
+          if (foundId) {
+            setUserProposalsId(foundId);
+            console.log('✅ Found UserProposals ID:', foundId);
+            // Also verify it's accessible by trying to get proposals
+            try {
+              const testProposals = await getUserProposals(foundId);
+              console.log(`✅ Verified UserProposals object - contains ${testProposals.length} proposals`);
+            } catch (e) {
+              console.warn('⚠️ UserProposals object found but query failed:', e);
+            }
+          }
+        } else {
+          console.log('⚠️ No UserProposals object found for user. User may need to create one.');
+        }
+
+        // 2) ProposalsByStatus (shared). Cache id in localStorage if found previously.
+        const cachedPBS = localStorage.getItem("devhub_proposals_by_status_id");
+        if (cachedPBS) {
+          setProposalsByStatusId(cachedPBS);
+        } else {
+          // Try to find it by querying shared objects
+          // Note: This might need adjustment based on how the object is stored
+          const sharedObjects = await suiClient.getOwnedObjects({
+            owner: currentAccount.address,
+            filter: { StructType: `${PACKAGE_ID}::devhub::ProposalsByStatus` },
+            options: { showType: true },
+          });
+          // ProposalsByStatus is typically a shared object, so it might not be in owned objects
+          // For now, we'll rely on localStorage or creation
+        }
+
+        // 3) PlatformStatistics (shared). Cache id in localStorage if found previously.
+        const cachedPS = localStorage.getItem("devhub_platform_statistics_id");
+        if (cachedPS) {
+          setPlatformStatisticsId(cachedPS);
+        }
+      } catch (e) {
+        console.error('Error discovering helper objects:', e);
+      }
+    };
+    discover();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAccount?.address]);
 
   // Fetch proposals I submitted
   useEffect(() => {
@@ -67,49 +152,143 @@ const DashboardProposals = () => {
         }
 
         console.log('🔍 Fetching proposals for:', currentAccount.address);
-        const objects = await suiClient.getOwnedObjects({
-          owner: currentAccount.address,
-          filter: { StructType: `${PACKAGE_ID}::devhub::Proposal` },
-          options: { showContent: true, showType: true },
-        });
-
-        console.log(`📋 Found ${objects.data?.length || 0} proposal objects`);
         
-        // Log raw objects for debugging
-        if (objects.data && objects.data.length > 0) {
-          console.log('📦 Sample proposal object:', JSON.stringify(objects.data[0], null, 2));
+        // First, try to get proposals from UserProposals object if available
+        let proposalIds: string[] = [];
+        if (userProposalsId) {
+          try {
+            console.log('🔍 Attempting to get proposals from UserProposals:', userProposalsId);
+            proposalIds = await getUserProposals(userProposalsId);
+            console.log(`📋 Found ${proposalIds.length} proposal IDs from UserProposals:`, proposalIds);
+          } catch (e) {
+            console.warn('⚠️ Error getting proposals from UserProposals, falling back to owned objects:', e);
+          }
+        } else {
+          console.log('⚠️ UserProposals ID not found, will use owned objects fallback');
         }
 
-        const mapped: Proposal[] = (objects.data || []).map((obj, idx) => {
-          const fields = (obj.data && obj.data.content && 'fields' in obj.data.content) ? (obj.data.content as any).fields : {};
-          console.log(`🔍 Parsing proposal ${idx}:`, { objectId: obj.data?.objectId, fields: Object.keys(fields) });
-          const title: string = fields.proposal_title || fields.title || 'Untitled';
-          const budgetVal: any = fields.budget ?? fields.requested_compensation ?? fields.budget_amount;
-          const timelineWeeks: any = fields.timeline_weeks ?? fields.timeline ?? fields.duration_weeks;
-          const statusRaw: string = (fields.status || '').toString().toLowerCase();
+        // Fallback: Get proposals from owned objects
+        if (proposalIds.length === 0) {
+          console.log('🔍 Falling back to querying owned Proposal objects...');
+          // Try proposal module first (most likely)
+          let objects = await suiClient.getOwnedObjects({
+            owner: currentAccount.address,
+            filter: { StructType: `${PACKAGE_ID}::proposal::Proposal` },
+            options: { showContent: true, showType: true },
+          });
+          console.log(`📋 Query result (proposal module): Found ${objects.data?.length || 0} Proposal objects`);
+          
+          // If none found, try devhub module
+          if ((objects.data || []).length === 0) {
+            objects = await suiClient.getOwnedObjects({
+              owner: currentAccount.address,
+              filter: { StructType: `${PACKAGE_ID}::devhub::Proposal` },
+              options: { showContent: true, showType: true },
+            });
+            console.log(`📋 Query result (devhub module): Found ${objects.data?.length || 0} Proposal objects`);
+          }
+          
+          proposalIds = (objects.data || []).map(obj => obj.data?.objectId || '').filter(id => id);
+          console.log(`📋 Found ${proposalIds.length} proposal objects from owned objects:`, proposalIds);
+        }
 
-          const status: Proposal['status'] = statusRaw === 'accepted' ? 'accepted' :
-            statusRaw === 'rejected' ? 'rejected' :
-            statusRaw === 'in-review' || statusRaw === 'in_review' ? 'in-review' : 'draft';
+        if (proposalIds.length === 0) {
+          setProposals([]);
+          setQuickStats({ submitted: 0, inReview: 0, accepted: 0, rejected: 0 });
+          return;
+        }
 
-          return {
-            id: obj.data?.objectId || String(idx),
-            number: `#${(objects.data.length - idx).toString().padStart(3, '0')}`,
-            title,
-            budget: typeof budgetVal === 'number' || typeof budgetVal === 'bigint' ? `$${budgetVal}` : (budgetVal ? String(budgetVal) : '-') ,
-            timeline: timelineWeeks ? `${timelineWeeks} weeks` : '-',
-            status,
-            actions: 'Open',
-          };
-        });
+        // Get status from ProposalsByStatus if available
+        const statusMap = new Map<string, string>();
+        if (proposalsByStatusId) {
+          try {
+            const statuses = ['in-review', 'accepted', 'rejected'];
+            for (const status of statuses) {
+              const ids = await getProposalsByStatus(proposalsByStatusId, status);
+              ids.forEach(id => statusMap.set(id, status));
+            }
+            console.log('📊 Status map:', Array.from(statusMap.entries()));
+          } catch (e) {
+            console.warn('Error getting proposals by status:', e);
+          }
+        }
 
-        setProposals(mapped);
+        // Fetch proposal details and map them
+        const mapped: Proposal[] = await Promise.all(
+          proposalIds.map(async (proposalId, idx) => {
+            try {
+              // Try to get proposal details first
+              let proposalDetails = null;
+              try {
+                proposalDetails = await getProposalDetails(proposalId);
+              } catch (e) {
+                console.warn(`Error getting proposal details for ${proposalId}:`, e);
+              }
+
+              // Fallback: Get proposal object directly
+              let fields: any = {};
+              if (!proposalDetails) {
+                try {
+                  const obj = await suiClient.getObject({
+                    id: proposalId,
+                    options: { showContent: true, showType: true },
+                  });
+                  if (obj.data?.content && 'fields' in obj.data.content) {
+                    fields = (obj.data.content as any).fields;
+                  }
+                } catch (e) {
+                  console.warn(`Error getting proposal object ${proposalId}:`, e);
+                }
+              } else {
+                fields = proposalDetails as any;
+              }
+
+              const title: string = fields.proposal_title || fields.title || proposalDetails?.proposalTitle || 'Untitled';
+              const budgetVal: any = fields.budget ?? fields.requested_compensation ?? fields.budget_amount ?? proposalDetails?.budget ?? 0;
+              const timelineWeeks: any = fields.timeline_weeks ?? fields.timeline ?? fields.duration_weeks ?? proposalDetails?.timelineWeeks ?? 0;
+              
+              // Get status from ProposalsByStatus map, or from proposal object, or default to 'draft'
+              const statusFromMap = statusMap.get(proposalId);
+              const statusRaw: string = statusFromMap || (fields.status || proposalDetails?.status || '').toString().toLowerCase();
+
+              const status: Proposal['status'] = statusRaw === 'accepted' ? 'accepted' :
+                statusRaw === 'rejected' ? 'rejected' :
+                statusRaw === 'in-review' || statusRaw === 'in_review' ? 'in-review' : 'draft';
+
+              return {
+                id: proposalId,
+                number: `#${(proposalIds.length - idx).toString().padStart(3, '0')}`,
+                title,
+                budget: typeof budgetVal === 'number' || typeof budgetVal === 'bigint' ? `$${budgetVal}` : (budgetVal ? String(budgetVal) : '-') ,
+                timeline: timelineWeeks ? `${timelineWeeks} weeks` : '-',
+                status,
+                actions: 'Open',
+              };
+            } catch (e) {
+              console.error(`Error processing proposal ${proposalId}:`, e);
+              return {
+                id: proposalId,
+                number: `#${(proposalIds.length - idx).toString().padStart(3, '0')}`,
+                title: 'Unknown Proposal',
+                budget: '-',
+                timeline: '-',
+                status: 'draft' as const,
+                actions: 'Open',
+              };
+            }
+          })
+        );
+
+        // Filter out any null/undefined proposals
+        const validProposals = mapped.filter(p => p !== null && p !== undefined);
+
+        setProposals(validProposals);
 
         const qs: QuickStats = {
-          submitted: mapped.length,
-          inReview: mapped.filter(p => p.status === 'in-review').length,
-          accepted: mapped.filter(p => p.status === 'accepted').length,
-          rejected: mapped.filter(p => p.status === 'rejected').length,
+          submitted: validProposals.length,
+          inReview: validProposals.filter(p => p.status === 'in-review').length,
+          accepted: validProposals.filter(p => p.status === 'accepted').length,
+          rejected: validProposals.filter(p => p.status === 'rejected').length,
         };
         setQuickStats(qs);
       } catch (e) {
@@ -120,7 +299,7 @@ const DashboardProposals = () => {
     };
 
     fetchProposals();
-  }, [currentAccount?.address, suiClient, refreshKey]);
+  }, [currentAccount?.address, suiClient, refreshKey, userProposalsId, proposalsByStatusId]);
 
   // Fetch applications to my projects
   useEffect(() => {
@@ -275,6 +454,176 @@ const DashboardProposals = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  // Debug: Inspect a transaction (can be called from browser console)
+  useEffect(() => {
+    // Make inspectApplicationTransaction available globally for debugging
+    if (typeof window !== 'undefined') {
+      (window as any).inspectApplicationTransaction = (digest: string) => {
+        return inspectApplicationTransaction(digest, suiClient);
+      };
+      console.log('💡 Debug: Call inspectApplicationTransaction("A7cmEYo3aDyKjvtMBDh8BZEPUkiVThpyL3BGuqaP9sRU") to inspect the transaction');
+    }
+  }, [suiClient]);
+
+  // Handle application status update
+  const handleUpdateStatus = async (application: ProjectApplication, newStatus: string) => {
+    if (!currentAccount?.address) {
+      setError("Please connect your wallet to update application status");
+      return;
+    }
+
+    if (!application.proposalId) {
+      setError("Application proposal ID is missing. This application may not have been properly submitted.");
+      console.error('Application missing proposalId:', application);
+      return;
+    }
+
+    setUpdatingStatus(application.id);
+    setError(null);
+
+    try {
+      // Ensure we have the required object IDs
+      let ensuredProposalsByStatusId = proposalsByStatusId;
+      let ensuredPlatformStatisticsId = platformStatisticsId;
+
+      // Get proposalsByStatusId from localStorage if not set
+      if (!ensuredProposalsByStatusId) {
+        const cached = localStorage.getItem("devhub_proposals_by_status_id");
+        if (cached) {
+          ensuredProposalsByStatusId = cached;
+          setProposalsByStatusId(cached);
+        } else {
+          throw new Error("ProposalsByStatus object not found. Please ensure it exists.");
+        }
+      }
+
+      // Get or create platformStatisticsId
+      if (!ensuredPlatformStatisticsId) {
+        const cached = localStorage.getItem("devhub_platform_statistics_id");
+        if (cached) {
+          ensuredPlatformStatisticsId = cached;
+          setPlatformStatisticsId(cached);
+        } else {
+          // Create PlatformStatistics object
+          console.log('📝 Creating PlatformStatistics object...');
+          setError("Creating PlatformStatistics object... Please approve the transaction.");
+          const txCreatePS = createPlatformStatisticsTransaction();
+          
+          await new Promise<void>((resolve, reject) => {
+            signExecute(
+              { transaction: txCreatePS, options: { showEffects: true } } as any,
+              {
+                onSuccess: async (res: any) => {
+                  try {
+                    console.log('✅ PlatformStatistics created, digest:', res.digest);
+                    await suiClient.waitForTransaction({ digest: res.digest });
+                    
+                    // Extract object ID from transaction
+                    const tx = await suiClient.getTransactionBlock({ 
+                      digest: res.digest, 
+                      options: { showEffects: true, showObjectChanges: true } 
+                    });
+                    
+                    const created = tx.objectChanges?.find(
+                      (change: any) => change.type === 'created' && 
+                      change.objectType?.includes('PlatformStatistics')
+                    );
+                    
+                    if (created && 'objectId' in created) {
+                      const objectId = created.objectId;
+                      localStorage.setItem("devhub_platform_statistics_id", objectId);
+                      ensuredPlatformStatisticsId = objectId;
+                      setPlatformStatisticsId(objectId);
+                      console.log('✅ PlatformStatistics ID:', objectId);
+                    } else {
+                      throw new Error("Failed to retrieve PlatformStatistics object ID");
+                    }
+                    
+                    resolve();
+                  } catch (e) {
+                    console.error('Error waiting for PlatformStatistics transaction:', e);
+                    reject(e);
+                  }
+                },
+                onError: (error) => {
+                  console.error('Error creating PlatformStatistics:', error);
+                  reject(error);
+                },
+              }
+            );
+          });
+          setError(null);
+        }
+      }
+
+      if (!ensuredProposalsByStatusId || !ensuredPlatformStatisticsId) {
+        throw new Error("Required objects not available");
+      }
+
+      // Update status - normalize status to match contract expectations
+      // Contract expects: "accepted", "rejected", "in-review" (lowercase with hyphen)
+      const normalizedStatus = newStatus.toLowerCase().replace(/\s+/g, '-');
+      console.log('🔄 Updating proposal status:', {
+        proposalId: application.proposalId,
+        newStatus,
+        normalizedStatus,
+        proposalsByStatusId: ensuredProposalsByStatusId,
+        platformStatisticsId: ensuredPlatformStatisticsId
+      });
+
+      setError("Updating application status... Please approve the transaction.");
+      const tx = updateProposalStatusTransaction(
+        application.proposalId,
+        ensuredPlatformStatisticsId,
+        ensuredProposalsByStatusId,
+        normalizedStatus
+      );
+
+      await new Promise<void>((resolve, reject) => {
+        signExecute(
+          { transaction: tx, options: { showEffects: true } } as any,
+          {
+            onSuccess: async (res: any) => {
+              try {
+                console.log('✅ Status updated, digest:', res.digest);
+                await suiClient.waitForTransaction({ digest: res.digest });
+                setError(null);
+                // Refresh applications
+                handleRefresh();
+                resolve();
+              } catch (e) {
+                console.error('Error waiting for status update transaction:', e);
+                reject(e);
+              }
+            },
+            onError: (error) => {
+              console.error('Error updating status:', error);
+              setError(error?.message || String(error));
+              reject(error);
+            },
+          }
+        );
+      });
+
+      // Close modal if open
+      if (isDetailModalOpen) {
+        setIsDetailModalOpen(false);
+        setSelectedApplication(null);
+      }
+    } catch (e: any) {
+      console.error('Error updating status:', e);
+      setError(e?.message || String(e));
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  // Open application detail modal
+  const openApplicationDetail = (application: ProjectApplication) => {
+    setSelectedApplication(application);
+    setIsDetailModalOpen(true);
+  };
+
   const filteredProposals = proposals.filter((proposal) => {
     const matchesSearch = proposal.title
       .toLowerCase()
@@ -295,14 +644,46 @@ const DashboardProposals = () => {
     setCurrentPage(1);
   }, [activeTab, searchQuery, statusFilter]);
 
+  // Helper function to normalize status for comparison (handles both "in-review" and "In Review")
+  const normalizeStatus = (status: string): string => {
+    if (!status) return '';
+    const normalized = status.toLowerCase().replace(/\s+/g, '-');
+    // Map common variations
+    if (normalized === 'in-review' || normalized === 'in_review') return 'in-review';
+    if (normalized === 'pending') return 'pending';
+    if (normalized === 'accepted') return 'accepted';
+    if (normalized === 'rejected') return 'rejected';
+    return normalized;
+  };
+
+  // Helper function to format status for display
+  const formatStatusForDisplay = (status: string): string => {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'in-review':
+        return 'In Review';
+      case 'pending':
+        return 'Pending';
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status; // Return original if unknown
+    }
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
       case "accepted":
         return "bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30";
       case "rejected":
         return "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30";
       case "in-review":
         return "bg-gray-500/20 text-gray-700 dark:text-gray-400 border border-gray-500/30";
+      case "pending":
+        return "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30";
       case "draft":
         return "bg-gray-500/20 text-gray-700 dark:text-gray-400 border border-gray-500/30";
       default:
@@ -369,7 +750,7 @@ const DashboardProposals = () => {
                    </div>
                     
                     {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 mt-4 md:mt-0">
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -380,7 +761,7 @@ const DashboardProposals = () => {
                           boxShadow: "0 10px 25px rgba(168, 85, 247, 0.4)"
                         }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center gap-2"
+                        className="w-full px-4 sm:px-6 py-3 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <ArrowLeft className="h-4 w-4" />
                         Back
@@ -395,7 +776,7 @@ const DashboardProposals = () => {
                           boxShadow: "0 10px 25px rgba(34, 197, 94, 0.4)"
                         }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2"
+                        className="w-full px-4 sm:px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <Plus className="h-4 w-4" />
                         New Proposal
@@ -772,13 +1153,15 @@ const DashboardProposals = () => {
                                         </div>
                                       </div>
                                       <span className={`px-3 py-1 text-xs rounded-full ${
-                                        application.applicationStatus === 'Pending' 
+                                        normalizeStatus(application.applicationStatus) === 'pending' 
                                           ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                          : application.applicationStatus === 'Accepted'
+                                          : normalizeStatus(application.applicationStatus) === 'accepted'
                                           ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                          : normalizeStatus(application.applicationStatus) === 'in-review'
+                                          ? 'bg-primary/20 text-primary border border-primary/30'
                                           : 'bg-red-500/20 text-red-400 border border-red-500/30'
                                       }`}>
-                                        {application.applicationStatus}
+                                        {formatStatusForDisplay(application.applicationStatus)}
                                       </span>
                                     </div>
                                     <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{application.proposalSummary}</p>
@@ -813,6 +1196,65 @@ const DashboardProposals = () => {
                                         </a>
                                       </div>
                                     )}
+                                    <div className="mt-4 flex gap-2">
+                                      <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => openApplicationDetail(application)}
+                                        className="flex-1 px-3 py-2 bg-accent/20 text-foreground rounded-lg hover:bg-accent/30 transition-colors flex items-center justify-center gap-2 text-sm"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                        View Details
+                                      </motion.button>
+                                      {normalizeStatus(application.applicationStatus) !== 'accepted' && (
+                                        <motion.button
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          onClick={() => handleUpdateStatus(application, 'Accepted')}
+                                          disabled={updatingStatus === application.id}
+                                          className="px-3 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                                        >
+                                          {updatingStatus === application.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <CheckCircle className="h-4 w-4" />
+                                          )}
+                                          Accept
+                                        </motion.button>
+                                      )}
+                                      {normalizeStatus(application.applicationStatus) !== 'rejected' && (
+                                        <motion.button
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          onClick={() => handleUpdateStatus(application, 'Rejected')}
+                                          disabled={updatingStatus === application.id}
+                                          className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                                        >
+                                          {updatingStatus === application.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <XCircle className="h-4 w-4" />
+                                          )}
+                                          Reject
+                                        </motion.button>
+                                      )}
+                                      {normalizeStatus(application.applicationStatus) !== 'in-review' && normalizeStatus(application.applicationStatus) !== 'accepted' && normalizeStatus(application.applicationStatus) !== 'rejected' && (
+                                        <motion.button
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          onClick={() => handleUpdateStatus(application, 'In Review')}
+                                          disabled={updatingStatus === application.id}
+                                          className="px-3 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                                        >
+                                          {updatingStatus === application.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <RefreshCw className="h-4 w-4" />
+                                          )}
+                                          In Review
+                                        </motion.button>
+                                      )}
+                                    </div>
                                   </motion.div>
                                 ))}
                               </div>
@@ -894,7 +1336,7 @@ const DashboardProposals = () => {
                       delay: 1.2,
                       ease: [0.25, 0.46, 0.45, 0.94]
                     }}
-                    className="flex justify-end gap-3"
+                    className="grid grid-cols-2 sm:flex sm:flex-row justify-end gap-3"
                   >
                     <motion.button
                       initial={{ opacity: 0, x: -20 }}
@@ -906,7 +1348,7 @@ const DashboardProposals = () => {
                         boxShadow: "0 10px 25px rgba(168, 85, 247, 0.4)"
                       }}
                       whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 bg-accent/20 text-foreground font-semibold rounded-xl hover:bg-accent/30 transition-all shadow-lg flex items-center gap-2"
+                      className="w-full px-4 sm:px-6 py-3 bg-accent/20 text-foreground font-semibold rounded-xl hover:bg-accent/30 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       <motion.div
                         animate={{ rotate: [0, -5, 5, 0] }}
@@ -914,7 +1356,7 @@ const DashboardProposals = () => {
                       >
                         <ArrowLeft className="h-4 w-4" />
                       </motion.div>
-                      Back to Dashboard
+                      <span className="hidden sm:inline">Back to </span>Dashboard
                     </motion.button>
                     <motion.button
                       initial={{ opacity: 0, x: 20 }}
@@ -926,7 +1368,7 @@ const DashboardProposals = () => {
                         boxShadow: "0 10px 25px rgba(34, 197, 94, 0.4)"
                       }}
                       whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2"
+                      className="w-full px-4 sm:px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       <motion.div
                         animate={{ rotate: [0, 5, -5, 0] }}
@@ -939,6 +1381,221 @@ const DashboardProposals = () => {
                   </motion.div>
                 </motion.div>
               </AnimatePresence>
+
+      {/* Application Detail Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedApplication && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setIsDetailModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-foreground">Application Details</h2>
+                <button
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="p-2 hover:bg-accent/20 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Error Alert */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive-foreground px-4 py-3 flex items-start gap-3"
+                >
+                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Error</p>
+                    <p className="text-xs mt-1">{error}</p>
+                  </div>
+                </motion.div>
+              )}
+
+              <div className="space-y-6">
+                {/* Applicant Info */}
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Applicant Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Role</p>
+                      <p className="text-foreground font-medium">{selectedApplication.yourRole}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Address</p>
+                      <p className="text-foreground font-mono text-sm">{selectedApplication.applicantAddress}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Status</p>
+                      <span className={`inline-block px-3 py-1 text-xs rounded-full ${
+                        normalizeStatus(selectedApplication.applicationStatus) === 'pending' 
+                          ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                          : normalizeStatus(selectedApplication.applicationStatus) === 'accepted'
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : normalizeStatus(selectedApplication.applicationStatus) === 'in-review'
+                          ? 'bg-primary/20 text-primary border border-primary/30'
+                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      }`}>
+                        {formatStatusForDisplay(selectedApplication.applicationStatus)}
+                      </span>
+                    </div>
+                    {selectedApplication.contactEmail && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Contact Email</p>
+                        <p className="text-foreground flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          {selectedApplication.contactEmail}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Proposal Summary */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Proposal Summary
+                  </h3>
+                  <p className="text-foreground whitespace-pre-wrap">{selectedApplication.proposalSummary}</p>
+                </div>
+
+                {/* Project Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold text-foreground">Compensation</h4>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{selectedApplication.requestedCompensation} SUI</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold text-foreground">Timeline</h4>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{selectedApplication.expectedDurationWeeks} weeks</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold text-foreground">Start Date</h4>
+                    </div>
+                    <p className="text-foreground">{new Date(selectedApplication.startDate).toLocaleDateString()}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <User className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold text-foreground">Availability</h4>
+                    </div>
+                    <p className="text-foreground">{selectedApplication.availabilityHrsPerWeek} hrs/week</p>
+                  </div>
+                </div>
+
+                {/* Links */}
+                {selectedApplication.githubRepoLink && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <Github className="h-5 w-5" />
+                      Links
+                    </h3>
+                    <a 
+                      href={selectedApplication.githubRepoLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {selectedApplication.githubRepoLink}
+                    </a>
+                  </div>
+                )}
+
+                {/* Team Members */}
+                {selectedApplication.teamMembers && selectedApplication.teamMembers.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-3">Team Members</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedApplication.teamMembers.map((member, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-muted/30 rounded-lg text-sm text-foreground">
+                          {member}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  {normalizeStatus(selectedApplication.applicationStatus) !== 'accepted' && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleUpdateStatus(selectedApplication, 'Accepted')}
+                      disabled={updatingStatus === selectedApplication.id}
+                      className="flex-1 px-4 py-3 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {updatingStatus === selectedApplication.id ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-5 w-5" />
+                      )}
+                      Accept Application
+                    </motion.button>
+                  )}
+                  {normalizeStatus(selectedApplication.applicationStatus) !== 'rejected' && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleUpdateStatus(selectedApplication, 'Rejected')}
+                      disabled={updatingStatus === selectedApplication.id}
+                      className="flex-1 px-4 py-3 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {updatingStatus === selectedApplication.id ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <XCircle className="h-5 w-5" />
+                      )}
+                      Reject Application
+                    </motion.button>
+                  )}
+                  {normalizeStatus(selectedApplication.applicationStatus) !== 'in-review' && normalizeStatus(selectedApplication.applicationStatus) !== 'accepted' && normalizeStatus(selectedApplication.applicationStatus) !== 'rejected' && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleUpdateStatus(selectedApplication, 'In Review')}
+                      disabled={updatingStatus === selectedApplication.id}
+                      className="flex-1 px-4 py-3 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {updatingStatus === selectedApplication.id ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-5 w-5" />
+                      )}
+                      Set to In Review
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

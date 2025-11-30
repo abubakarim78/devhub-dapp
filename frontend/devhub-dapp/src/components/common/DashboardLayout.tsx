@@ -24,8 +24,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <Layout showStarBackground={showStarBackground} applyDefaultSpacing={false} allowOverflow={true}>
-      <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-24 pb-8 sm:pb-12 md:pb-16 lg:h-[calc(100vh-4rem)]">
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-8 xl:px-10 h-full">
           {/* Mobile Hamburger Button */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -74,15 +74,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             )}
           </AnimatePresence>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
-            {/* Desktop Sidebar - Fixed position, spacer div to maintain grid layout */}
-            <div className="hidden lg:block lg:self-start">
+          {/* Desktop Layout with fixed sidebar */}
+          <div className="hidden lg:flex lg:gap-8 lg:h-[calc(100vh-6rem)] lg:overflow-hidden">
+            {/* Desktop Sidebar - Sticky, doesn't scroll */}
+            <div className="lg:w-[320px] xl:w-[280px] flex-shrink-0 flex items-start">
               <DashboardSidebar />
             </div>
-            {/* Main Content */}
-            <main className="lg:col-span-3 xl:col-span-4">
-              {children}
+            {/* Main Content - Scrollable with hidden scrollbar */}
+            <main className="flex-1 overflow-y-auto scrollbar-hide pb-8">
+              <div className="pb-8">
+                {children}
+              </div>
             </main>
+          </div>
+          {/* Mobile Layout */}
+          <div className="lg:hidden mb-8">
+            {children}
           </div>
         </div>
       </div>
