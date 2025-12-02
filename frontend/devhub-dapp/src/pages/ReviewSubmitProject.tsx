@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSuiClient, useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
-import { createProjectTransaction, PROJECT_POSTING_FEE } from "../lib/suiClient";
+import { createProjectTransaction, PROJECT_POSTING_FEE, setGasPaymentForTransaction } from "../lib/suiClient";
 import { useMemo, useState } from "react";
 
 export default function ReviewSubmitProject() {
@@ -27,7 +27,7 @@ export default function ReviewSubmitProject() {
     if (!account?.address) return;
     setSubmitting(true);
     try {
-      // Fetch user's SUI coins from devnet
+      // Fetch user's SUI coins from testnet
       const coins = await client.getCoins({
         owner: account.address,
         coinType: '0x2::sui::SUI',
@@ -105,6 +105,10 @@ export default function ReviewSubmitProject() {
         applicationType: form.applicationType || 'Open applications & proposals',
         finalNotes: form.finalNotes || '',
       }, paymentCoinId);
+
+      // Explicitly set gas payment coins (excluding the payment coin)
+      // Pass paymentCoinId so we can handle single-coin scenarios
+      await setGasPaymentForTransaction(tx, client, account.address, [paymentCoinId], paymentCoinId);
 
       await new Promise<void>((resolve, reject) => {
         signExecute(

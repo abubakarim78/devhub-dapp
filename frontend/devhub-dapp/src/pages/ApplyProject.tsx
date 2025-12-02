@@ -635,7 +635,8 @@ export default function ApplyProject() {
         } else {
           // Object exists, continue with validation
           // Validate it's the correct type
-          const expectedType = `${PACKAGE_ID}::devhub::ProposalsByStatus`;
+          // Note: The ProposalsByStatus object is created in the proposal module, not devhub
+          const expectedType = `${PACKAGE_ID}::proposal::ProposalsByStatus`;
           const actualType = obj.data?.type;
           if (!actualType) {
             throw new Error('ProposalsByStatus object has no type information');
@@ -704,10 +705,10 @@ export default function ApplyProject() {
                 throw new Error(`New ProposalsByStatus object ${ensuredProposalsByStatusId} not found`);
               }
               
-              // Verify it has the correct package ID now
+              // Verify it has the correct type now
               const newType = newObj.data.type;
               if (newType !== expectedType) {
-                throw new Error(`New ProposalsByStatus still has wrong package ID: ${newType}`);
+                throw new Error(`New ProposalsByStatus still has wrong type. Expected: ${expectedType}, Got: ${newType}`);
               }
               
               // Extract shared version from the new object

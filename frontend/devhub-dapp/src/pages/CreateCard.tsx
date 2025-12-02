@@ -6,7 +6,16 @@ import {
   User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle,
   X, CloudUpload, ArrowRight, ArrowLeft, Plus, Trash2
 } from 'lucide-react';
-import { createCardTransaction, PLATFORM_FEE } from '../lib/suiClient';
+import { 
+    createCardTransaction, 
+    PLATFORM_FEE, 
+    setGasPaymentForTransaction,
+    PACKAGE_ID,
+    DEVHUB_OBJECT_ID,
+    CONTRACT_FUNCTIONS
+} from '../lib/suiClient';
+import { Transaction } from '@mysten/sui/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { useContract } from '../hooks/useContract';
 import Layout from '@/components/common/Layout';
 import {
@@ -348,7 +357,7 @@ const CreateCard: React.FC = () => {
         setIsSubmitting(true);
 
         try {
-            // Use SuiClient to get coins from the correct network (devnet)
+            // Use SuiClient to get coins from the correct network (testnet)
             const coins = await suiClient.getCoins({
                 owner: currentAccount.address,
                 coinType: '0x2::sui::SUI',
@@ -415,7 +424,7 @@ const CreateCard: React.FC = () => {
                 throw new Error('No SUI coins found in wallet');
             }
             
-            // Use the first coin that has enough balance
+            // Use the first coin that has enough balance for payment
             let paymentCoinId = null;
             for (const coin of freshCoins.data) {
                 const balance = BigInt(coin.balance);
@@ -429,7 +438,84 @@ const CreateCard: React.FC = () => {
                 throw new Error('No coin with sufficient balance found');
             }
             
-            const tx = createCardTransaction(cardDataForTransaction, paymentCoinId);
+            // Check if user has multiple coins for gas payment
+            const coinsWithGasBalance = freshCoins.data.filter(
+                coin => coin.coinObjectId !== paymentCoinId && BigInt(coin.balance) >= BigInt(100_000_000) // 0.1 SUI minimum for gas
+            );
+            
+            const MIN_GAS = 100_000_000; // 0.1 SUI minimum for gas
+            let tx: Transaction;
+            
+            // If user only has one coin, split it automatically in the transaction
+            if (coinsWithGasBalance.length === 0 && freshCoins.data.length === 1) {
+                tx = new Transaction();
+                const singleCoin = freshCoins.data.find(coin => coin.coinObjectId === paymentCoinId);
+                if (singleCoin) {
+                    const coinBalance = BigInt(singleCoin.balance);
+                    const totalNeeded = BigInt(PLATFORM_FEE) + BigInt(MIN_GAS);
+                    
+                    if (coinBalance < totalNeeded) {
+                        throw new Error(
+                            `Insufficient balance. You need at least ${(Number(totalNeeded) / 1_000_000_000).toFixed(3)} SUI ` +
+                            `(${(PLATFORM_FEE / 1_000_000_000).toFixed(3)} SUI for payment + ${(MIN_GAS / 1_000_000_000).toFixed(3)} SUI for gas).`
+                        );
+                    }
+                    
+                    // Split the coin: create a payment coin and leave the rest for gas
+                    const primaryCoin = tx.object(paymentCoinId);
+                    const [splitPaymentCoin] = tx.splitCoins(primaryCoin, [BigInt(PLATFORM_FEE)]);
+                    
+                    // Add the card creation move call using the split coin for payment
+                    tx.moveCall({
+                        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
+                        arguments: [
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.name))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.niche))),
+                            tx.pure.option('vector<u8>', cardDataForTransaction.customNiche ? Array.from(new TextEncoder().encode(cardDataForTransaction.customNiche)) : null),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.imageUrl))),
+                            tx.pure.u8(cardDataForTransaction.yearsOfExperience),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.technologies))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.portfolio))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.about))),
+                            tx.pure.vector('string', cardDataForTransaction.featuredProjects),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.contact))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.github))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.linkedin))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.twitter))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.personalWebsite))),
+                            tx.pure.vector('string', cardDataForTransaction.workTypes),
+                            tx.pure.option('u64', cardDataForTransaction.hourlyRate),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.locationPreference))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.availability))),
+                            tx.pure.vector('string', cardDataForTransaction.languages),
+                            tx.pure.option(
+                                'vector<u8>',
+                                cardDataForTransaction.avatarWalrusBlobId
+                                    ? Array.from(new TextEncoder().encode(cardDataForTransaction.avatarWalrusBlobId))
+                                    : null
+                            ),
+                            splitPaymentCoin, // Use the split coin for payment
+                            tx.object(SUI_CLOCK_OBJECT_ID),
+                            tx.object(DEVHUB_OBJECT_ID),
+                        ],
+                    });
+                    
+                    // Don't set gas payment explicitly when splitting - the wallet will automatically use
+                    // the original coin (with remaining balance after split) for gas
+                    // Setting it explicitly would cause a duplicate object reference error
+                    console.log('Automatically splitting single coin: split portion for payment, wallet will use original for gas');
+                } else {
+                    throw new Error('Payment coin not found');
+                }
+            } else {
+                // Multiple coins available - use normal flow with helper function
+                tx = createCardTransaction(cardDataForTransaction, paymentCoinId);
+                
+                // Explicitly set gas payment coins (excluding the payment coin)
+                await setGasPaymentForTransaction(tx, suiClient, currentAccount.address, [paymentCoinId], paymentCoinId);
+            }
+            
+            // Sign and execute the transaction (works for both single-coin split and multi-coin scenarios)
             signAndExecute(
                 { transaction: tx },
                 {
@@ -439,9 +525,25 @@ const CreateCard: React.FC = () => {
                         showToast('Developer card created successfully! 🎉', 'success');
                         setTimeout(() => navigate('/dashboard'), 2000);
                     },
-                    onError: (error) => {
+                    onError: (error: any) => {
                         console.error('Error creating card:', error);
-                        showToast('Failed to create card. Please try again.', 'error');
+                        const errorMessage = error?.message || error?.toString() || '';
+                        
+                        // Check for gas coin errors
+                        if (errorMessage.includes('No valid gas coins') || errorMessage.includes('gas coins')) {
+                            showToast(
+                                'No gas coins available. Please split your SUI coin or obtain additional coins. ' +
+                                'You need separate coins for payment and gas.',
+                                'error'
+                            );
+                        } else if (errorMessage.includes('duplicate') || errorMessage.includes('cannot appear more than one')) {
+                            showToast(
+                                'Transaction error: Coin conflict. Please ensure you have multiple SUI coins available.',
+                                'error'
+                            );
+                        } else {
+                            showToast('Failed to create card. Please try again.', 'error');
+                        }
                     },
                     onSettled: () => setIsSubmitting(false),
                 }

@@ -228,6 +228,15 @@ public fun get_required_skills(project: &Project): &vector<String> { &project.re
 public fun get_project_info(project: &Project): &Project { project }
 public fun get_application_details(application: &ProjectApplication): &ProjectApplication { application }
 
+// Accessors used by devhub::update_application_status
+public fun get_application_applicant_address(application: &ProjectApplication): address {
+    application.applicant_address
+}
+
+public fun set_application_status(application: &mut ProjectApplication, new_status: String) {
+    application.application_status = new_status;
+}
+
 public fun get_application_portfolio_blobs(application: &ProjectApplication): &vector<String> {
     &application.portfolio_walrus_blob_ids
 }

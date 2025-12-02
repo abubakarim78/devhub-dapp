@@ -19,7 +19,6 @@ import {
   XCircle,
   Eye,
   X,
-  Mail,
   Github,
   Loader2,
   AlertCircle
@@ -31,11 +30,12 @@ import {
   ProjectApplication, 
   getProjectApplications, 
   getProjectInfo,
-  updateProposalStatusTransaction,
+  updateApplicationStatusTransaction,
+  createProposalsByStatusTransaction,
   createPlatformStatisticsTransaction,
   getUserProposals,
   getProposalsByStatus,
-  getProposalDetails
+  inspectApplicationTransaction
 } from "@/lib/suiClient";
 
 interface Proposal {
@@ -45,6 +45,7 @@ interface Proposal {
   budget: string;
   timeline: string;
   status: 'draft' | 'in-review' | 'accepted' | 'rejected';
+  statusRaw?: string; // Store raw status for checking if it's 'pending'
   actions: string;
 }
 
@@ -115,23 +116,51 @@ const DashboardProposals = () => {
         // 2) ProposalsByStatus (shared). Cache id in localStorage if found previously.
         const cachedPBS = localStorage.getItem("devhub_proposals_by_status_id");
         if (cachedPBS) {
-          setProposalsByStatusId(cachedPBS);
+          try {
+            // Validate that the cached ProposalsByStatus object still exists on-chain.
+            const pbsObj = await suiClient.getObject({
+              id: cachedPBS,
+              options: { showType: true },
+            });
+
+            if (pbsObj.data) {
+              setProposalsByStatusId(cachedPBS);
+            } else {
+              console.warn("⚠️ Cached ProposalsByStatus object not found on-chain during discover(). Clearing cache.");
+              localStorage.removeItem("devhub_proposals_by_status_id");
+            }
+          } catch (err) {
+            console.warn("⚠️ Error fetching cached ProposalsByStatus object during discover(). Clearing cache.", err);
+            localStorage.removeItem("devhub_proposals_by_status_id");
+          }
         } else {
           // Try to find it by querying shared objects
           // Note: This might need adjustment based on how the object is stored
-          const sharedObjects = await suiClient.getOwnedObjects({
-            owner: currentAccount.address,
-            filter: { StructType: `${PACKAGE_ID}::devhub::ProposalsByStatus` },
-            options: { showType: true },
-          });
           // ProposalsByStatus is typically a shared object, so it might not be in owned objects
           // For now, we'll rely on localStorage or creation
+          // Note: Shared objects are not typically found via getOwnedObjects
         }
 
         // 3) PlatformStatistics (shared). Cache id in localStorage if found previously.
         const cachedPS = localStorage.getItem("devhub_platform_statistics_id");
         if (cachedPS) {
-          setPlatformStatisticsId(cachedPS);
+          try {
+            // Validate that the cached PlatformStatistics object still exists on-chain.
+            const psObj = await suiClient.getObject({
+              id: cachedPS,
+              options: { showType: true },
+            });
+
+            if (psObj.data) {
+              setPlatformStatisticsId(cachedPS);
+            } else {
+              console.warn("⚠️ Cached PlatformStatistics object not found on-chain during discover(). Clearing cache.");
+              localStorage.removeItem("devhub_platform_statistics_id");
+            }
+          } catch (err) {
+            console.warn("⚠️ Error fetching cached PlatformStatistics object during discover(). Clearing cache.", err);
+            localStorage.removeItem("devhub_platform_statistics_id");
+          }
         }
       } catch (e) {
         console.error('Error discovering helper objects:', e);
@@ -152,6 +181,84 @@ const DashboardProposals = () => {
         }
 
         console.log('🔍 Fetching proposals for:', currentAccount.address);
+
+        // First, build a map of applications submitted by this user, keyed by proposalId.
+        // This lets us reflect the project owner's decision (application_status) in the
+        // applicant's "My Proposals" view.
+        const applicationsByProposal = new Map<string, ProjectApplication>();
+        try {
+          const devhubObj = await suiClient.getObject({
+            id: DEVHUB_OBJECT_ID,
+            options: { showContent: true },
+          });
+
+          const devhubFields = (devhubObj.data?.content as any)?.fields;
+          const projectsTable =
+            devhubFields?.projects ||
+            devhubFields?.projects_table ||
+            devhubFields?.projectsTable;
+
+          if (projectsTable) {
+            const tableId =
+              projectsTable.fields?.id?.id ||
+              projectsTable.id?.id ||
+              projectsTable.id ||
+              projectsTable;
+
+            const parentId = tableId?.toString?.() || String(tableId);
+            const dyn = await suiClient.getDynamicFields({ parentId, limit: 200 });
+
+            console.log('📋 [My Proposals] Found projects in table for application scan:', dyn.data?.length || 0);
+
+            for (const entry of dyn.data || []) {
+              try {
+                // Extract numeric project index from dynamic field name (same logic as Applications to My Projects)
+                let numeric: number | null = null;
+                const name: any = entry.name;
+                if (name && typeof name === 'object') {
+                  if (typeof (name as any).value === 'object' && (name as any).value?.value !== undefined) {
+                    numeric = Number((name as any).value.value);
+                  } else if (typeof (name as any).value === 'number') {
+                    numeric = (name as any).value;
+                  } else if (typeof (name as any).value === 'string') {
+                    const parsed = Number((name as any).value);
+                    if (!isNaN(parsed)) numeric = parsed;
+                  }
+                }
+                if (numeric === null) {
+                  const str = JSON.stringify(entry.name);
+                  const match = str.match(/"value":\s*"?(\d+)"?/);
+                  if (match) numeric = Number(match[1]);
+                }
+
+                if (numeric === null) continue;
+
+                // Get applications for this project and keep only those submitted by current user.
+                const applications = await getProjectApplications(numeric, suiClient);
+                if (applications && applications.length > 0) {
+                  applications.forEach((app) => {
+                    if (
+                      app.applicantAddress &&
+                      app.applicantAddress.toLowerCase() === currentAccount.address.toLowerCase() &&
+                      app.proposalId
+                    ) {
+                      applicationsByProposal.set(app.proposalId, app);
+                    }
+                  });
+                }
+              } catch (e) {
+                // Skip errors for individual projects
+              }
+            }
+
+            console.log(
+              '📊 [My Proposals] Built applicationsByProposal map entries:',
+              Array.from(applicationsByProposal.keys())
+            );
+          }
+        } catch (e) {
+          console.warn('⚠️ [My Proposals] Error building applicationsByProposal map:', e);
+        }
         
         // First, try to get proposals from UserProposals object if available
         let proposalIds: string[] = [];
@@ -217,55 +324,313 @@ const DashboardProposals = () => {
         const mapped: Proposal[] = await Promise.all(
           proposalIds.map(async (proposalId, idx) => {
             try {
-              // Try to get proposal details first
-              let proposalDetails = null;
-              try {
-                proposalDetails = await getProposalDetails(proposalId);
-              } catch (e) {
-                console.warn(`Error getting proposal details for ${proposalId}:`, e);
-              }
-
-              // Fallback: Get proposal object directly
+              console.log(`🔍 Fetching details for proposal ${proposalId}...`);
+              
+              // Get proposal object directly (more reliable than devInspect)
               let fields: any = {};
-              if (!proposalDetails) {
-                try {
-                  const obj = await suiClient.getObject({
-                    id: proposalId,
-                    options: { showContent: true, showType: true },
-                  });
-                  if (obj.data?.content && 'fields' in obj.data.content) {
-                    fields = (obj.data.content as any).fields;
-                  }
-                } catch (e) {
-                  console.warn(`Error getting proposal object ${proposalId}:`, e);
+              try {
+                const obj = await suiClient.getObject({
+                  id: proposalId,
+                  options: { showContent: true, showType: true },
+                });
+                console.log(`📦 Raw proposal object for ${proposalId}:`, obj);
+                
+                if (obj.data?.content && 'fields' in obj.data.content) {
+                  fields = (obj.data.content as any).fields;
+                  console.log(`📋 Extracted fields for ${proposalId}:`, fields);
+                  console.log(`📋 Field keys:`, Object.keys(fields));
+                } else if (obj.data?.content && typeof obj.data.content === 'object') {
+                  // Try to extract fields from different content structures
+                  fields = obj.data.content as any;
+                  console.log(`📋 Using content directly as fields:`, fields);
                 }
-              } else {
-                fields = proposalDetails as any;
+              } catch (e) {
+                console.warn(`⚠️ Error getting proposal object ${proposalId}:`, e);
               }
 
-              const title: string = fields.proposal_title || fields.title || proposalDetails?.proposalTitle || 'Untitled';
-              const budgetVal: any = fields.budget ?? fields.requested_compensation ?? fields.budget_amount ?? proposalDetails?.budget ?? 0;
-              const timelineWeeks: any = fields.timeline_weeks ?? fields.timeline ?? fields.duration_weeks ?? proposalDetails?.timelineWeeks ?? 0;
+              // Try multiple field name variations (snake_case, camelCase, etc.)
+              // Handle both direct field access and nested structures
+              const getField = (fieldNames: string[]): any => {
+                for (const name of fieldNames) {
+                  if (fields[name] !== undefined && fields[name] !== null) {
+                    return fields[name];
+                  }
+                }
+                return null;
+              };
+
+              // Helper to decode byte arrays to strings
+              const decodeBytes = (value: any): string => {
+                if (!value) return '';
+                if (typeof value === 'string') return value;
+                if (Array.isArray(value) && value.every((v: any) => typeof v === 'number')) {
+                  try {
+                    return new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(value));
+                  } catch {
+                    return '';
+                  }
+                }
+                return String(value);
+              };
+
+              // Helper to extract number from various formats
+              const extractNumber = (value: any, fieldName: string = ''): number => {
+                if (value === null || value === undefined) {
+                  console.log(`⚠️ Field ${fieldName} is null/undefined`);
+                  return 0;
+                }
+                if (typeof value === 'number') {
+                  console.log(`✅ Field ${fieldName} is number:`, value);
+                  return value;
+                }
+                if (typeof value === 'bigint') {
+                  console.log(`✅ Field ${fieldName} is bigint:`, value);
+                  return Number(value);
+                }
+                if (typeof value === 'string') {
+                  const num = Number(value);
+                  if (!isNaN(num)) {
+                    console.log(`✅ Field ${fieldName} is string converted to number:`, num);
+                    return num;
+                  }
+                  console.log(`⚠️ Field ${fieldName} is string but not a number:`, value);
+                }
+                if (Array.isArray(value)) {
+                  console.log(`🔍 Field ${fieldName} is array with length ${value.length}:`, value.slice(0, 10));
+                  // Check if it's a BCS-encoded u64 (8 bytes, little-endian)
+                  if (value.length === 8 && value.every((v: any) => typeof v === 'number' && v >= 0 && v <= 255)) {
+                    // Little-endian u64
+                    let result = 0n;
+                    for (let i = 0; i < 8; i++) {
+                      result += BigInt(value[i]) << BigInt(i * 8);
+                    }
+                    const num = Number(result);
+                    console.log(`✅ Field ${fieldName} decoded from BCS u64:`, num);
+                    return num;
+                  }
+                  // Try to decode as UTF-8 string first
+                  try {
+                    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(value));
+                    const num = Number(decoded);
+                    if (!isNaN(num) && decoded.trim() !== '') {
+                      console.log(`✅ Field ${fieldName} decoded from UTF-8 array:`, num);
+                      return num;
+                    }
+                  } catch (e) {
+                    // Not a string
+                  }
+                }
+                console.log(`❌ Could not extract number from field ${fieldName}:`, typeof value, value);
+                return 0;
+              };
+
+              // Log all available fields for debugging
+              console.log(`🔍 All fields for proposal ${proposalId}:`, Object.keys(fields || {}));
+              console.log(`🔍 Raw fields object:`, JSON.stringify(fields, null, 2));
+
+              // Try to find fields by checking all field names (case-insensitive)
+              const allFieldKeys = Object.keys(fields || {});
+              const findFieldByPattern = (patterns: string[]): any => {
+                for (const pattern of patterns) {
+                  const lowerPattern = pattern.toLowerCase();
+                  for (const key of allFieldKeys) {
+                    if (key.toLowerCase() === lowerPattern || 
+                        key.toLowerCase().includes(lowerPattern) ||
+                        lowerPattern.includes(key.toLowerCase())) {
+                      console.log(`✅ Found field matching pattern "${pattern}": ${key}`);
+                      return fields[key];
+                    }
+                  }
+                }
+                return null;
+              };
+
+              const titleRaw = getField(['proposal_title', 'proposalTitle', 'title']) || 
+                              findFieldByPattern(['title', 'proposal_title', 'proposalTitle']);
+              console.log(`🔍 Title raw value:`, titleRaw, typeof titleRaw);
+              const title: string = decodeBytes(titleRaw) || 'Untitled';
+              
+              const budgetRaw = getField(['budget', 'requested_compensation', 'requestedCompensation', 'budget_amount', 'budgetAmount']) ||
+                               findFieldByPattern(['budget', 'compensation', 'amount']);
+              console.log(`🔍 Budget raw value:`, budgetRaw, typeof budgetRaw);
+              const budgetVal: number = extractNumber(budgetRaw, 'budget');
+              
+              const timelineRaw = getField(['timeline_weeks', 'timelineWeeks', 'timeline', 'duration_weeks', 'durationWeeks', 'expected_duration_weeks', 'expectedDurationWeeks']) ||
+                                 findFieldByPattern(['timeline', 'duration', 'weeks']);
+              console.log(`🔍 Timeline raw value:`, timelineRaw, typeof timelineRaw);
+              let timelineWeeks: number = extractNumber(timelineRaw, 'timeline_weeks');
+              
+              console.log(`📊 Extracted data for ${proposalId}:`, {
+                title,
+                budgetVal,
+                timelineWeeks,
+                fieldsKeys: Object.keys(fields || {}),
+              });
               
               // Get status from ProposalsByStatus map, or from proposal object, or default to 'draft'
               const statusFromMap = statusMap.get(proposalId);
-              const statusRaw: string = statusFromMap || (fields.status || proposalDetails?.status || '').toString().toLowerCase();
+              let statusRaw: string = statusFromMap || 
+                (decodeBytes(getField(['status', 'application_status', 'applicationStatus'])) || '').toString().toLowerCase();
 
-              const status: Proposal['status'] = statusRaw === 'accepted' ? 'accepted' :
-                statusRaw === 'rejected' ? 'rejected' :
-                statusRaw === 'in-review' || statusRaw === 'in_review' ? 'in-review' : 'draft';
+              // Get opportunity title to check if proposal has been submitted to a project
+              const opportunityTitle = decodeBytes(getField(['opportunity_title', 'opportunityTitle']));
+              
+              // If proposal has no status but has an opportunityTitle, it means it's been submitted
+              // but no decision has been made yet - show as 'pending' instead of 'draft'
+              if (!statusRaw || statusRaw === 'draft' || statusRaw === '') {
+                if (opportunityTitle) {
+                  // Proposal has been submitted to a project but no status set yet
+                  statusRaw = 'pending';
+                  console.log(`📋 Proposal ${proposalId} submitted but no decision made, setting to pending`);
+                }
+              }
 
-              return {
+              // Check if the project's applications are closed - if so, set status to 'pending'
+              // Also try to get the actual submitted duration from the ProjectApplication
+              // Try to find the project ID from the proposal (might be in opportunity_title or project_id field)
+              if (opportunityTitle) {
+                try {
+                  // Try to find the project by matching opportunity title
+                  // First, get all projects and find the one matching this opportunity title
+                  const devhubObj = await suiClient.getObject({
+                    id: DEVHUB_OBJECT_ID,
+                    options: { showContent: true },
+                  });
+                  
+                  const devhubFields = (devhubObj.data?.content as any)?.fields;
+                  if (devhubFields?.projects) {
+                    const tableId = (devhubFields.projects.fields?.id?.id || devhubFields.projects.id?.id || devhubFields.projects.id || devhubFields.projects)?.toString?.() || String(devhubFields.projects);
+                    const dyn = await suiClient.getDynamicFields({ parentId: tableId, limit: 200 });
+                    
+                    // Find project with matching title
+                    let foundProjectId: number | null = null;
+                    for (const entry of dyn.data || []) {
+                      try {
+                        const fieldObj = await suiClient.getDynamicFieldObject({ parentId: tableId, name: entry.name as any });
+                        const container = fieldObj.data?.content as any;
+                        const valueNode = container?.fields?.value ?? container?.fields;
+                        const projectFields = valueNode?.fields ?? valueNode;
+                        
+                        if (projectFields?.title && decodeBytes(projectFields.title) === opportunityTitle) {
+                          // Found the project - check its applicationsStatus
+                          const projectApplicationsStatus = decodeBytes(projectFields.applications_status || projectFields.applicationsStatus || '');
+                          if (projectApplicationsStatus.toLowerCase() === 'closed') {
+                            statusRaw = 'pending';
+                            console.log(`📋 Project applications are closed, setting proposal status to pending for ${proposalId}`);
+                          }
+                          
+                          // Extract project ID from the dynamic field name (same logic as in fetchApplicationsToMyProjects)
+                          try {
+                            const name: any = entry.name;
+                            if (name && typeof name === 'object') {
+                              if (typeof (name as any).value === 'object' && (name as any).value?.value !== undefined) {
+                                foundProjectId = Number((name as any).value.value);
+                              } else if (typeof (name as any).value === 'number') {
+                                foundProjectId = (name as any).value;
+                              } else if (typeof (name as any).value === 'string') {
+                                const parsed = Number((name as any).value);
+                                if (!isNaN(parsed)) foundProjectId = parsed;
+                              }
+                            }
+                            if (foundProjectId === null) {
+                              // Try JSON parsing as fallback
+                              const str = JSON.stringify(entry.name);
+                              const match = str.match(/"value":\s*"?(\d+)"?/);
+                              if (match) foundProjectId = Number(match[1]);
+                            }
+                            console.log(`🔍 Found project ID: ${foundProjectId} for opportunity "${opportunityTitle}"`);
+                          } catch (e) {
+                            console.warn(`⚠️ Could not extract project ID from dynamic field name:`, e);
+                          }
+                          
+                          break;
+                        }
+                      } catch (e) {
+                        // Continue searching
+                      }
+                    }
+                    
+                    // If we found the project, try to get the application data to get the actual submitted duration
+                    if (foundProjectId !== null) {
+                      try {
+                        console.log(`🔍 Fetching applications for project ${foundProjectId} to find submitted duration...`);
+                        const applications = await getProjectApplications(foundProjectId, suiClient);
+                        console.log(`📋 Found ${applications.length} applications for project ${foundProjectId}`);
+                        
+                        // Find the application that matches this proposal
+                        const matchingApplication = applications.find(app => app.proposalId === proposalId);
+                        if (matchingApplication) {
+                          // Use the submitted duration from the application if available
+                          if (matchingApplication.expectedDurationWeeks) {
+                            console.log(`✅ Found matching application with expectedDurationWeeks: ${matchingApplication.expectedDurationWeeks}`);
+                            timelineWeeks = matchingApplication.expectedDurationWeeks;
+                            console.log(`📊 Updated timeline from proposal (${extractNumber(timelineRaw, 'timeline_weeks')}) to application (${timelineWeeks}) weeks`);
+                          }
+
+                          // Also use the application status (set by project owner) for proposal status display
+                          if (matchingApplication.applicationStatus) {
+                            const appStatusRaw = matchingApplication.applicationStatus.toString().toLowerCase().replace(/\s+/g, '-');
+                            console.log(`✅ Using application status for proposal ${proposalId}:`, appStatusRaw);
+                            statusRaw = appStatusRaw;
+                          }
+                        } else {
+                          console.log(`⚠️ No matching application found for proposal ${proposalId} in project ${foundProjectId}`);
+                        }
+                      } catch (e) {
+                        console.warn(`⚠️ Error fetching applications for project ${foundProjectId}:`, e);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.warn(`⚠️ Error checking project applications status for proposal ${proposalId}:`, e);
+                }
+              }
+
+              // If we have a matching application for this proposal (submitted by current user),
+              // use its status and duration as the source of truth.
+              const linkedApplication = applicationsByProposal.get(proposalId);
+              if (linkedApplication) {
+                if (linkedApplication.expectedDurationWeeks) {
+                  timelineWeeks = linkedApplication.expectedDurationWeeks;
+                }
+                if (linkedApplication.applicationStatus) {
+                  statusRaw = linkedApplication.applicationStatus.toString().toLowerCase().replace(/\s+/g, '-');
+                  console.log(`✅ [My Proposals] Using linked application status for ${proposalId}:`, statusRaw);
+                }
+              }
+
+              // Determine final status
+              // If statusRaw is 'pending', keep it as 'draft' for the status field (to match interface)
+              // but we'll use statusRaw to display "Pending" in the UI
+              let finalStatus: Proposal['status'];
+              if (statusRaw === 'pending') {
+                // Keep as 'draft' for the status field type, but statusRaw will be used for display
+                finalStatus = 'draft';
+              } else {
+                finalStatus = statusRaw === 'accepted' ? 'accepted' :
+                  statusRaw === 'rejected' ? 'rejected' :
+                  statusRaw === 'in-review' || statusRaw === 'in_review' ? 'in-review' : 'draft';
+              }
+              
+              const status = finalStatus;
+
+              const result = {
                 id: proposalId,
                 number: `#${(proposalIds.length - idx).toString().padStart(3, '0')}`,
                 title,
-                budget: typeof budgetVal === 'number' || typeof budgetVal === 'bigint' ? `$${budgetVal}` : (budgetVal ? String(budgetVal) : '-') ,
+                budget: typeof budgetVal === 'number' || typeof budgetVal === 'bigint' ? 
+                  `$${Number(budgetVal).toLocaleString()}` : 
+                  (budgetVal ? String(budgetVal) : '-'),
                 timeline: timelineWeeks ? `${timelineWeeks} weeks` : '-',
                 status,
+                statusRaw, // Store raw status to check if it's 'pending'
                 actions: 'Open',
               };
+              
+              console.log(`✅ Mapped proposal ${proposalId}:`, result);
+              return result;
             } catch (e) {
-              console.error(`Error processing proposal ${proposalId}:`, e);
+              console.error(`❌ Error processing proposal ${proposalId}:`, e);
               return {
                 id: proposalId,
                 number: `#${(proposalIds.length - idx).toString().padStart(3, '0')}`,
@@ -273,6 +638,7 @@ const DashboardProposals = () => {
                 budget: '-',
                 timeline: '-',
                 status: 'draft' as const,
+                statusRaw: 'draft',
                 actions: 'Open',
               };
             }
@@ -486,67 +852,74 @@ const DashboardProposals = () => {
       let ensuredProposalsByStatusId = proposalsByStatusId;
       let ensuredPlatformStatisticsId = platformStatisticsId;
 
-      // Get proposalsByStatusId from localStorage if not set
+      // Get or create proposalsByStatusId
       if (!ensuredProposalsByStatusId) {
         const cached = localStorage.getItem("devhub_proposals_by_status_id");
         if (cached) {
-          ensuredProposalsByStatusId = cached;
-          setProposalsByStatusId(cached);
-        } else {
-          throw new Error("ProposalsByStatus object not found. Please ensure it exists.");
-        }
-      }
+          // Validate that the cached ProposalsByStatus object still exists on-chain.
+          try {
+            const pbsObj = await suiClient.getObject({
+              id: cached,
+              options: { showType: true },
+            });
 
-      // Get or create platformStatisticsId
-      if (!ensuredPlatformStatisticsId) {
-        const cached = localStorage.getItem("devhub_platform_statistics_id");
-        if (cached) {
-          ensuredPlatformStatisticsId = cached;
-          setPlatformStatisticsId(cached);
-        } else {
-          // Create PlatformStatistics object
-          console.log('📝 Creating PlatformStatistics object...');
-          setError("Creating PlatformStatistics object... Please approve the transaction.");
-          const txCreatePS = createPlatformStatisticsTransaction();
-          
+            if (pbsObj.data) {
+              ensuredProposalsByStatusId = cached;
+              setProposalsByStatusId(cached);
+            } else {
+              console.warn("⚠️ Cached ProposalsByStatus object not found on-chain. Clearing cache.");
+              localStorage.removeItem("devhub_proposals_by_status_id");
+            }
+          } catch (err) {
+            console.warn("⚠️ Error fetching cached ProposalsByStatus object. Clearing cache and recreating.", err);
+            localStorage.removeItem("devhub_proposals_by_status_id");
+          }
+        }
+
+        // If still no valid ProposalsByStatus object, create one.
+        if (!ensuredProposalsByStatusId) {
+          console.log('📝 Creating ProposalsByStatus object...');
+          setError("Creating ProposalsByStatus object... Please approve the transaction.");
+          const txCreatePBS = createProposalsByStatusTransaction();
+
           await new Promise<void>((resolve, reject) => {
             signExecute(
-              { transaction: txCreatePS, options: { showEffects: true } } as any,
+              { transaction: txCreatePBS, options: { showEffects: true } } as any,
               {
                 onSuccess: async (res: any) => {
                   try {
-                    console.log('✅ PlatformStatistics created, digest:', res.digest);
+                    console.log('✅ ProposalsByStatus created, digest:', res.digest);
                     await suiClient.waitForTransaction({ digest: res.digest });
-                    
+
                     // Extract object ID from transaction
-                    const tx = await suiClient.getTransactionBlock({ 
-                      digest: res.digest, 
-                      options: { showEffects: true, showObjectChanges: true } 
+                    const tx = await suiClient.getTransactionBlock({
+                      digest: res.digest,
+                      options: { showEffects: true, showObjectChanges: true }
                     });
-                    
+
                     const created = tx.objectChanges?.find(
-                      (change: any) => change.type === 'created' && 
-                      change.objectType?.includes('PlatformStatistics')
+                      (change: any) => change.type === 'created' &&
+                        change.objectType?.includes('ProposalsByStatus')
                     );
-                    
+
                     if (created && 'objectId' in created) {
                       const objectId = created.objectId;
-                      localStorage.setItem("devhub_platform_statistics_id", objectId);
-                      ensuredPlatformStatisticsId = objectId;
-                      setPlatformStatisticsId(objectId);
-                      console.log('✅ PlatformStatistics ID:', objectId);
+                      localStorage.setItem("devhub_proposals_by_status_id", objectId);
+                      ensuredProposalsByStatusId = objectId;
+                      setProposalsByStatusId(objectId);
+                      console.log('✅ ProposalsByStatus ID:', objectId);
                     } else {
-                      throw new Error("Failed to retrieve PlatformStatistics object ID");
+                      throw new Error("Failed to retrieve ProposalsByStatus object ID");
                     }
-                    
+
                     resolve();
                   } catch (e) {
-                    console.error('Error waiting for PlatformStatistics transaction:', e);
+                    console.error('Error waiting for ProposalsByStatus transaction:', e);
                     reject(e);
                   }
                 },
                 onError: (error) => {
-                  console.error('Error creating PlatformStatistics:', error);
+                  console.error('Error creating ProposalsByStatus:', error);
                   reject(error);
                 },
               }
@@ -554,6 +927,84 @@ const DashboardProposals = () => {
           });
           setError(null);
         }
+      }
+
+      // Get or create platformStatisticsId
+      if (!ensuredPlatformStatisticsId) {
+        const cached = localStorage.getItem("devhub_platform_statistics_id");
+        if (cached) {
+          // Validate that the cached PlatformStatistics object still exists on-chain.
+          // If it's stale (e.g. from a previous deployment), clear it so we can recreate.
+          try {
+            const psObj = await suiClient.getObject({
+              id: cached,
+              options: { showType: true },
+            });
+
+            if (psObj.data) {
+              ensuredPlatformStatisticsId = cached;
+              setPlatformStatisticsId(cached);
+            } else {
+              console.warn("⚠️ Cached PlatformStatistics object not found on-chain. Clearing cache.");
+              localStorage.removeItem("devhub_platform_statistics_id");
+            }
+          } catch (err) {
+            console.warn("⚠️ Error fetching cached PlatformStatistics object. Clearing cache and recreating.", err);
+            localStorage.removeItem("devhub_platform_statistics_id");
+          }
+        }
+      }
+
+      // If we still don't have a valid PlatformStatistics object, create a new one.
+      if (!ensuredPlatformStatisticsId) {
+        console.log('📝 Creating PlatformStatistics object...');
+        setError("Creating PlatformStatistics object... Please approve the transaction.");
+        const txCreatePS = createPlatformStatisticsTransaction();
+        
+        await new Promise<void>((resolve, reject) => {
+          signExecute(
+            { transaction: txCreatePS, options: { showEffects: true } } as any,
+            {
+              onSuccess: async (res: any) => {
+                try {
+                  console.log('✅ PlatformStatistics created, digest:', res.digest);
+                  await suiClient.waitForTransaction({ digest: res.digest });
+                  
+                  // Extract object ID from transaction
+                  const tx = await suiClient.getTransactionBlock({ 
+                    digest: res.digest, 
+                    options: { showEffects: true, showObjectChanges: true } 
+                  });
+                  
+                  const created = tx.objectChanges?.find(
+                    (change: any) => change.type === 'created' && 
+                    change.objectType?.includes('PlatformStatistics')
+                  );
+                  
+                  if (created && 'objectId' in created) {
+                    const objectId = created.objectId;
+                    localStorage.setItem("devhub_platform_statistics_id", objectId);
+                    ensuredPlatformStatisticsId = objectId;
+                    setPlatformStatisticsId(objectId);
+                    console.log('✅ PlatformStatistics ID:', objectId);
+                  } else {
+                    throw new Error("Failed to retrieve PlatformStatistics object ID");
+                  }
+                  
+                  resolve();
+                } catch (e) {
+                  console.error('Error waiting for PlatformStatistics transaction:', e);
+                  reject(e);
+                }
+              },
+              onError: (error) => {
+                console.error('Error creating PlatformStatistics:', error);
+                reject(error);
+              },
+            }
+          );
+        });
+        setError(null);
       }
 
       if (!ensuredProposalsByStatusId || !ensuredPlatformStatisticsId) {
@@ -564,7 +1015,8 @@ const DashboardProposals = () => {
       // Contract expects: "accepted", "rejected", "in-review" (lowercase with hyphen)
       const normalizedStatus = newStatus.toLowerCase().replace(/\s+/g, '-');
       console.log('🔄 Updating proposal status:', {
-        proposalId: application.proposalId,
+        projectId: application.projectId,
+        applicant: application.applicantAddress,
         newStatus,
         normalizedStatus,
         proposalsByStatusId: ensuredProposalsByStatusId,
@@ -572,10 +1024,9 @@ const DashboardProposals = () => {
       });
 
       setError("Updating application status... Please approve the transaction.");
-      const tx = updateProposalStatusTransaction(
-        application.proposalId,
-        ensuredPlatformStatisticsId,
-        ensuredProposalsByStatusId,
+      const tx = updateApplicationStatusTransaction(
+        Number(application.projectId),
+        application.applicantAddress,
         normalizedStatus
       );
 
@@ -1063,7 +1514,8 @@ const DashboardProposals = () => {
                                       <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${getStatusColor(proposal.status)}`}>
                                         {proposal.status === 'in-review' ? 'In Review' : 
                                          proposal.status === 'accepted' ? 'Accepted' :
-                                         proposal.status === 'rejected' ? 'Rejected' : 'Draft'}
+                                         proposal.status === 'rejected' ? 'Rejected' : 
+                                         proposal.statusRaw === 'pending' ? 'Pending' : 'Draft'}
                                       </span>
                                     </div>
                                   </td>
@@ -1168,7 +1620,7 @@ const DashboardProposals = () => {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                       <div className="flex items-center gap-2 text-muted-foreground">
                                         <DollarSign className="h-4 w-4" />
-                                        <span>{application.requestedCompensation} SUI</span>
+                                        <span>${application.requestedCompensation.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                       </div>
                                       <div className="flex items-center gap-2 text-muted-foreground">
                                         <Clock className="h-4 w-4" />
@@ -1176,7 +1628,16 @@ const DashboardProposals = () => {
                                       </div>
                                       <div className="flex items-center gap-2 text-muted-foreground">
                                         <Calendar className="h-4 w-4" />
-                                        <span>{new Date(application.startDate).toLocaleDateString()}</span>
+                                        <span>
+                                          {application.startDate ? (() => {
+                                            try {
+                                              const date = new Date(application.startDate);
+                                              return isNaN(date.getTime()) ? application.startDate : date.toLocaleDateString();
+                                            } catch {
+                                              return application.startDate;
+                                            }
+                                          })() : '-'}
+                                        </span>
                                       </div>
                                       <div className="flex items-center gap-2 text-muted-foreground">
                                         <User className="h-4 w-4" />
@@ -1454,15 +1915,8 @@ const DashboardProposals = () => {
                         {formatStatusForDisplay(selectedApplication.applicationStatus)}
                       </span>
                     </div>
-                    {selectedApplication.contactEmail && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Contact Email</p>
-                        <p className="text-foreground flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          {selectedApplication.contactEmail}
-                        </p>
-                      </div>
-                    )}
+                    {/* Contact email is stored in the Proposal, not in ProjectApplication */}
+                    {/* If needed, fetch the Proposal using selectedApplication.proposalId */}
                   </div>
                 </div>
 
@@ -1482,7 +1936,7 @@ const DashboardProposals = () => {
                       <DollarSign className="h-5 w-5 text-primary" />
                       <h4 className="font-semibold text-foreground">Compensation</h4>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{selectedApplication.requestedCompensation} SUI</p>
+                    <p className="text-2xl font-bold text-foreground">${selectedApplication.requestedCompensation.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-3">

@@ -529,6 +529,7 @@ export function useContract() {
         ...prev,
         walrusUploading: true,
         walrusProgress: "Uploading to Walrus...",
+        error: null, // Clear any previous errors
       }));
 
       const updateProgress = (message: string) => {
@@ -601,6 +602,7 @@ export function useContract() {
         ...prev,
         walrusUploading: true,
         walrusProgress: "Fetching URL and uploading to Walrus...",
+        error: null, // Clear any previous errors
       }));
 
       const updateProgress = (message: string) => {
@@ -668,7 +670,7 @@ export function useContract() {
         // For now, we'll create a basic blob object
         return {
           blobId,
-          walrusUrl: `https://aggregator-devnet.walrus.space/v1/${blobId}`,
+          walrusUrl: `https://aggregator.walrus-testnet.walrus.space/v1/${blobId}`,
         };
       } catch (error) {
         console.error("Error getting Walrus blob:", error);
