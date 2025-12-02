@@ -8,6 +8,8 @@ use sui::sui::SUI;
 use sui::table::{Self, Table};
 use sui::url;
 use sui::clock::{Self, Clock};
+use sui::tx_context::{Self, TxContext};
+use sui::object::{Self, UID, ID};
 
 // Import our modules
 use devhub::constants;
@@ -530,6 +532,39 @@ entry fun close_applications(devhub: &mut DevHub, project_id: u64, ctx: &TxConte
     assert!(tx_context::sender(ctx) == project::get_owner(proj), constants::NOT_THE_OWNER());
     assert!(project::get_applications_status(proj) != string::utf8(b"Closed"), constants::E_APPLICATIONS_ALREADY_CLOSED());
     project::set_applications_status(proj, string::utf8(b"Closed"));
+}
+
+/// Update the status of a project application without requiring the Proposal object.
+/// This allows the project owner to accept / reject / move to in-review on-chain.
+entry fun update_application_status(
+    devhub: &mut DevHub,
+    project_id: u64,
+    applicant: address,
+    new_status: vector<u8>,
+    ctx: &TxContext,
+) {
+    let proj = table::borrow_mut(&mut devhub.projects, project_id);
+    // Only the project owner can change application statuses
+    assert!(tx_context::sender(ctx) == project::get_owner(proj), constants::NOT_THE_OWNER());
+
+    let status_str = string::utf8(new_status);
+
+    // Look up applications vector for this project
+    let apps_ref = table::borrow_mut(&mut devhub.project_applications, project_id);
+    let len = vector::length(apps_ref);
+    let mut i = 0;
+    while (i < len) {
+        let app_ref = vector::borrow_mut(apps_ref, i);
+        if (project::get_application_applicant_address(app_ref) == applicant) {
+            // Update status in-place
+            project::set_application_status(app_ref, status_str);
+            return;
+        };
+        i = i + 1;
+    };
+
+    // If we reach here, no matching application was found
+    abort constants::E_APPLICATIONS_NOT_OPEN();
 }
 
 entry fun add_attachment(

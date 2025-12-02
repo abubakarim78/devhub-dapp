@@ -1011,7 +1011,7 @@ const Dashboard: React.FC = () => {
 
           const buildAvatarFor = (displayName: string, addr: string, card?: any): string => {
             if (card?.avatarWalrusBlobId) {
-              return `https://aggregator-devnet.walrus.space/v1/${card.avatarWalrusBlobId}`;
+              return `https://aggregator.walrus-testnet.walrus.space/v1/${card.avatarWalrusBlobId}`;
             }
             const imageUrl = typeof card?.imageUrl === 'string' && card.imageUrl ? card.imageUrl : '';
             if (imageUrl && imageUrl.startsWith('http')) return imageUrl;

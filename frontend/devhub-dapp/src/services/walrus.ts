@@ -1,16 +1,19 @@
 import axios from 'axios';
 
 // Working Walrus endpoints - Updated January 2025
-// Note: Walrus currently only provides testnet endpoints. These endpoints work across networks
-// as Walrus is network-agnostic for blob storage. If devnet-specific endpoints become available,
+// Note: Walrus provides testnet endpoints. These endpoints work across networks
+// as Walrus is network-agnostic for blob storage. If network-specific endpoints become available,
 // they should be added here with network detection logic.
 // Publisher: Tudor's endpoint with confirmed CORS support
 // Aggregator: Multiple fallback options
-const WALRUS_PUBLISHER_URL = 'https://publisher.walrus-testnet.walrus.space';
+const WALRUS_PUBLISHER_URL = 'https://publisher.walrus-01.tududes.com';
 const WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus-testnet.walrus.space';
 
 // Backup endpoints in case primary fails
 const BACKUP_AGGREGATOR_URL = 'https://wal-aggregator-testnet.staketab.org';
+
+// Note: If the primary publisher is down, users may need to wait or try again later
+// The Walrus testnet service may experience temporary outages
 
 export interface WalrusUploadResponse {
   newlyCreated?: {
@@ -37,22 +40,22 @@ export class WalrusService {
    * @param userAddress The user's Sui address to own the resulting blob object
    */
   static async uploadFile(file: File, userAddress?: string): Promise<WalrusBlob> {
+    // Check file size (limit to 10MB for testnet publisher)
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_SIZE) {
+      throw new Error(`File is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Max limit is 10MB.`);
+    }
+
+    // Convert file to raw binary data
+    const fileData = await file.arrayBuffer();
+
+    // Construct URL with send_object_to parameter if userAddress is provided
+    let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
+    if (userAddress) {
+      uploadUrl += `&send_object_to=${encodeURIComponent(userAddress)}`;
+    }
+
     try {
-      // Check file size (limit to 10MB for testnet publisher)
-      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-      if (file.size > MAX_SIZE) {
-        throw new Error(`File is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Max limit is 10MB.`);
-      }
-
-      // Convert file to raw binary data
-      const fileData = await file.arrayBuffer();
-
-      // Construct URL with send_object_to parameter if userAddress is provided
-      let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
-      if (userAddress) {
-        uploadUrl += `&send_object_to=${userAddress}`;
-      }
-
       const response = await axios.put<WalrusUploadResponse>(
         uploadUrl,
         fileData,
@@ -60,7 +63,6 @@ export class WalrusService {
           headers: {
             'Content-Type': 'application/octet-stream',
           },
-          // Add timeout for large files
           timeout: 60000, // 60 seconds
         }
       );
@@ -77,29 +79,21 @@ export class WalrusService {
         blobId,
         walrusUrl: this.getBlobUrl(blobId),
       };
-    } catch (error) {
-      console.error('Walrus upload failed:', error);
+    } catch (error: any) {
       if (axios.isAxiosError(error)) {
-        if (error.response?.status === 413) {
+        const status = error.response?.status;
+        if (status === 413) {
           throw new Error('File too large for Walrus publisher (HTTP 413). Max ~5 MB. Please compress or choose a smaller file.');
         }
-        // Check for specific error types
-        if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
-          throw new Error('Network error: Unable to connect to Walrus. Please check your internet connection and try again.');
-        }
-        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-          throw new Error('Upload timeout: The file is too large or the connection is slow. Please try again.');
-        }
-        if (error.response?.status === 403) {
+        if (status === 403) {
           throw new Error('Access denied: CORS or authentication error. Please contact support.');
         }
-        if (error.response?.status === 404) {
+        if (status === 404) {
           throw new Error('Service unavailable: Walrus endpoint not found. The service may be temporarily down.');
         }
-        if (error.response && error.response.status >= 500) {
-          throw new Error('Server error: Walrus service is experiencing issues. Please try again later.');
+        if (typeof status === 'number' && status >= 500) {
+          throw new Error(`Walrus service error (HTTP ${status}). Please try again later.`);
         }
-
         const message = error.response?.data?.message || error.message;
         throw new Error(`Failed to upload to Walrus: ${message}`);
       }
@@ -168,7 +162,7 @@ export class WalrusService {
         walrusUrl: this.getBlobUrl(blobId),
         originalUrl: url,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to upload URL to Walrus:', error);
       if (axios.isAxiosError(error)) {
         // Handle specific CORS and network errors
@@ -184,13 +178,14 @@ export class WalrusService {
         if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
           throw new Error('Timeout: The URL took too long to respond. Please try a different image or upload directly.');
         }
-        if (error.response?.status === 403) {
+        const status = error.response?.status;
+        if (status === 403) {
           throw new Error('Access denied: The URL requires authentication or blocks automated access.');
         }
-        if (error.response?.status === 404) {
+        if (status === 404) {
           throw new Error('Not found: The URL does not exist or the image has been removed.');
         }
-        if (error.response && error.response.status >= 500) {
+        if (typeof status === 'number' && status >= 500) {
           throw new Error('Server error: The URL\'s server is experiencing issues. Please try again later.');
         }
 
@@ -232,7 +227,7 @@ export class WalrusService {
 
       if (attempt < maxRetries - 1) {
         // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise<void>(resolve => setTimeout(resolve, delayMs));
       }
     }
     return false;
@@ -265,7 +260,7 @@ export class WalrusService {
       }
 
       // Wait 3 seconds before next check
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise<void>(resolve => setTimeout(resolve, 3000));
     }
 
     if (onProgress) {
@@ -313,7 +308,7 @@ export class WalrusService {
         blobId,
         walrusUrl: this.getBlobUrl(blobId),
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Walrus metadata upload failed:', error);
       if (axios.isAxiosError(error)) {
         const message = error.response?.data?.message || error.message;
@@ -435,13 +430,40 @@ export class WalrusService {
 
   /**
    * Check if the Walrus service is available
+   * Returns an object with availability status and optional message
    */
-  static async checkServiceHealth(): Promise<boolean> {
+  static async checkServiceHealth(): Promise<{ available: boolean; message?: string }> {
     try {
-      await axios.head(WALRUS_PUBLISHER_URL, { timeout: 5000 });
-      return true;
-    } catch {
-      return false;
+      const response = await axios.head(`${WALRUS_PUBLISHER_URL}/v1/blobs`, { 
+        timeout: 5000,
+        validateStatus: (status) => status < 500, // Accept any status < 500 as "available"
+      });
+      
+      if (response.status >= 200 && response.status < 500) {
+        return { available: true };
+      }
+      
+      return { 
+        available: false, 
+        message: `Service returned HTTP ${response.status}` 
+      };
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status && error.response.status >= 500) {
+          return { 
+            available: false, 
+            message: `Service is down (HTTP ${error.response.status}). Please try again later.` 
+          };
+        }
+        return { 
+          available: false, 
+          message: `Cannot reach service: ${error.message}` 
+        };
+      }
+      return { 
+        available: false, 
+        message: 'Service health check failed' 
+      };
     }
   }
 } 
