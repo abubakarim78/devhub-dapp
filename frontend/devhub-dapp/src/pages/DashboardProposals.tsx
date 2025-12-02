@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
-import { useSuiClient } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,

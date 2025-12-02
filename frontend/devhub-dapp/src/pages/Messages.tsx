@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { 
   Search, 
   Mail, 
@@ -70,7 +71,7 @@ const pendingCreations = new Set<string>();
 
 const Messages: React.FC = () => {
   const currentAccount = useCurrentAccount();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const suiClient = useSuiClient();
   const [searchParams] = useSearchParams();
   const { id: routeConversationId } = useParams();

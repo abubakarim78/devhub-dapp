@@ -1,0 +1,23 @@
+{
+  "name": "devhub-enoki-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Enoki sponsored transactions",
+  "main": "enoki-sponsor-api.example.js",
+  "scripts": {
+    "start": "node enoki-sponsor-api.example.js",
+    "dev": "node enoki-sponsor-api.example.js"
+  },
+  "keywords": [
+    "enoki",
+    "sui",
+    "sponsored-transactions"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "dotenv": "^17.2.3"
+  }
+}
+

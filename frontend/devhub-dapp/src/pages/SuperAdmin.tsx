@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  useCurrentAccount,
-  useSignAndExecuteTransaction,
-} from "@mysten/dapp-kit";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { Shield } from "lucide-react";
 import { motion } from "framer-motion";
