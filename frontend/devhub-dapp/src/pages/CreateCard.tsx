@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
+import { useIsEnokiAccount } from '@/lib/gasSponsorship';
 import {
   User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle,
   X, CloudUpload, ArrowRight, ArrowLeft, Plus, Trash2
@@ -45,21 +47,20 @@ const Toast: React.FC<{
     initial={{ opacity: 0, y: -20, scale: 0.95 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     exit={{ opacity: 0, y: -20, scale: 0.95 }}
-    className="fixed top-5 right-5 z-[100]"
+    className="fixed top-24 right-5 z-[100] max-w-md"
   >
     <div
-      className={`flex items-center gap-3 pl-4 pr-2 py-3 rounded-lg shadow-2xl border ${
+      className={`flex items-start gap-3 pl-4 pr-2 py-3 rounded-lg shadow-2xl border ${
         type === 'success'
-          ? 'bg-green-500/10 border-green-500/30 text-green-300'
-          : 'bg-red-500/10 border-red-500/30 text-red-300'
+          ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-300'
+          : 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-300'
       }`}
     >
-      {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-      <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="p-1 rounded-full hover:bg-accent/20 transition-colors">
+      {type === 'success' ? <CheckCircle size={20} className="mt-0.5 flex-shrink-0 text-green-600 dark:text-green-300" /> : <AlertCircle size={20} className="mt-0.5 flex-shrink-0 text-red-600 dark:text-red-300" />}
+      <span className="font-medium text-sm flex-1 leading-relaxed">{message}</span>
+      <button onClick={onClose} className="p-1 rounded-full hover:bg-accent/20 transition-colors flex-shrink-0">
         <X size={16} />
       </button>
-            dark: '#0066CC',
     </div>
   </motion.div>
 );
@@ -131,8 +132,9 @@ const InputField: React.FC<{
 const CreateCard: React.FC = () => {
     const navigate = useNavigate();
     const currentAccount = useCurrentAccount();
-    const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+    const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
     const suiClient = useSuiClient();
+    const isEnoki = useIsEnokiAccount();
     const { uploadToWalrus, uploadUrlToWalrus, walrusUploading, walrusProgress } = useContract();
   
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -364,12 +366,23 @@ const CreateCard: React.FC = () => {
                 limit: 50,
             });
             
+            // For Enoki wallets, we only need coins for payment (gas is sponsored)
+            // For regular wallets, we need coins for both payment and gas
+            const ESTIMATED_GAS = isEnoki ? 0 : 1000000; // Gas is sponsored for Enoki
+            const TOTAL_NEEDED = PLATFORM_FEE + ESTIMATED_GAS;
+            
             if (!coins.data || coins.data.length === 0) {
-                throw new Error('No SUI coins found in wallet');
+                // For Enoki wallets, we still need at least one coin for payment (platform fee)
+                // Gas is sponsored, but the platform fee must be paid
+                if (isEnoki) {
+                    throw new Error(
+                        'No SUI coins found in wallet. You need at least 0.1 SUI to pay the platform fee (gas is free for Enoki wallets). Please add some SUI to your wallet to continue.'
+                    );
+                } else {
+                    throw new Error('No SUI coins found in wallet');
+                }
             }
             
-            const ESTIMATED_GAS = 1000000;
-            const TOTAL_NEEDED = PLATFORM_FEE + ESTIMATED_GAS;
             let totalBalance = BigInt(0);
             
             // Check if user has enough balance
@@ -380,7 +393,11 @@ const CreateCard: React.FC = () => {
             }
             
             if (totalBalance < BigInt(TOTAL_NEEDED)) {
-                throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1000000000).toFixed(3)} SUI.`);
+                if (isEnoki) {
+                    throw new Error(`Insufficient SUI balance. Need at least ${(PLATFORM_FEE / 1000000000).toFixed(3)} SUI for the platform fee (gas is sponsored).`);
+                } else {
+                    throw new Error(`Insufficient SUI balance. Need at least ${(TOTAL_NEEDED / 1000000000).toFixed(3)} SUI.`);
+                }
             }
 
             const cardDataForTransaction = {
@@ -421,7 +438,27 @@ const CreateCard: React.FC = () => {
             });
             
             if (!freshCoins.data || freshCoins.data.length === 0) {
-                throw new Error('No SUI coins found in wallet');
+                if (isEnoki) {
+                    throw new Error(
+                        'No SUI coins found in wallet. You need at least 0.1 SUI to pay the platform fee (gas is free for Enoki wallets). Please add some SUI to your wallet to continue.'
+                    );
+                } else {
+                    throw new Error('No SUI coins found in wallet');
+                }
+            }
+            
+            // Calculate total balance of fresh coins
+            const freshTotalBalance = freshCoins.data.reduce((sum, coin) => sum + BigInt(coin.balance), BigInt(0));
+            
+            // Check if total balance is sufficient
+            if (freshTotalBalance < BigInt(PLATFORM_FEE)) {
+                if (isEnoki) {
+                    throw new Error(
+                        `Insufficient balance for platform fee. You need at least ${(PLATFORM_FEE / 1000000000).toFixed(3)} SUI to pay the platform fee (gas is free for Enoki wallets). Current balance: ${(Number(freshTotalBalance) / 1000000000).toFixed(3)} SUI`
+                    );
+                } else {
+                    throw new Error(`Insufficient SUI balance. Need at least ${(PLATFORM_FEE / 1000000000).toFixed(3)} SUI.`);
+                }
             }
             
             // Use the first coin that has enough balance for payment
@@ -434,20 +471,87 @@ const CreateCard: React.FC = () => {
                 }
             }
             
-            if (!paymentCoinId) {
-                throw new Error('No coin with sufficient balance found');
-            }
-            
-            // Check if user has multiple coins for gas payment
-            const coinsWithGasBalance = freshCoins.data.filter(
-                coin => coin.coinObjectId !== paymentCoinId && BigInt(coin.balance) >= BigInt(100_000_000) // 0.1 SUI minimum for gas
-            );
-            
-            const MIN_GAS = 100_000_000; // 0.1 SUI minimum for gas
             let tx: Transaction;
             
-            // If user only has one coin, split it automatically in the transaction
-            if (coinsWithGasBalance.length === 0 && freshCoins.data.length === 1) {
+            // For Enoki wallets, gas is sponsored so we don't need to worry about gas coins
+            // For regular wallets, we need to handle gas payment
+            if (isEnoki) {
+                // Enoki wallet: If no single coin has enough, merge coins or use primary coin and split
+                if (!paymentCoinId) {
+                    // No single coin has enough, but total balance is sufficient
+                    // Use the primary coin (largest) and merge other coins into it, then split
+                    const sortedCoins = [...freshCoins.data].sort((a, b) => 
+                        Number(BigInt(b.balance) - BigInt(a.balance))
+                    );
+                    const primaryCoinId = sortedCoins[0].coinObjectId;
+                    
+                    tx = new Transaction();
+                    
+                    // Merge all other coins into the primary coin
+                    const primaryCoin = tx.object(primaryCoinId);
+                    // Merge all other coins into the primary coin in a single call
+                    if (sortedCoins.length > 1) {
+                        const otherCoins = sortedCoins
+                            .slice(1)
+                            .map((coin) => tx.object(coin.coinObjectId));
+                        tx.mergeCoins(primaryCoin, otherCoins);
+                    }
+                    
+                    // Split the required amount for payment
+                    const [splitPaymentCoin] = tx.splitCoins(primaryCoin, [BigInt(PLATFORM_FEE)]);
+                    
+                    // Add the card creation move call using the split coin for payment
+                    tx.moveCall({
+                        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
+                        arguments: [
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.name))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.niche))),
+                            tx.pure.option('vector<u8>', cardDataForTransaction.customNiche ? Array.from(new TextEncoder().encode(cardDataForTransaction.customNiche)) : null),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.imageUrl))),
+                            tx.pure.u8(cardDataForTransaction.yearsOfExperience),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.technologies))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.portfolio))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.about))),
+                            tx.pure.vector('string', cardDataForTransaction.featuredProjects),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.contact))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.github))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.linkedin))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.twitter))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.personalWebsite))),
+                            tx.pure.vector('string', cardDataForTransaction.workTypes),
+                            tx.pure.option('u64', cardDataForTransaction.hourlyRate),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.locationPreference))),
+                            tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.availability))),
+                            tx.pure.vector('string', cardDataForTransaction.languages),
+                            tx.pure.option(
+                                'vector<u8>',
+                                cardDataForTransaction.avatarWalrusBlobId
+                                    ? Array.from(new TextEncoder().encode(cardDataForTransaction.avatarWalrusBlobId))
+                                    : null
+                            ),
+                            splitPaymentCoin,
+                            tx.object(SUI_CLOCK_OBJECT_ID),
+                            tx.object(DEVHUB_OBJECT_ID),
+                        ],
+                    });
+                    
+                    console.log('Enoki wallet detected: Merging coins and splitting for payment, gas is sponsored');
+                } else {
+                    // Single coin has enough balance
+                    tx = createCardTransaction(cardDataForTransaction, paymentCoinId);
+                    console.log('Enoki wallet detected: Gas will be sponsored, only payment coin needed');
+                }
+                // Don't set gas payment - it will be sponsored
+            } else {
+                // Regular wallet: Check if user has multiple coins for gas payment
+                const coinsWithGasBalance = freshCoins.data.filter(
+                    coin => coin.coinObjectId !== paymentCoinId && BigInt(coin.balance) >= BigInt(100_000_000) // 0.1 SUI minimum for gas
+                );
+                
+                const MIN_GAS = 100_000_000; // 0.1 SUI minimum for gas
+                
+                // If user only has one coin, split it automatically in the transaction
+                if (coinsWithGasBalance.length === 0 && freshCoins.data.length === 1) {
                 tx = new Transaction();
                 const singleCoin = freshCoins.data.find(coin => coin.coinObjectId === paymentCoinId);
                 if (singleCoin) {
@@ -507,12 +611,13 @@ const CreateCard: React.FC = () => {
                 } else {
                     throw new Error('Payment coin not found');
                 }
-            } else {
-                // Multiple coins available - use normal flow with helper function
-                tx = createCardTransaction(cardDataForTransaction, paymentCoinId);
-                
-                // Explicitly set gas payment coins (excluding the payment coin)
-                await setGasPaymentForTransaction(tx, suiClient, currentAccount.address, [paymentCoinId], paymentCoinId);
+                } else {
+                    // Multiple coins available - use normal flow with helper function
+                    tx = createCardTransaction(cardDataForTransaction, paymentCoinId);
+                    
+                    // Explicitly set gas payment coins (excluding the payment coin)
+                    await setGasPaymentForTransaction(tx, suiClient, currentAccount.address, [paymentCoinId], paymentCoinId);
+                }
             }
             
             // Sign and execute the transaction (works for both single-coin split and multi-coin scenarios)
@@ -550,7 +655,15 @@ const CreateCard: React.FC = () => {
             );
         } catch (error) {
             console.error('Error in payment process:', error);
-            showToast(error instanceof Error ? error.message : 'An unknown error occurred', 'error');
+            let errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+            
+            // Format error message for display (replace newlines with spaces or format better)
+            if (errorMessage.includes('\n')) {
+                // Replace newlines with spaces and clean up multiple spaces
+                errorMessage = errorMessage.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+            
+            showToast(errorMessage, 'error');
             setIsSubmitting(false);
         }
     };

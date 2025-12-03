@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { 
   User, 
   MapPin, 
@@ -41,7 +42,7 @@ const MyProfile: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   const { getUserCards, loading: contractLoading, error: contractError, clearCache } = useContract();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
 
   // Toast functions
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -1471,7 +1472,7 @@ const MyProfile: React.FC = () => {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-5 right-5 z-[100]"
+            className="fixed top-24 right-5 z-[100]"
           >
             <div
               className={`flex items-center gap-3 pl-4 pr-2 py-3 rounded-lg shadow-2xl border backdrop-blur-xl ${
@@ -1481,12 +1482,12 @@ const MyProfile: React.FC = () => {
               }`}
             >
               {toast.type === 'success' ? (
-                <CheckCircle className="h-5 w-5 text-green-400" />
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               ) : (
-                <AlertCircle className="h-5 w-5 text-red-400" />
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
               )}
               <span
-                className={`font-medium text-gray-900 dark:text-gray-100`}
+                className={`font-medium ${toast.type === 'success' ? 'text-green-700 dark:text-gray-100' : 'text-red-700 dark:text-gray-100'}`}
               >
                 {toast.message}
               </span>

@@ -94,6 +94,29 @@ export function SignInButton() {
     }
   }, [enokiWallets]);
 
+  // Prevent body scroll when modal is open
+  // IMPORTANT: This hook must be called before any conditional returns
+  useEffect(() => {
+    if (showModal) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      // Lock body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scroll position when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showModal]);
+
   // Organize Enoki wallets by provider
   const walletsByProvider = enokiWallets.reduce(
     (map, wallet) => map.set(wallet.provider, wallet),
@@ -120,10 +143,14 @@ export function SignInButton() {
       <>
         <button
           onClick={() => setShowModal(false)}
-          className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm z-50"
+          className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm z-[100]"
           aria-label="Close modal"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
         />
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <div className="bg-background dark:bg-gray-900 border-2 border-border dark:border-gray-700 rounded-xl shadow-2xl dark:shadow-black/50 p-6 max-w-md w-full mx-4 pointer-events-auto">
             <h2 className="text-xl font-semibold mb-4 text-foreground dark:text-white">Sign In to DevHub</h2>
             <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
@@ -71,7 +72,7 @@ interface ConnectionData {
 const Connections: React.FC = () => {
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const client = useSuiClient();
   const { getAllCards } = useContract();
   

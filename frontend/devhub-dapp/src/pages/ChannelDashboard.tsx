@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { 
   Hash, 
   Users, 
@@ -52,7 +53,7 @@ interface ChannelMessage {
 
 const ChannelDashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const suiClient = useSuiClient();
   const { 
     getAllActiveCards,
@@ -854,18 +855,18 @@ const ChannelDashboard: React.FC = () => {
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className="fixed top-20 right-4 z-50 max-w-sm"
+          className="fixed top-24 right-4 z-50 max-w-sm"
         >
           <div className={`p-4 rounded-lg shadow-lg border ${
             toast.type === 'success' 
-              ? 'bg-green-500/10 border-green-500/20 text-green-400' 
-              : 'bg-red-500/10 border-red-500/20 text-red-400'
+              ? 'bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400' 
+              : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400'
           }`}>
             <div className="flex items-center gap-3">
               {toast.type === 'success' ? (
-                <CheckCircle className="h-5 w-5" />
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               ) : (
-                <AlertCircle className="h-5 w-5" />
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
               )}
               <span className="font-medium">{toast.message}</span>
               <button

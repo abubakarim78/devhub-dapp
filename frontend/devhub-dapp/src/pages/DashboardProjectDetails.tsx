@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { 
@@ -35,7 +36,7 @@ const DashboardProjectDetails: React.FC = () => {
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const navigate = useNavigate();
-  const { mutate: signAndExecute, isPending: isUpdating } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute, isPending: isUpdating } = useSignAndExecuteWithSponsorship();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

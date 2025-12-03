@@ -166,3 +166,29 @@
     display: none;  /* Safari and Chrome */
   }
 }
+
+/* Position Sonner toasts below the navbar */
+[data-sonner-toaster] {
+  top: 6rem !important; /* 96px - below navbar */
+}
+
+[data-sonner-toaster][data-position="top-right"] {
+  top: 6rem !important;
+}
+
+[data-sonner-toaster][data-position="top-left"] {
+  top: 6rem !important;
+}
+
+[data-sonner-toaster][data-position="top-center"] {
+  top: 6rem !important;
+}
+
+/* Improve error toast text visibility on light theme */
+[data-sonner-toaster] [data-type="error"] {
+  color: rgb(185 28 28) !important; /* text-red-700 for light theme */
+}
+
+.dark [data-sonner-toaster] [data-type="error"] {
+  color: rgb(254 226 226) !important; /* text-red-100 for dark theme */
+}

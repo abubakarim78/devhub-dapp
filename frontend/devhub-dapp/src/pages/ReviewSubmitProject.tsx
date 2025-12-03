@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSuiClient, useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useSuiClient, useCurrentAccount } from "@mysten/dapp-kit";
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { createProjectTransaction, PROJECT_POSTING_FEE, setGasPaymentForTransaction } from "../lib/suiClient";
 import { useMemo, useState } from "react";
 
@@ -8,7 +9,7 @@ export default function ReviewSubmitProject() {
   const navigate = useNavigate();
   const client = useSuiClient();
   const account = useCurrentAccount();
-  const { mutate: signExecute } = useSignAndExecuteTransaction();
+  const { mutate: signExecute } = useSignAndExecuteWithSponsorship();
   const [submitting, setSubmitting] = useState(false);
   const form = state?.form;
 

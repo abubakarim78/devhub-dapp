@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { Transaction } from "@mysten/sui/transactions";
 import { Shield } from "lucide-react";
 import { motion } from "framer-motion";
@@ -57,7 +58,7 @@ const SuperAdminSkeletonLoader: React.FC = () => (
 
 const SuperAdmin: React.FC = () => {
   const currentAccount = useCurrentAccount();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const { isSuperAdmin: checkIsSuperAdmin, getAdmins, getSuperAdmin, getCardCount } = useContract();
 
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);

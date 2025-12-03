@@ -9,6 +9,11 @@ import axios from 'axios';
 const WALRUS_PUBLISHER_URL = 'https://publisher.walrus-01.tududes.com';
 const WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus-testnet.walrus.space';
 
+// Optional backend proxy URL to avoid browser CORS issues when uploading
+// Set VITE_WALRUS_PROXY_URL in the frontend env to enable this, e.g.:
+// VITE_WALRUS_PROXY_URL=http://localhost:3001/api/walrus-upload
+const WALRUS_PROXY_URL = import.meta.env.VITE_WALRUS_PROXY_URL as string | undefined;
+
 // Backup endpoints in case primary fails
 const BACKUP_AGGREGATOR_URL = 'https://wal-aggregator-testnet.staketab.org';
 
@@ -49,23 +54,38 @@ export class WalrusService {
     // Convert file to raw binary data
     const fileData = await file.arrayBuffer();
 
-    // Construct URL with send_object_to parameter if userAddress is provided
-    let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
-    if (userAddress) {
-      uploadUrl += `&send_object_to=${encodeURIComponent(userAddress)}`;
-    }
-
     try {
-      const response = await axios.put<WalrusUploadResponse>(
-        uploadUrl,
-        fileData,
-        {
-          headers: {
-            'Content-Type': 'application/octet-stream',
-          },
-          timeout: 60000, // 60 seconds
-        }
-      );
+      const useProxy = Boolean(WALRUS_PROXY_URL);
+
+      // If proxy is configured, send binary data to backend to avoid browser CORS issues
+      const response = useProxy
+        ? await axios.put<WalrusUploadResponse>(
+            `${WALRUS_PROXY_URL}?epochs=5${userAddress ? `&userAddress=${encodeURIComponent(userAddress)}` : ''}`,
+            fileData,
+            {
+              headers: {
+                'Content-Type': 'application/octet-stream',
+              },
+              timeout: 60000,
+            },
+          )
+        : await axios.put<WalrusUploadResponse>(
+            (() => {
+              // Construct URL with send_object_to parameter if userAddress is provided
+              let uploadUrl = `${WALRUS_PUBLISHER_URL}/v1/blobs?epochs=5`;
+              if (userAddress) {
+                uploadUrl += `&send_object_to=${encodeURIComponent(userAddress)}`;
+              }
+              return uploadUrl;
+            })(),
+            fileData,
+            {
+              headers: {
+                'Content-Type': 'application/octet-stream',
+              },
+              timeout: 60000, // 60 seconds
+            },
+          );
 
       // Extract blob ID from response
       const blobId = response.data.newlyCreated?.blobObject.blobId ||
@@ -94,6 +114,15 @@ export class WalrusService {
         if (typeof status === 'number' && status >= 500) {
           throw new Error(`Walrus service error (HTTP ${status}). Please try again later.`);
         }
+        // Network / CORS-style errors on the frontend surface as "Network Error" with no status
+        if (!status && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+          throw new Error(
+            'Failed to upload to Walrus: Network / CORS error. ' +
+            'If you are running in the browser, ensure VITE_WALRUS_PROXY_URL is set to a backend proxy ' +
+            '(e.g. http://localhost:3001/api/walrus-upload) or that the Walrus publisher allows this origin.',
+          );
+        }
+
         const message = error.response?.data?.message || error.message;
         throw new Error(`Failed to upload to Walrus: ${message}`);
       }

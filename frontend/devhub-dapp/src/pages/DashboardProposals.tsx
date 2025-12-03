@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -64,7 +65,7 @@ interface ProjectWithApplications {
 const DashboardProposals = () => {
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
-  const { mutate: signExecute } = useSignAndExecuteTransaction();
+  const { mutate: signExecute } = useSignAndExecuteWithSponsorship();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [projectApplications, setProjectApplications] = useState<ProjectWithApplications[]>([]);
   const [quickStats, setQuickStats] = useState<QuickStats>({ submitted: 0, inReview: 0, accepted: 0, rejected: 0 });
