@@ -548,6 +548,14 @@ const CreateCard: React.FC = () => {
                     coin => coin.coinObjectId !== paymentCoinId && BigInt(coin.balance) >= BigInt(100_000_000) // 0.1 SUI minimum for gas
                 );
                 
+                // Safety check: ensure we have a valid payment coin selected
+                if (!paymentCoinId) {
+                    throw new Error(
+                        'Unable to determine a payment coin. Please ensure you have a SUI coin ' +
+                        'with enough balance to cover the platform fee.'
+                    );
+                }
+                
                 const MIN_GAS = 100_000_000; // 0.1 SUI minimum for gas
                 
                 // If user only has one coin, split it automatically in the transaction
