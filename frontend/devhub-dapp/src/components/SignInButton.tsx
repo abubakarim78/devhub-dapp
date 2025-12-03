@@ -152,7 +152,7 @@ export function SignInButton() {
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
         >
           <div className="bg-background dark:bg-gray-900 border-2 border-border dark:border-gray-700 rounded-xl shadow-2xl dark:shadow-black/50 p-6 max-w-md w-full mx-4 pointer-events-auto">
-            <h2 className="text-xl font-semibold mb-4 text-foreground dark:text-white">Sign In to DevHub</h2>
+            <h2 className="text-xl font-semibold mb-4 text-foreground dark:text-white">Sign In to BountyLink</h2>
             <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
               Choose how you'd like to sign in
             </p>

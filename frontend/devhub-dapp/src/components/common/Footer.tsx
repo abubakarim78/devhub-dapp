@@ -12,10 +12,10 @@ const Footer: React.FC = () => {
             <div className="flex items-center space-x-2 mb-4">
               <img 
                 src="/DevHub.jpg" 
-                alt="DevHub Logo" 
+                alt="BountyLink Logo" 
                 className="h-12 w-12 rounded-lg object-cover"
               />
-              <span className="text-2xl font-bold text-foreground">DevHub</span>
+              <span className="text-2xl font-bold text-foreground">BountyLink</span>
             </div>
             <p className="text-sm text-muted-foreground leading-6">
               Decentralized developer profiles on Sui. Showcase skills, connect, and collaborate.
@@ -57,7 +57,7 @@ const Footer: React.FC = () => {
         </div>
 
         <div className="mt-6 sm:mt-8 md:mt-10 pt-6 sm:pt-8 border-t border-border flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <p className="text-xs text-muted-foreground text-center md:text-left">© {year} DevHub. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground text-center md:text-left">© {year} BountyLink. All rights reserved.</p>
           <div className="flex items-center justify-center md:justify-end space-x-4 sm:space-x-6">
             <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
               <Github className="h-5 w-5" />

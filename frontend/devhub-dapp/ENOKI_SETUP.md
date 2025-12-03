@@ -1,6 +1,6 @@
 # Enoki zkLogin Setup Guide
 
-This guide explains how to configure Enoki zkLogin for social authentication in the DevHub dApp.
+This guide explains how to configure Enoki zkLogin for social authentication in the BountyLink dApp.
 
 ## Overview
 

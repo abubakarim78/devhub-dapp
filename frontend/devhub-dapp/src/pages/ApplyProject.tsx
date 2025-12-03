@@ -114,7 +114,7 @@ export default function ApplyProject() {
         // Fetch DevHub object to get projects table id
         const devhubObj = await client.getObject({ id: DEVHUB_OBJECT_ID, options: { showContent: true } });
         const devhubFields = (devhubObj.data?.content as any)?.fields;
-        if (!devhubFields?.projects) throw new Error("Projects table not found on DevHub");
+        if (!devhubFields?.projects) throw new Error("Projects table not found on BountyLink");
 
         const tableId =
           (devhubFields.projects.fields?.id?.id ||
@@ -1572,7 +1572,7 @@ export default function ApplyProject() {
                   On-chain Actions
                 </h3>
                 <div className="space-y-2 text-xs text-foreground/80">
-                  <p>Your application will be stored on-chain in the DevHub contract.</p>
+                  <p>Your application will be stored on-chain in the BountyLink contract.</p>
                   <div className="rounded-md border border-primary/30 bg-primary/10 p-3 mt-3">
                     <div className="flex items-center justify-between py-1">
                       <span className="text-foreground/70">Project ID</span>

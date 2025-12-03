@@ -267,7 +267,7 @@ export default function ReviewSubmitProject() {
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">Publishing To</span>
-                  <span className="text-foreground font-medium">DevHub Projects</span>
+                  <span className="text-foreground font-medium">BountyLink Projects</span>
                 </div>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">

@@ -1414,7 +1414,7 @@ const Messages: React.FC = () => {
                         Messages
                       </h1>
                       <p className="text-xl text-muted-foreground">
-                        Chat with employers, collaborators, and other builders on DevHub. Real-time messaging powered by Sui blockchain.
+                        Chat with employers, collaborators, and other builders on BountyLink. Real-time messaging powered by Sui blockchain.
                       </p>
                     </div>
                     

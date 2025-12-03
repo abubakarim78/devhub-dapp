@@ -38,7 +38,7 @@ interface SealConfig {
   keyServers: string[];
 }
 
-class DevHubSealClient {
+class BountyLinkSealClient {
   private client: SealClient | null = null;
   private config: SealConfig;
 
@@ -313,5 +313,5 @@ class DevHubSealClient {
 // Export singleton instance
 // Note: Seal supports testnet/mainnet. Using testnet.
 // This is a legacy client and is deprecated in favor of the new messaging SDK.
-export const sealClient = new DevHubSealClient('testnet');
+export const sealClient = new BountyLinkSealClient('testnet');
 export default sealClient;

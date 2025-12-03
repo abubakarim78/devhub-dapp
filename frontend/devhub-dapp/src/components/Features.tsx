@@ -50,7 +50,7 @@ const Features = () => {
             The Next Generation of Professional Networks
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto px-4">
-            DevHub isn't just a portfolio platform; it's a new standard for professional identity in the decentralized world.
+            BountyLink isn't just a portfolio platform; it's a new standard for professional identity in the decentralized world.
           </p>
         </motion.div>
         

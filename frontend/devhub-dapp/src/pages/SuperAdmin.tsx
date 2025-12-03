@@ -521,7 +521,7 @@ const SuperAdmin: React.FC = () => {
               Only the contract publisher address can access the super admin panel.
             </p>
             <p className="text-sm text-muted-foreground/80">
-              This page is restricted to the address that published the DevHub contract.
+              This page is restricted to the address that published the BountyLink contract.
             </p>
           </motion.div>
         </div>
