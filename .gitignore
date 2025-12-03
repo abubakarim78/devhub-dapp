@@ -16,6 +16,11 @@ dist-ssr/
 .env.test.local
 .env.production.local
 
+# Backend environment variables (contains Private API keys)
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
 # Logs
 logs
 *.log

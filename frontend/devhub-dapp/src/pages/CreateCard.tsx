@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import {
   User, Briefcase, Mail, Code, DollarSign, AlertCircle, Loader2, CheckCircle,
   X, CloudUpload, ArrowRight, ArrowLeft, Plus, Trash2

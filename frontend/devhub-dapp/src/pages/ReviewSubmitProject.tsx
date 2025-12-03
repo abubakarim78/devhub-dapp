@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSuiClient, useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiClient, useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { createProjectTransaction, PROJECT_POSTING_FEE, setGasPaymentForTransaction } from "../lib/suiClient";
 import { useMemo, useState } from "react";
 

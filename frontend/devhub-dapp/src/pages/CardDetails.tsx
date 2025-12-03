@@ -6,7 +6,7 @@ import { DevCardData, FeaturedProject, addReviewTransaction, trackProfileViewTra
 import { WalrusService } from '../services/walrus';
 import Layout from '@/components/common/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 
 const CardDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();

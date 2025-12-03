@@ -11,7 +11,8 @@ import {
   Search,
   LayoutDashboard,
 } from "lucide-react";
-import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { SignInButton } from "../SignInButton";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useContract } from "@/hooks/useContract";
 
@@ -189,7 +190,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
                 </Link>
               )}
               <div className="flex-shrink-0" style={{ fontSize: '0.7rem', lineHeight: '1' }}>
-                <ConnectButton />
+                <SignInButton />
               </div>
               <div className="flex-shrink-0 p-1">
                 <ThemeSwitcher />
@@ -222,7 +223,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
 
           {/* Desktop Right Side */}
           <div className="hidden lg:flex items-center space-x-2 sm:space-x-3">
-            <ConnectButton />
+            <SignInButton />
             <ThemeSwitcher />
           </div>
         </div>
@@ -252,7 +253,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
               </Link>
             ))}
             <div className="pt-2">
-              <ConnectButton />
+              <SignInButton />
             </div>
           </nav>
         </motion.div>
