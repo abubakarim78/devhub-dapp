@@ -15,7 +15,7 @@ const CTA = () => {
           viewport={{ once: true }}
         >
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-foreground px-2">
-            Ready to Join DevHub?
+            Ready to Join BountyLink?
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-xl mx-auto px-4">
             Create your decentralized developer profile today and connect with the future of work on Sui.

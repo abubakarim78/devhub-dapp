@@ -3,17 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
 import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { Transaction } from '@mysten/sui/transactions';
-import { User, AlertCircle, CheckCircle, Activity, X, Search, Star, Zap, Briefcase, Users, Wallet, Send, Download, Loader2, Copy, Check, Settings, Upload, Image as ImageIcon } from 'lucide-react';
+import { User, AlertCircle, CheckCircle, Activity, X, Search, Star, Zap, Briefcase, Users, Wallet, Send, Download, Loader2, Copy, Check } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
 import { 
   getDetailedAnalytics,
   DEVHUB_OBJECT_ID,
-  PACKAGE_ID,
-  updateCardTransaction,
-  getWorkPreferences,
-  getSocialLinks
+  PACKAGE_ID
 } from '@/lib/suiClient';
 import {
   Dialog,
@@ -105,7 +102,7 @@ const Dashboard: React.FC = () => {
   const suiClient = useSuiClient();
   const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const { theme } = useTheme();
-  const { getUserCards, useConversations, useMessages, getAllCards, uploadToWalrus } = useContract();
+  const { getUserCards, useConversations, useMessages, getAllCards } = useContract();
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,33 +135,6 @@ const Dashboard: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   
-  // Profile settings states
-  const [showProfileSettings, setShowProfileSettings] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [profileFormData, setProfileFormData] = useState({
-    name: '',
-    niche: '',
-    customNiche: '',
-    about: '',
-    imageUrl: '',
-    technologies: '',
-    portfolio: '',
-    contact: '',
-    yearsOfExperience: 0,
-    github: '',
-    linkedin: '',
-    twitter: '',
-    personalWebsite: '',
-    workTypes: [] as string[],
-    hourlyRate: null as number | null,
-    locationPreference: '',
-    availability: '',
-    languages: [] as string[],
-    openToWork: true
-  });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
 
   const closeToast = () => {
     setToast(null);
@@ -333,44 +303,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Load profile data into form
-  const loadProfileData = useCallback(async (card: any) => {
-    try {
-      // Load work preferences and social links in parallel
-      const [workPrefs, socialLinks] = await Promise.all([
-        getWorkPreferences(card.id).catch(() => null),
-        getSocialLinks(card.id).catch(() => null)
-      ]);
-
-      setProfileFormData({
-        name: card.name || '',
-        niche: card.niche || 'Developer',
-        customNiche: card.customNiche || '',
-        about: card.about || card.description || '',
-        imageUrl: card.imageUrl || '',
-        technologies: card.technologies || '',
-        portfolio: card.portfolio || '',
-        contact: card.contact || '',
-        yearsOfExperience: card.yearsOfExperience || 0,
-        github: socialLinks?.github || '',
-        linkedin: socialLinks?.linkedin || '',
-        twitter: socialLinks?.twitter || '',
-        personalWebsite: socialLinks?.personalWebsite || '',
-        workTypes: workPrefs?.workTypes || [],
-        hourlyRate: workPrefs?.hourlyRate ?? null,
-        locationPreference: workPrefs?.locationPreference || '',
-        availability: workPrefs?.availability || '',
-        languages: card.languages || [],
-        openToWork: card.openToWork ?? true
-      });
-
-      if (card.imageUrl) {
-        setImagePreview(card.imageUrl);
-      }
-    } catch (error) {
-      console.error('Error loading profile data:', error);
-    }
-  }, []);
 
   // Load dashboard data on component mount
   useEffect(() => {
@@ -411,12 +343,6 @@ const Dashboard: React.FC = () => {
 
       // Update user cards immediately
       setUserCards(cards);
-      
-      // Load profile data into form if available
-      if (cards.length > 0) {
-        const card = cards[0];
-        loadProfileData(card);
-      }
       
       // Calculate profile health
       const profileHealth = cards.length > 0 ? 
@@ -1274,127 +1200,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentAccount?.address, getUserCards, suiClient, useConversations, useMessages, loadProfileData]);
-
-  // Handle image file selection
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        showToast('Please select a valid image file', 'error');
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        showToast('Image file must be less than 5MB', 'error');
-        return;
-      }
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      setProfileFormData(prev => ({ ...prev, imageUrl: '' }));
-    }
-  };
-
-  // Handle image upload to Walrus
-  const handleImageUpload = useCallback(async () => {
-    if (!imageFile || !currentAccount?.address || !uploadToWalrus) {
-      showToast('Please select an image file first', 'error');
-      return;
-    }
-
-    setUploadingImage(true);
-    try {
-      const result = await uploadToWalrus(imageFile);
-      const imageUrl = result.blob.walrusUrl || result.originalUrl || '';
-      setProfileFormData(prev => ({ ...prev, imageUrl }));
-      setImageFile(null);
-      showToast('Image uploaded successfully!', 'success');
-    } catch (error: any) {
-      console.error('Error uploading image:', error);
-      showToast(error?.message || 'Failed to upload image', 'error');
-    } finally {
-      setUploadingImage(false);
-    }
-  }, [imageFile, currentAccount?.address, uploadToWalrus]);
-
-  // Handle save profile
-  const handleSaveProfile = useCallback(async () => {
-    if (!currentAccount?.address || userCards.length === 0) {
-      showToast('No profile found to update', 'error');
-      return;
-    }
-
-    const card = userCards[0];
-    const cardId: number = typeof card.id === 'number' ? card.id : Number(card.id);
-    
-    if (!Number.isFinite(cardId)) {
-      showToast('Invalid profile ID', 'error');
-      return;
-    }
-
-    // If image file is selected but not uploaded, upload it first
-    if (imageFile && !profileFormData.imageUrl) {
-      await handleImageUpload();
-      // Wait a bit for the upload to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    setSavingProfile(true);
-    try {
-      const featuredProjects = card.featuredProjects || [];
-      const featuredProjectsJson = featuredProjects.map((p: any) => 
-        typeof p === 'string' ? p : JSON.stringify(p)
-      );
-
-      const tx = updateCardTransaction(cardId, {
-        name: profileFormData.name,
-        niche: profileFormData.niche,
-        customNiche: profileFormData.customNiche || undefined,
-        about: profileFormData.about,
-        imageUrl: profileFormData.imageUrl,
-        technologies: profileFormData.technologies,
-        contact: profileFormData.contact,
-        portfolio: profileFormData.portfolio,
-        featuredProjects: featuredProjectsJson,
-        languages: profileFormData.languages,
-        openToWork: profileFormData.openToWork,
-        yearsOfExperience: profileFormData.yearsOfExperience,
-        workTypes: profileFormData.workTypes,
-        hourlyRate: profileFormData.hourlyRate,
-        locationPreference: profileFormData.locationPreference,
-        availability: profileFormData.availability,
-        github: profileFormData.github,
-        linkedin: profileFormData.linkedin,
-        twitter: profileFormData.twitter,
-        personalWebsite: profileFormData.personalWebsite
-      });
-
-      await signAndExecute(
-        {
-          transaction: tx,
-        },
-        {
-          onSuccess: async (result) => {
-            console.log('Profile updated successfully:', result);
-            showToast('Profile updated successfully!', 'success');
-            setShowProfileSettings(false);
-            // Reload dashboard data
-            setTimeout(() => {
-              loadDashboardData();
-            }, 2000);
-          },
-          onError: (error) => {
-            console.error('Failed to update profile:', error);
-            showToast('Failed to update profile. Please try again.', 'error');
-          },
-        }
-      );
-    } catch (error: any) {
-      console.error('Error saving profile:', error);
-      showToast(error?.message || 'Failed to save profile', 'error');
-    } finally {
-      setSavingProfile(false);
-    }
-  }, [currentAccount?.address, userCards, profileFormData, imageFile, handleImageUpload, signAndExecute, loadDashboardData]);
+  }, [currentAccount?.address, getUserCards, suiClient, useConversations, useMessages]);
 
 
 
@@ -1509,17 +1315,6 @@ const Dashboard: React.FC = () => {
                         >
                           Post a Project
                         </motion.button>
-                        {userCards.length > 0 && (
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setShowProfileSettings(true)}
-                            className="w-full px-4 sm:px-6 py-3 bg-secondary text-secondary-foreground font-semibold rounded-xl hover:bg-secondary/80 transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base col-span-2 sm:col-span-1"
-                          >
-                            <Settings className="h-4 w-4" />
-                            <span className="hidden sm:inline">Profile </span>Settings
-                          </motion.button>
-                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -2115,333 +1910,6 @@ const Dashboard: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Profile Settings Modal */}
-      <Dialog open={showProfileSettings} onOpenChange={setShowProfileSettings}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Profile Settings</DialogTitle>
-            <DialogDescription>
-              Edit your profile information, professional details, and preferences
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            {/* Basic Details Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Basic Details
-              </h3>
-              
-              {/* Avatar Image Upload */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Profile Avatar</label>
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Profile preview"
-                        className="w-24 h-24 rounded-full object-cover border-2 border-border"
-                      />
-                    ) : (
-                      <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageFileChange}
-                      className="hidden"
-                      id="avatar-upload"
-                    />
-                    <label
-                      htmlFor="avatar-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors cursor-pointer"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Choose Image
-                    </label>
-                    {imageFile && (
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleImageUpload}
-                        disabled={uploadingImage}
-                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {uploadingImage ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4" />
-                            Upload to Walrus
-                          </>
-                        )}
-                      </motion.button>
-                    )}
-                    <input
-                      type="text"
-                      value={profileFormData.imageUrl}
-                      onChange={(e) => setProfileFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                      placeholder="Or enter image URL"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Name *</label>
-                <input
-                  type="text"
-                  value={profileFormData.name}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Your full name"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Niche</label>
-                <input
-                  type="text"
-                  value={profileFormData.niche}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, niche: e.target.value }))}
-                  placeholder="e.g., Full Stack Developer"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">About / Bio</label>
-                <textarea
-                  value={profileFormData.about}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, about: e.target.value }))}
-                  placeholder="Tell us about yourself..."
-                  rows={4}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Years of Experience</label>
-                <input
-                  type="number"
-                  value={profileFormData.yearsOfExperience}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, yearsOfExperience: parseInt(e.target.value) || 0 }))}
-                  min="0"
-                  max="50"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Professional Details Section */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Briefcase className="h-5 w-5" />
-                Professional Details
-              </h3>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Technologies / Skills</label>
-                <input
-                  type="text"
-                  value={profileFormData.technologies}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, technologies: e.target.value }))}
-                  placeholder="e.g., React, TypeScript, Node.js"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Portfolio URL</label>
-                <input
-                  type="url"
-                  value={profileFormData.portfolio}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, portfolio: e.target.value }))}
-                  placeholder="https://yourportfolio.com"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Contact Email</label>
-                <input
-                  type="email"
-                  value={profileFormData.contact}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, contact: e.target.value }))}
-                  placeholder="your.email@example.com"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Work Preferences Section */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                Work Preferences
-              </h3>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Work Types (comma-separated)</label>
-                <input
-                  type="text"
-                  value={profileFormData.workTypes.join(', ')}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, workTypes: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))}
-                  placeholder="e.g., Full-time, Part-time, Contract"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Hourly Rate (SUI)</label>
-                <input
-                  type="number"
-                  value={profileFormData.hourlyRate || ''}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, hourlyRate: e.target.value ? parseFloat(e.target.value) : null }))}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Location Preference</label>
-                <input
-                  type="text"
-                  value={profileFormData.locationPreference}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, locationPreference: e.target.value }))}
-                  placeholder="e.g., Remote, New York, USA"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Availability</label>
-                <input
-                  type="text"
-                  value={profileFormData.availability}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, availability: e.target.value }))}
-                  placeholder="e.g., Available immediately, 2 weeks notice"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="openToWork"
-                  checked={profileFormData.openToWork}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, openToWork: e.target.checked }))}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="openToWork" className="text-sm font-medium">
-                  Open to work
-                </label>
-              </div>
-            </div>
-
-            {/* Social Links Section */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Social Links
-              </h3>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">GitHub</label>
-                <input
-                  type="url"
-                  value={profileFormData.github}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, github: e.target.value }))}
-                  placeholder="https://github.com/username"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">LinkedIn</label>
-                <input
-                  type="url"
-                  value={profileFormData.linkedin}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, linkedin: e.target.value }))}
-                  placeholder="https://linkedin.com/in/username"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Twitter</label>
-                <input
-                  type="url"
-                  value={profileFormData.twitter}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, twitter: e.target.value }))}
-                  placeholder="https://twitter.com/username"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Personal Website</label>
-                <input
-                  type="url"
-                  value={profileFormData.personalWebsite}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, personalWebsite: e.target.value }))}
-                  placeholder="https://yourwebsite.com"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                setShowProfileSettings(false);
-                // Reload profile data when closing
-                if (userCards.length > 0) {
-                  loadProfileData(userCards[0]);
-                }
-              }}
-              disabled={savingProfile}
-              className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleSaveProfile}
-              disabled={savingProfile || !profileFormData.name}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {savingProfile ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </motion.button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

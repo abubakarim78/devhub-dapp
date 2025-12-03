@@ -709,7 +709,7 @@ const Connections: React.FC = () => {
       const tx = sendConnectionRequestTransaction(
         id,
         'I\'d like to connect with you',
-        'DevHub',
+        'BountyLink',
         true
       );
       
