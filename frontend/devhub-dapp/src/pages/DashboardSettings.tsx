@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -64,7 +65,7 @@ const DashboardSettings: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { setTheme } = useTheme();
   const { getUserCards } = useContract();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);

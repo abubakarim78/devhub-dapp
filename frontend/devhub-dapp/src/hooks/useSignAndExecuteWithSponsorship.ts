@@ -1,12 +1,15 @@
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { usePrepareTransactionWithSponsorship } from '../lib/gasSponsorship';
+import { useSignAndExecuteWithEnokiSponsorship } from './useSignAndExecuteWithEnokiSponsorship';
 import type { UseMutationResult } from '@tanstack/react-query';
 
 /**
  * Custom hook that wraps useSignAndExecuteTransaction with automatic gas sponsorship
- * for Enoki wallets. This ensures Enoki wallets can execute transactions seamlessly
- * without needing their own gas coins.
+ * for Enoki wallets using Enoki's sponsored transaction SDK.
+ * 
+ * This hook automatically:
+ * - Detects if the wallet is an Enoki wallet
+ * - For Enoki wallets: Uses Enoki sponsored transactions via backend
+ * - For other wallets: Uses regular sign and execute
  * 
  * Usage:
  * ```tsx
@@ -22,35 +25,7 @@ export function useSignAndExecuteWithSponsorship(): UseMutationResult<
   { transaction: Transaction },
   unknown
 > {
-  const prepareTransaction = usePrepareTransactionWithSponsorship();
-  const signAndExecuteResult = useSignAndExecuteTransaction();
-  const { mutate, mutateAsync, ...rest } = signAndExecuteResult;
-
-  // Wrap the mutate function to apply gas sponsorship before signing
-  const wrappedMutate = (args: { transaction: Transaction }, options?: any) => {
-    // Clone the transaction to avoid mutating the original
-    const sponsoredTx = prepareTransaction(args.transaction);
-    
-    return mutate({ ...args, transaction: sponsoredTx }, options);
-  };
-
-  // Wrap the mutateAsync function to apply gas sponsorship before signing
-  const wrappedMutateAsync = async (args: { transaction: Transaction }, options?: any) => {
-    // Clone the transaction to avoid mutating the original
-    const sponsoredTx = prepareTransaction(args.transaction);
-    
-    return mutateAsync({ ...args, transaction: sponsoredTx }, options);
-  };
-
-  return {
-    mutate: wrappedMutate,
-    mutateAsync: wrappedMutateAsync,
-    ...rest,
-  } as UseMutationResult<
-    { digest: string },
-    Error,
-    { transaction: Transaction },
-    unknown
-  >;
+  // Delegate to the Enoki-sponsored transaction hook
+  // which handles both Enoki and non-Enoki wallets
+  return useSignAndExecuteWithEnokiSponsorship();
 }
-

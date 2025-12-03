@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { Transaction } from '@mysten/sui/transactions';
 import { User, AlertCircle, CheckCircle, Activity, X, Search, Star, Zap, Briefcase, Users, Wallet, Send, Download, Loader2, Copy, Check, Settings, Upload, Image as ImageIcon } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -68,23 +69,23 @@ const Toast: React.FC<{
   onClose: () => void;
 }> = ({ message, type, onClose }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+    <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-right duration-300">
       <div className={`flex items-center space-x-3 px-6 py-4 rounded-xl shadow-2xl backdrop-blur-xl ${type === 'success'
         ? 'bg-green-500/20 border border-green-500/40'
         : 'bg-red-500/20 border border-red-500/40'
         }`}>
         {type === 'success' ? (
-          <CheckCircle className="h-5 w-5 text-green-400" />
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
         ) : (
-          <AlertCircle className="h-5 w-5 text-red-400" />
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
         )}
-        <span className={`font-medium ${type === 'success' ? 'text-green-100' : 'text-red-100'
+        <span className={`font-medium ${type === 'success' ? 'text-green-700 dark:text-green-100' : 'text-red-700 dark:text-red-100'
           }`}>
           {message}
         </span>
         <button
           onClick={onClose}
-          className={`ml-2 ${type === 'success' ? 'text-green-300 hover:text-green-100' : 'text-red-300 hover:text-red-100'
+          className={`ml-2 ${type === 'success' ? 'text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100' : 'text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100'
             }`}
         >
           <X className="h-4 w-4" />
@@ -102,7 +103,7 @@ const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const navigate = useNavigate();
   const suiClient = useSuiClient();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const { theme } = useTheme();
   const { getUserCards, useConversations, useMessages, getAllCards, uploadToWalrus } = useContract();
   

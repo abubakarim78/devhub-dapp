@@ -142,12 +142,12 @@ const Messages: React.FC = () => {
 
   // Toast component
   const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+    <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-right duration-300">
       <div className={`flex items-center space-x-3 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl border ${
-        type === 'success' ? 'bg-green-500/20 border-green-500/40 text-green-100' : 'bg-red-500/20 border-red-500/40 text-red-100'
+        type === 'success' ? 'bg-green-500/20 border-green-500/40 text-green-700 dark:text-green-100' : 'bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-100'
       }`}>
         <span className="font-medium text-sm">{message}</span>
-        <button onClick={onClose} className={type === 'success' ? 'text-green-300 hover:text-green-100' : 'text-red-300 hover:text-red-100'}>
+        <button onClick={onClose} className={type === 'success' ? 'text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-100' : 'text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100'}>
           ×
         </button>
       </div>

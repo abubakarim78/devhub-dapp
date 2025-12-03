@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -66,7 +67,7 @@ export default function ApplyProject() {
   const navigate = useNavigate();
   const client = useSuiClient();
   const account = useCurrentAccount();
-  const { mutate: signExecute } = useSignAndExecuteTransaction();
+  const { mutate: signExecute } = useSignAndExecuteWithSponsorship();
 
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);

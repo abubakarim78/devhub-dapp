@@ -6,14 +6,15 @@ import { DevCardData, FeaturedProject, addReviewTransaction, trackProfileViewTra
 import { WalrusService } from '../services/walrus';
 import Layout from '@/components/common/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteWithSponsorship } from '@/hooks/useSignAndExecuteWithSponsorship';
 
 const CardDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
   const { getCardInfo } = useContract();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const suiClient = useSuiClient();
   const [card, setCard] = useState<DevCardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
