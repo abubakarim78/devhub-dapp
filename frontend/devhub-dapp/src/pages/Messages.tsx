@@ -86,7 +86,7 @@ const Messages: React.FC = () => {
     useMessages, 
     useConversations, 
     getAllActiveCards, 
-    getAllCards,
+    getSampleCards,
     uploadToWalrus
   } = useContract();
   
@@ -184,8 +184,8 @@ const Messages: React.FC = () => {
         }
       }
 
-      // Fetch fresh data in the background
-      const allCards = await getAllCards();
+      // Fetch fresh data in the background (limited sample to reduce load)
+      const allCards = await getSampleCards(50);
       const nameMap: Record<string, string> = {};
       
       allCards.forEach((card: any) => {
@@ -203,7 +203,7 @@ const Messages: React.FC = () => {
       console.error('Error loading address to name map:', error);
       return {};
     }
-  }, [getAllCards]);
+  }, [getSampleCards]);
 
   // Load developer information for all addresses with caching
   const loadDeveloperInfo = useCallback(async () => {

@@ -102,7 +102,7 @@ const Dashboard: React.FC = () => {
   const suiClient = useSuiClient();
   const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const { theme } = useTheme();
-  const { getUserCards, useConversations, useMessages, getAllCards } = useContract();
+  const { getUserCards, useConversations, useMessages, getSampleCards } = useContract();
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -948,7 +948,7 @@ const Dashboard: React.FC = () => {
 
           // Parallelize: get cards and connection events
           const [allCards, connectionEvents, requestEvents] = await Promise.all([
-            getAllCards().catch(() => []),
+            getSampleCards(50).catch(() => []),
             suiClient.queryEvents({
               query: { MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted` },
               limit: 100,

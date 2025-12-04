@@ -74,7 +74,7 @@ const Connections: React.FC = () => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const client = useSuiClient();
-  const { getAllCards } = useContract();
+  const { getSampleCards } = useContract();
   
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedSkill, setSelectedSkill] = useState('any');
@@ -178,8 +178,8 @@ const Connections: React.FC = () => {
     if (!currentAccount?.address) return;
     
     try {
-      // Load suggestions from real developer cards
-      const cards = await getAllCards();
+      // Load suggestions from a limited sample of developer cards to avoid scanning the entire table
+      const cards = await getSampleCards(50);
       setAllCards(cards);
       
       // Query connections directly instead of using state dependency
@@ -317,7 +317,7 @@ const Connections: React.FC = () => {
     } catch (error) {
       console.error('Error loading suggestions:', error);
     }
-  }, [currentAccount?.address, getAllCards, client]);
+  }, [currentAccount?.address, getSampleCards, client]);
 
   // Load connections on component mount
   useEffect(() => {
@@ -361,7 +361,7 @@ const Connections: React.FC = () => {
         const reqs = await getConnectionRequests(currentAccount.address);
         console.log('Raw connection requests:', reqs);
         
-        const allCards = await getAllCards();
+        const allCards = await getSampleCards(50);
         
         const displayRequests: any[] = [];
         for (const req of reqs) {
@@ -385,7 +385,7 @@ const Connections: React.FC = () => {
     };
     
     loadRequests();
-  }, [currentAccount?.address, getAllCards]);
+  }, [currentAccount?.address, getSampleCards]);
 
   // Load sent connection requests (requests pending approval from others)
   useEffect(() => {
@@ -420,7 +420,7 @@ const Connections: React.FC = () => {
           order: 'descending'
         });
 
-        const allCards = await getAllCards();
+        const allCards = await getSampleCards(50);
         
         // Create sets to track the most recent status for each recipient
         // Key: normalized recipient address, Value: most recent timestamp for that status
@@ -496,7 +496,7 @@ const Connections: React.FC = () => {
     };
     
     loadSentRequests();
-  }, [currentAccount?.address, client, getAllCards]);
+  }, [currentAccount?.address, client, getSampleCards]);
   
   // Use loaded connection requests instead of mock data
   const requests = connectionRequests.map(req => ({
@@ -787,7 +787,7 @@ const Connections: React.FC = () => {
             }
           }
           
-          const allCards = await getAllCards();
+          const allCards = await getSampleCards(50);
           const sentRequestEvents: any[] = [];
           
           for (const event of sentEvents.data) {
@@ -835,7 +835,7 @@ const Connections: React.FC = () => {
     } finally {
       setProcessing(null);
     }
-  }, [currentAccount?.address, loadSuggestions, loadConnections, client, normalizeAddr, getAllCards, buildAvatarFor]);
+  }, [currentAccount?.address, loadSuggestions, loadConnections, client, normalizeAddr, getSampleCards, buildAvatarFor]);
 
 
   const handleStartChat = useCallback(async (participant: string) => {

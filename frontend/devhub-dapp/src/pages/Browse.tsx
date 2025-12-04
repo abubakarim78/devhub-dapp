@@ -54,7 +54,7 @@ const Browse: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const cards = await getAllCards();
+        const cards = await getAllCards(false);
         setAllCards(cards);
       } catch (err: unknown) {
         console.error('Error fetching cards:', err);

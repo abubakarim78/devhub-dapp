@@ -36,6 +36,8 @@ interface SuperAdminActivityProps {
   activityCurrentPage: number;
   setActivityCurrentPage: (page: number) => void;
   activityEventsPerPage: number;
+  // Optional callbacks
+  onRefresh?: () => void;
 }
 
 const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
@@ -47,6 +49,7 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
   activityCurrentPage,
   setActivityCurrentPage,
   activityEventsPerPage,
+  onRefresh,
 }) => {
   // Filter events based on current filter
   const filteredEvents = activityFilter === 'All' 
@@ -96,11 +99,70 @@ const SuperAdminActivity: React.FC<SuperAdminActivityProps> = ({
 
       {/* Action Buttons */}
       <div className="flex gap-4">
-        <button className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+        <button
+          type="button"
+          onClick={() => {
+            if (!activityLog || activityLog.length === 0) {
+              alert('No activity data available to export.');
+              return;
+            }
+
+            try {
+              const headers = ['When', 'Type', 'Actor', 'Details', 'Tx Status', 'Status'];
+              const rows = activityLog.map((item) => [
+                item.when,
+                item.type,
+                item.actor,
+                item.details,
+                item.txStatus,
+                item.status,
+              ]);
+
+              const escape = (value: unknown) =>
+                `"${String(value ?? '')
+                  .replace(/"/g, '""')
+                  .replace(/\r?\n/g, ' ')}"`;
+
+              const csvContent = [headers, ...rows]
+                .map((row) => row.map(escape).join(','))
+                .join('\n');
+
+              const blob = new Blob([csvContent], {
+                type: 'text/csv;charset=utf-8;',
+              });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute(
+                'download',
+                `bountylink-activity-log-${new Date()
+                  .toISOString()
+                  .replace(/[:.]/g, '-')}.csv`,
+              );
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            } catch (error) {
+              console.error('Error exporting activity log CSV:', error);
+              alert('Failed to export CSV. Please try again.');
+            }
+          }}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        >
           <Download className="h-5 w-5" />
           Export CSV
         </button>
-        <button className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/80 transition-colors">
+        <button
+          type="button"
+          onClick={() => {
+            if (onRefresh) {
+              onRefresh();
+            }
+          }}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50"
+          disabled={!onRefresh}
+        >
           <RefreshCw className="h-5 w-5" />
           Refresh
         </button>

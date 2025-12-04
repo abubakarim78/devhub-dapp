@@ -56,7 +56,7 @@ const ChannelDashboard: React.FC = () => {
   const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const suiClient = useSuiClient();
   const { 
-    getAllActiveCards,
+    getSampleCards,
     createChannelTransaction,
     addMemberToChannelTransaction,
     removeMemberFromChannelTransaction,
@@ -189,7 +189,7 @@ const ChannelDashboard: React.FC = () => {
   const loadAvailableDevelopers = useCallback(async () => {
     setLoadingMembers(true);
     try {
-      const activeCards = await getAllActiveCards();
+      const activeCards = await getSampleCards(50);
       console.log('Active cards loaded:', activeCards);
       const developers = activeCards
         .filter(card => card.owner !== currentAccount?.address)
@@ -211,7 +211,7 @@ const ChannelDashboard: React.FC = () => {
     } finally {
       setLoadingMembers(false);
     }
-  }, [getAllActiveCards, currentAccount?.address]);
+  }, [getSampleCards, currentAccount?.address]);
 
   // Load available developers for create channel modal
   const [createChannelDevelopers, setCreateChannelDevelopers] = useState<any[]>([]);
@@ -249,7 +249,7 @@ const ChannelDashboard: React.FC = () => {
   const loadDeveloperInfo = useCallback(async () => {
     try {
       console.log('Starting to load developer info...');
-      const activeCards = await getAllActiveCards();
+      const activeCards = await getSampleCards(50);
       console.log('Loading developer info from cards:', activeCards);
       console.log('Active cards length:', activeCards?.length);
       
@@ -279,12 +279,12 @@ const ChannelDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error loading developer info:', error);
     }
-  }, [getAllActiveCards]);
+  }, [getSampleCards]);
 
   const loadCreateChannelDevelopers = useCallback(async () => {
     setLoadingCreateChannelDevelopers(true);
     try {
-      const activeCards = await getAllActiveCards();
+      const activeCards = await getSampleCards(50);
       const developers = activeCards
         .filter(card => card.owner !== currentAccount?.address)
         .map(card => ({
@@ -304,7 +304,7 @@ const ChannelDashboard: React.FC = () => {
     } finally {
       setLoadingCreateChannelDevelopers(false);
     }
-  }, [getAllActiveCards, currentAccount?.address]);
+  }, [getSampleCards, currentAccount?.address]);
 
   // Load channel members
   const loadChannelMembers = useCallback(async (channelId: string) => {
