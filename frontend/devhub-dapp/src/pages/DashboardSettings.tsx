@@ -18,12 +18,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContract } from '@/hooks/useContract';
-import { 
-  getWorkPreferences,
-  // We will build the transaction inline here
-} from '@/lib/suiClient';
 import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '@/lib/suiClient';
-import { getSocialLinks } from '@/lib/suiClient';
 
 interface UserSettings {
   profile: {
@@ -126,7 +121,7 @@ const DashboardSettings: React.FC = () => {
     
     setLoading(true);
     try {
-      // Load user cards to get profile information
+      // Load user cards to get profile information (cards already include workPreferences and socialLinks from contract layer)
       const cards = await getUserCards(currentAccount.address);
       setUserCards(cards);
       
@@ -138,7 +133,7 @@ const DashboardSettings: React.FC = () => {
           profile: {
             displayName: firstCard.name || '',
             bio: firstCard.about || '',
-            location: '',
+            location: firstCard.workPreferences?.locationPreference || '',
             website: firstCard.socialLinks?.personalWebsite || '',
             github: firstCard.socialLinks?.github || '',
             twitter: firstCard.socialLinks?.twitter || '',
@@ -146,40 +141,16 @@ const DashboardSettings: React.FC = () => {
           }
         }));
 
-        // Load work preferences from chain
-        try {
-          const prefs = await getWorkPreferences(firstCard.id);
-          if (prefs) {
-            setWorkPrefs({
-              workTypes: prefs.workTypes || [],
-              hourlyRate: prefs.hourlyRate ?? null,
-              locationPreference: prefs.locationPreference || '',
-              availability: prefs.availability || ''
-            });
-            // reflect location in profile from work preferences
-            setSettings(prev => ({
-              ...prev,
-              profile: { ...prev.profile, location: prefs.locationPreference || '' }
-            }));
-          }
-        } catch {}
-
-        // Load social links explicitly if available
-        try {
-          const socials = await getSocialLinks(firstCard.id);
-          if (socials) {
-            setSettings(prev => ({
-              ...prev,
-              profile: {
-                ...prev.profile,
-                github: socials.github || prev.profile.github,
-                twitter: socials.twitter || prev.profile.twitter,
-                linkedin: socials.linkedin || prev.profile.linkedin,
-                website: socials.personalWebsite || prev.profile.website,
-              }
-            }));
-          }
-        } catch {}
+        // Use workPreferences already on the card (no extra on-chain calls)
+        if (firstCard.workPreferences) {
+          const prefs = firstCard.workPreferences;
+          setWorkPrefs({
+            workTypes: prefs.workTypes || [],
+            hourlyRate: prefs.hourlyRate ?? null,
+            locationPreference: prefs.locationPreference || '',
+            availability: prefs.availability || ''
+          });
+        }
       }
       
       // Note: connection preferences UI removed for now to reduce clutter

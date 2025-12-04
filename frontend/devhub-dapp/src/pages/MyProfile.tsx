@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
-import { DevCardData, getWorkPreferences, updateCardTransaction, updateFeaturedProjectsTransaction, getSocialLinks } from '@/lib/suiClient';
+import { DevCardData, updateCardTransaction, updateFeaturedProjectsTransaction } from '@/lib/suiClient';
 import {
   Dialog,
   DialogContent,
@@ -106,43 +106,18 @@ const MyProfile: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch cards first and show them immediately
+        // Fetch cards for this user (already includes work preferences & social links from contract layer)
         const cards = await getUserCards(currentAccount.address);
-        
+
         // If no cards found, that's not an error - just set empty array
         if (!cards || cards.length === 0) {
           setUserCards([]);
           setLoading(false);
           return;
         }
-        
-        setUserCards(cards); // Show cards immediately
-        
-        // Then fetch work preferences with a small delay to avoid rate limiting
-        const cardsWithWorkPreferences = await Promise.all(
-          cards.map(async (card, index) => {
-            try {
-              // Add a small delay between requests to avoid rate limiting
-              if (index > 0) {
-                await new Promise(resolve => setTimeout(resolve, 100 * index));
-              }
-              const workPrefs = await getWorkPreferences(card.id);
-              return {
-                ...card,
-                workPreferences: workPrefs || card.workPreferences
-              };
-            } catch (err) {
-              // Silently handle rate limit errors - don't spam console
-              if (err instanceof Error && !err.message.includes('429') && !err.message.includes('CORS')) {
-                console.error(`Error fetching work preferences for card ${card.id}:`, err);
-              }
-              return card; // Return card with default work preferences
-            }
-          })
-        );
-        
-        // Update cards with work preferences
-        setUserCards(cardsWithWorkPreferences);
+
+        // Cards already contain workPreferences and socialLinks from the contract hooks
+        setUserCards(cards);
       } catch (err) {
         console.error('Error fetching user cards:', err);
         // Only set error if it's a real error, not just "no cards found"
@@ -170,11 +145,10 @@ const MyProfile: React.FC = () => {
   // Load profile data into form
   const loadProfileData = useCallback(async (card: any) => {
     try {
-      // Load work preferences and social links in parallel
-      const [workPrefs, socialLinks] = await Promise.all([
-        getWorkPreferences(card.id).catch(() => null),
-        getSocialLinks(card.id).catch(() => null)
-      ]);
+      // Prefer data already present on the card (populated via contract hooks),
+      // fall back gracefully if some fields are missing.
+      const workPrefs = card.workPreferences || {};
+      const socialLinks = card.socialLinks || {};
 
       setProfileFormData({
         name: card.name || '',
@@ -186,14 +160,14 @@ const MyProfile: React.FC = () => {
         portfolio: card.portfolio || '',
         contact: card.contact || '',
         yearsOfExperience: card.yearsOfExperience || 0,
-        github: socialLinks?.github || '',
-        linkedin: socialLinks?.linkedin || '',
-        twitter: socialLinks?.twitter || '',
-        personalWebsite: socialLinks?.personalWebsite || '',
-        workTypes: workPrefs?.workTypes || [],
-        hourlyRate: workPrefs?.hourlyRate ?? null,
-        locationPreference: workPrefs?.locationPreference || '',
-        availability: workPrefs?.availability || '',
+        github: socialLinks.github || '',
+        linkedin: socialLinks.linkedin || '',
+        twitter: socialLinks.twitter || '',
+        personalWebsite: socialLinks.personalWebsite || '',
+        workTypes: workPrefs.workTypes || [],
+        hourlyRate: workPrefs.hourlyRate ?? null,
+        locationPreference: workPrefs.locationPreference || '',
+        availability: workPrefs.availability || '',
         languages: card.languages || [],
         openToWork: card.openToWork ?? true
       });
@@ -316,21 +290,7 @@ const MyProfile: React.FC = () => {
             if (currentAccount?.address) {
               clearCache(currentAccount.address);
               const cards = await getUserCards(currentAccount.address, true);
-              const cardsWithWorkPreferences = await Promise.all(
-                cards.map(async (card) => {
-                  try {
-                    const workPrefs = await getWorkPreferences(card.id);
-                    return {
-                      ...card,
-                      workPreferences: workPrefs || card.workPreferences
-                    };
-                  } catch (err) {
-                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
-                    return card;
-                  }
-                })
-              );
-              setUserCards(cardsWithWorkPreferences);
+              setUserCards(cards);
             }
           },
           onError: (error) => {
@@ -501,21 +461,7 @@ const MyProfile: React.FC = () => {
             if (currentAccount?.address) {
               clearCache(currentAccount.address);
               const cards = await getUserCards(currentAccount.address, true);
-              const cardsWithWorkPreferences = await Promise.all(
-                cards.map(async (card) => {
-                  try {
-                    const workPrefs = await getWorkPreferences(card.id);
-                    return {
-                      ...card,
-                      workPreferences: workPrefs || card.workPreferences
-                    };
-                  } catch (err) {
-                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
-                    return card;
-                  }
-                })
-              );
-              setUserCards(cardsWithWorkPreferences);
+              setUserCards(cards);
               showToast(
                 updatedOpenToWork 
                   ? 'Availability activated successfully!' 
@@ -565,21 +511,7 @@ const MyProfile: React.FC = () => {
             if (currentAccount?.address) {
               clearCache(currentAccount.address);
               const cards = await getUserCards(currentAccount.address, true);
-              const cardsWithWorkPreferences = await Promise.all(
-                cards.map(async (card) => {
-                  try {
-                    const workPrefs = await getWorkPreferences(card.id);
-                    return {
-                      ...card,
-                      workPreferences: workPrefs || card.workPreferences
-                    };
-                  } catch (err) {
-                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
-                    return card;
-                  }
-                })
-              );
-              setUserCards(cardsWithWorkPreferences);
+              setUserCards(cards);
             }
             // Reset form and close modal
             setNewProject({ title: '', description: '', source: '', thumbnail: '' });
@@ -627,21 +559,7 @@ const MyProfile: React.FC = () => {
             if (currentAccount?.address) {
               clearCache(currentAccount.address);
               const cards = await getUserCards(currentAccount.address, true);
-              const cardsWithWorkPreferences = await Promise.all(
-                cards.map(async (card) => {
-                  try {
-                    const workPrefs = await getWorkPreferences(card.id);
-                    return {
-                      ...card,
-                      workPreferences: workPrefs || card.workPreferences
-                    };
-                  } catch (err) {
-                    console.error(`Error fetching work preferences for card ${card.id}:`, err);
-                    return card;
-                  }
-                })
-              );
-              setUserCards(cardsWithWorkPreferences);
+              setUserCards(cards);
             }
             // Close modal and reset
             setShowDeleteProjectModal(false);

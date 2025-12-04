@@ -43,6 +43,8 @@ interface SuperAdminAdminsProps {
   // Remove admin states
   revokeAdminAddress: string;
   setRevokeAdminAddress: (address: string) => void;
+  revokeAdminNote: string;
+  setRevokeAdminNote: (note: string) => void;
   removingAdmin: string | null;
   handleRemoveAdmin: (address: string) => void;
 }
@@ -68,6 +70,8 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
   handleAddAdmin,
   revokeAdminAddress,
   setRevokeAdminAddress,
+  revokeAdminNote,
+  setRevokeAdminNote,
   removingAdmin,
   handleRemoveAdmin,
 }) => {
@@ -339,14 +343,10 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
               <select
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground"
                 value={newAdminRole}
-                onChange={(e) =>
-                  setNewAdminRole(
-                    e.target.value as "Admin" | "Super",
-                  )
-                }
+                onChange={() => setNewAdminRole("Admin")}
               >
+                {/* Super admin role cannot be granted via this quick form */}
                 <option value="Admin">Role: Admin</option>
-                <option value="Super">Role: Super</option>
               </select>
             </div>
             <div>
@@ -404,8 +404,8 @@ const SuperAdminAdmins: React.FC<SuperAdminAdminsProps> = ({
                 type="text"
                 placeholder="Reason for revocation (optional)"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:outline-none text-foreground placeholder:text-muted-foreground"
-                value={newAdminNote}
-                onChange={(e) => setNewAdminNote(e.target.value)}
+                value={revokeAdminNote}
+                onChange={(e) => setRevokeAdminNote(e.target.value)}
               />
             </div>
             <button

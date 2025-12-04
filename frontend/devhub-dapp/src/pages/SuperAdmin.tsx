@@ -25,6 +25,7 @@ import SuperAdminAdmins from "@/components/SuperAdminAdmins";
 import SuperAdminFees from "@/components/SuperAdminFees";
 import SuperAdminActivity from "@/components/SuperAdminActivity";
 import RemoveAdminDialog from "@/components/RemoveAdminDialog";
+import { toast } from "sonner";
 
 const SuperAdminSkeletonLoader: React.FC = () => (
   <div className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 md:pb-16">
@@ -78,6 +79,7 @@ const SuperAdmin: React.FC = () => {
   const [adminsPerPage] = useState(10);
   const [newAdminRole, setNewAdminRole] = useState<"Admin" | "Super">("Admin");
   const [newAdminNote, setNewAdminNote] = useState("");
+  const [revokeAdminNote, setRevokeAdminNote] = useState("");
 
 
   // Activity log data
@@ -223,7 +225,12 @@ const SuperAdmin: React.FC = () => {
       setActivityLog(activity);
       setActivityStats(activityStatsData);
       setTotalCards(cardCount);
-      setCurrentTradingFee(platformFee); // getPlatformFee already returns value in SUI
+      // Convert platform fee from MIST (on-chain u64) to SUI for display.
+      // If for any reason the value is invalid, fall back to the default 0.1 SUI.
+      const platformFeeInSui = Number.isFinite(platformFee)
+        ? platformFee / 1_000_000_000
+        : 0.1;
+      setCurrentTradingFee(platformFeeInSui);
     } catch (err) {
       console.error('❌ Error fetching platform data:', err);
       setError("Failed to fetch platform data.");
@@ -249,7 +256,18 @@ const SuperAdmin: React.FC = () => {
 
   const handleAddAdmin = async () => {
     if (!newAdminAddress || !/^0x[a-fA-F0-9]{64}$/.test(newAdminAddress)) {
-      alert("Please enter a valid Sui address.");
+      toast.error("Please enter a valid Sui address.");
+      return;
+    }
+
+    // Prevent granting duplicate admin role to the same address
+    const normalize = (addr: string) => addr.toLowerCase().trim();
+    const newAddrNorm = normalize(newAdminAddress);
+    const alreadyAdmin =
+      admins.some((a) => normalize(a) === newAddrNorm) ||
+      (superAdmin && normalize(superAdmin) === newAddrNorm);
+    if (alreadyAdmin) {
+      toast.error("This address already has an admin role.");
       return;
     }
 
@@ -260,12 +278,35 @@ const SuperAdmin: React.FC = () => {
         { transaction: tx },
         {
           onSuccess: () => {
-            alert("Admin added successfully!");
+            toast.success("Admin added successfully");
+            // Optimistically update local state so UI reflects change immediately
+            setAdmins((prev) =>
+              prev.some((a) => normalize(a) === newAddrNorm)
+                ? prev
+                : [...prev, newAdminAddress],
+            );
+            setActivityStats((prev) => ({
+              ...prev,
+              totalEvents: prev.totalEvents + 1,
+              adminEvents: prev.adminEvents + 1,
+            }));
+            setActivityLog((prev) => [
+              {
+                when: new Date().toLocaleString(),
+                type: "Role Granted",
+                actor: currentAccount?.address || "",
+                details: `Granted admin role to ${newAdminAddress}`,
+                txStatus: "success",
+                status: "success",
+              },
+              ...prev,
+            ]);
             setNewAdminAddress("");
+            // Also refresh from chain to sync with real events/admins
             fetchAllData();
           },
           onError: (err) => {
-            alert(`Failed to add admin: ${err.message}`);
+            toast.error(`Failed to add admin: ${err.message}`);
           },
           onSettled: () => {
             setAddingAdmin(false);
@@ -274,7 +315,7 @@ const SuperAdmin: React.FC = () => {
       );
     } catch (err) {
       setAddingAdmin(false);
-      alert(
+      toast.error(
         `An error occurred: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     }
@@ -297,12 +338,34 @@ const SuperAdmin: React.FC = () => {
         { transaction: tx },
         {
           onSuccess: () => {
-            alert("Admin removed successfully!");
+            toast.success("Admin removed successfully");
+            const normalize = (addr: string) => addr.toLowerCase().trim();
+            const removedNorm = normalize(adminToRemove);
+            // Optimistically update local state
+            setAdmins((prev) =>
+              prev.filter((a) => normalize(a) !== removedNorm),
+            );
+            setActivityStats((prev) => ({
+              ...prev,
+              totalEvents: prev.totalEvents + 1,
+              adminEvents: prev.adminEvents + 1,
+            }));
+            setActivityLog((prev) => [
+              {
+                when: new Date().toLocaleString(),
+                type: "Role Revoked",
+                actor: currentAccount?.address || "",
+                details: `Revoked admin role from ${adminToRemove}`,
+                txStatus: "success",
+                status: "success",
+              },
+              ...prev,
+            ]);
             setRevokeAdminAddress("");
             fetchAllData();
           },
           onError: (err) => {
-            alert(`Failed to remove admin: ${err.message}`);
+            toast.error(`Failed to remove admin: ${err.message}`);
           },
           onSettled: () => {
             setRemovingAdmin(null);
@@ -313,7 +376,7 @@ const SuperAdmin: React.FC = () => {
     } catch (err) {
       setRemovingAdmin(null);
       setAdminToRemove(null);
-      alert(
+      toast.error(
         `An error occurred: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     }
@@ -325,13 +388,13 @@ const SuperAdmin: React.FC = () => {
       !withdrawRecipient ||
       !/^0x[a-fA-F0-9]{64}$/.test(withdrawRecipient)
     ) {
-      alert("Please enter valid amount and recipient address.");
+      toast.error("Please enter valid amount and recipient address.");
       return;
     }
 
     const amount = parseFloat(withdrawAmount) * 1_000_000_000; // Convert to MIST
     if (amount > platformFeeBalance) {
-      alert("Insufficient platform fee balance.");
+      toast.error("Insufficient platform fee balance.");
       return;
     }
 
@@ -342,7 +405,7 @@ const SuperAdmin: React.FC = () => {
         { transaction: tx },
         {
           onSuccess: () => {
-            alert("Fees withdrawn successfully!");
+            toast.success("Fees withdrawn successfully");
             setWithdrawAmount("");
             setWithdrawRecipient("");
             // Refresh the platform fee balance specifically
@@ -350,7 +413,7 @@ const SuperAdmin: React.FC = () => {
             fetchAllData();
           },
           onError: (err) => {
-            alert(`Failed to withdraw fees: ${err.message}`);
+            toast.error(`Failed to withdraw fees: ${err.message}`);
           },
           onSettled: () => {
             setWithdrawingFees(false);
@@ -359,7 +422,7 @@ const SuperAdmin: React.FC = () => {
       );
     } catch (err) {
       setWithdrawingFees(false);
-      alert(
+      toast.error(
         `An error occurred: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     }
@@ -367,7 +430,7 @@ const SuperAdmin: React.FC = () => {
 
   const handleUpdateFees = async () => {
     if (!newTradingFee || !newListingFee) {
-      alert("Please enter both platform fee and project posting fee.");
+      toast.error("Please enter both platform fee and project posting fee.");
       return;
     }
 
@@ -375,12 +438,12 @@ const SuperAdmin: React.FC = () => {
     const projectFee = parseFloat(newListingFee);
 
     if (platformFee < 0) {
-      alert("Platform fee must be positive.");
+      toast.error("Platform fee must be positive.");
       return;
     }
 
     if (projectFee < 0) {
-      alert("Project posting fee must be positive.");
+      toast.error("Project posting fee must be positive.");
       return;
     }
 
@@ -410,13 +473,13 @@ const SuperAdmin: React.FC = () => {
         { transaction: combinedTx },
         {
           onSuccess: () => {
-            alert("Fees updated successfully!");
+            toast.success("Fees updated successfully");
             setNewTradingFee("");
             setNewListingFee("");
             fetchAllData(); // Refresh to show updated fees
           },
           onError: (err) => {
-            alert(`Failed to update fees: ${err.message}`);
+            toast.error(`Failed to update fees: ${err.message}`);
           },
           onSettled: () => {
             setUpdatingFees(false);
@@ -425,7 +488,7 @@ const SuperAdmin: React.FC = () => {
       );
     } catch (err) {
       setUpdatingFees(false);
-      alert(
+      toast.error(
         `Failed to update fees: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     }
@@ -575,6 +638,8 @@ const SuperAdmin: React.FC = () => {
                   setNewAdminRole={setNewAdminRole}
                   newAdminNote={newAdminNote}
                   setNewAdminNote={setNewAdminNote}
+                  revokeAdminNote={revokeAdminNote}
+                  setRevokeAdminNote={setRevokeAdminNote}
                   addingAdmin={addingAdmin}
                   handleAddAdmin={handleAddAdmin}
                   revokeAdminAddress={revokeAdminAddress}
@@ -619,6 +684,7 @@ const SuperAdmin: React.FC = () => {
                   activityCurrentPage={activityCurrentPage}
                   setActivityCurrentPage={setActivityCurrentPage}
                   activityEventsPerPage={activityEventsPerPage}
+                  onRefresh={fetchAllData}
                 />
               )}
             </main>
