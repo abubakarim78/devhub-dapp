@@ -28,7 +28,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <RegisterEnokiWallets />
         <WalletProvider autoConnect
         slushWallet={{
-          name: "BountyLink dApp",
+          name: "TumaHub dApp",
           }}>
           <Theme appearance="light">
             <ThemeProvider>
