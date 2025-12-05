@@ -1,6 +1,7 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import type { DevCardData, Project, ProjectApplication, Proposal, Conversation, Connection, Message } from "../lib/suiClient";
 import { CacheEntry } from "./useContractUtils";
+import { localStorageCache, CacheKeys, CacheTTL } from "../lib/cache/localStorageCache";
 
 // Cache reference type
 export interface ContractCacheRef {
@@ -37,14 +38,49 @@ export const useContractCache = () => {
     searchResults: new Map<string, CacheEntry<number[]>>(),
   });
 
+  // Load persistent cache on mount
+  useEffect(() => {
+    try {
+      // Load all cards from localStorage
+      const cachedCards = localStorageCache.get<DevCardData[]>(CacheKeys.allCards());
+      if (cachedCards && Array.isArray(cachedCards)) {
+        cachedCards.forEach((card) => {
+          if (card.id !== undefined) {
+            cacheRef.current.cards.set(card.id, {
+              data: card,
+              timestamp: Date.now(),
+              ttl: CacheTTL.medium,
+            });
+          }
+        });
+      }
+
+      // Load card count
+      const cachedCount = localStorageCache.get<number>(CacheKeys.cardCount());
+      if (cachedCount !== null) {
+        cacheRef.current.cardCount = {
+          data: cachedCount,
+          timestamp: Date.now(),
+          ttl: CacheTTL.medium,
+        };
+      }
+    } catch (error) {
+      console.error('Error loading persistent cache:', error);
+    }
+  }, []);
+
   // Enhanced cache management
   const clearCache = useCallback((userAddress?: string) => {
     if (userAddress) {
-      // Clear cache for specific user
+      // Clear cache for specific user (both in-memory and localStorage)
       cacheRef.current.userCards.delete(userAddress);
       cacheRef.current.adminStatus.delete(userAddress);
+      localStorageCache.delete(CacheKeys.userCards(userAddress));
+      localStorageCache.delete(CacheKeys.adminStatus(userAddress));
+      localStorageCache.delete(CacheKeys.dashboardStats(userAddress));
+      localStorageCache.delete(CacheKeys.dashboardActivities(userAddress));
     } else {
-      // Clear all cache
+      // Clear all cache (both in-memory and localStorage)
       cacheRef.current.cards.clear();
       cacheRef.current.userCards.clear();
       cacheRef.current.adminStatus.clear();
@@ -57,6 +93,9 @@ export const useContractCache = () => {
       cacheRef.current.connections.clear();
       cacheRef.current.messages.clear();
       cacheRef.current.searchResults.clear();
+      
+      // Clear localStorage cache
+      localStorageCache.clear();
     }
   }, []);
 

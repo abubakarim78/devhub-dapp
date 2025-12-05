@@ -17,6 +17,7 @@ import {
 } from "../lib/suiClient";
 import { WalrusService } from "../services/walrus";
 import type { ContractCacheRef } from "./useContractCache";
+import { localStorageCache, CacheKeys, CacheTTL } from "../lib/cache/localStorageCache";
 import {
   isCacheValid,
   setCacheEntry,
@@ -637,6 +638,9 @@ export const useContractCards = (
           lastFetch: Date.now(),
           error: null,
         }));
+
+        // Cache to localStorage
+        localStorageCache.set(CacheKeys.allCards(), cards, CacheTTL.medium);
 
         return cards;
       } catch (err) {

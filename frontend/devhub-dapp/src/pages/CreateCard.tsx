@@ -635,7 +635,7 @@ const CreateCard: React.FC = () => {
                     onSuccess: (result) => {
                         console.log('Card created successfully:', result);
                         setShowPaymentModal(false);
-                        showToast('Developer card created successfully! 🎉', 'success');
+                        showToast('Professional profile created successfully! 🎉', 'success');
                         setTimeout(() => navigate('/dashboard'), 2000);
                     },
                     onError: (error: any) => {
@@ -813,7 +813,7 @@ const CreateCard: React.FC = () => {
                     className="text-center mb-6 sm:mb-8 md:mb-10"
                 >
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent px-2">
-                        Create Your Developer Card
+                        Create Your Professional Profile
                     </h1>
                     <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-4">Showcase your skills and connect with the ecosystem.</p>
                 </motion.div>
@@ -1358,7 +1358,7 @@ const CreateCard: React.FC = () => {
                                     <DollarSign className="h-8 w-8 text-primary" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-foreground mb-2">Confirm Payment</h3>
-                                <p className="text-muted-foreground mb-6">A one-time platform fee is required to create your developer card.</p>
+                                <p className="text-muted-foreground mb-6">A one-time platform fee is required to create your professional profile.</p>
                             </div>
                             
                             <div className="bg-secondary/60 rounded-xl p-4 mb-6 space-y-2 text-sm">

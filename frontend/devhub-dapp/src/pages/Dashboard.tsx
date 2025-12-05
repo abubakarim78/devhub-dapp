@@ -7,6 +7,8 @@ import { User, AlertCircle, CheckCircle, Activity, X, Search, Star, Zap, Briefca
 import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContract } from '@/hooks/useContract';
+import { usePersistentCache } from '@/hooks/usePersistentCache';
+import { CacheTTL } from '@/lib/cache/localStorageCache';
 import { 
   getDetailedAnalytics,
   DEVHUB_OBJECT_ID,
@@ -103,6 +105,7 @@ const Dashboard: React.FC = () => {
   const { mutate: signAndExecute } = useSignAndExecuteWithSponsorship();
   const { theme } = useTheme();
   const { getUserCards, useConversations, useMessages, getSampleCards } = useContract();
+  const persistentCache = usePersistentCache();
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -314,14 +317,43 @@ const Dashboard: React.FC = () => {
   const loadDashboardData = useCallback(async () => {
     if (!currentAccount?.address) return;
     
+    // Check cache first for faster initial load
+    const cachedStats = persistentCache.getCachedDashboardStats(currentAccount.address);
+    const cachedActivities = persistentCache.getCachedDashboardActivities(currentAccount.address);
+    const cachedUserCards = persistentCache.getCachedUserCards(currentAccount.address);
+    
+    if (cachedStats) {
+      setStats(cachedStats);
+    }
+    if (cachedActivities) {
+      setActivities(cachedActivities);
+    }
+    if (cachedUserCards) {
+      setUserCards(cachedUserCards);
+    }
+    
     setLoading(true);
     try {
       // Phase 1: Load critical data in parallel
       const [cards, devhubObj, balances, conversations] = await Promise.all([
-        getUserCards(currentAccount.address).catch(err => {
-          console.error('Error fetching user cards:', err);
-          return [];
-        }),
+        (async () => {
+          // Try cache first
+          if (cachedUserCards) {
+            // Fetch fresh in background
+            getUserCards(currentAccount.address).then(freshCards => {
+              persistentCache.cacheUserCards(currentAccount.address, freshCards);
+              setUserCards(freshCards);
+            }).catch(err => console.error('Error fetching user cards:', err));
+            return cachedUserCards;
+          }
+          // No cache, fetch fresh
+          const freshCards = await getUserCards(currentAccount.address).catch(err => {
+            console.error('Error fetching user cards:', err);
+            return [];
+          });
+          persistentCache.cacheUserCards(currentAccount.address, freshCards);
+          return freshCards;
+        })(),
         suiClient.getObject({
           id: DEVHUB_OBJECT_ID,
           options: { showContent: true, showType: true, showOwner: true }
@@ -540,12 +572,16 @@ const Dashboard: React.FC = () => {
       profileViewsCount = analyticsResult;
 
       // Update stats immediately
-      setStats({
+      const dashboardStats = {
         activeProjects: activeProjectsCount,
         newMessages: unreadMessagesCount,
         profileViews: profileViewsCount,
         profileHealth
-      });
+      };
+      setStats(dashboardStats);
+      
+      // Cache stats
+      persistentCache.cacheDashboardStats(currentAccount.address, dashboardStats, CacheTTL.short);
 
       // Phase 3: Fetch transaction history (can be done in parallel with other operations)
       const fetchTransactionHistory = async () => {
@@ -909,10 +945,15 @@ const Dashboard: React.FC = () => {
             return getTimeValue(b.timestamp) - getTimeValue(a.timestamp);
           });
           
-          setActivities(activityItems.slice(0, 3));
+          const finalActivities = activityItems.slice(0, 3);
+          setActivities(finalActivities);
+          // Cache activities
+          persistentCache.cacheDashboardActivities(currentAccount.address, finalActivities, CacheTTL.short);
         } catch (error) {
           console.error('Error fetching activity data:', error);
           setActivities([]);
+          // Cache empty activities
+          persistentCache.cacheDashboardActivities(currentAccount.address, [], CacheTTL.short);
         }
       };
 
@@ -1220,7 +1261,7 @@ const Dashboard: React.FC = () => {
           <p className="text-sm sm:text-lg text-muted-foreground mb-8">You need to connect your Sui wallet to access your dashboard.</p>
           <div className="bg-primary/10 backdrop-blur-sm p-6 rounded-xl border border-primary/30 max-w-md mx-auto">
             <p className="text-primary">
-              Connect your wallet to view and manage your developer card.
+              Connect your wallet to view and manage your professional profile.
             </p>
           </div>
         </div>
@@ -1279,7 +1320,7 @@ const Dashboard: React.FC = () => {
                       </motion.button>
                       {userCards.length > 0 && (
                         <div className="text-sm text-muted-foreground">
-                          {userCards.length} developer card{userCards.length !== 1 ? 's' : ''} found
+                          {userCards.length} professional profile{userCards.length !== 1 ? 's' : ''} found
                         </div>
                       )}
                     </div>

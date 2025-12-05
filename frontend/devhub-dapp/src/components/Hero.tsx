@@ -58,7 +58,7 @@ const Hero = () => {
           variants={itemVariants}
           className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 md:mb-10 leading-relaxed px-4 sm:px-2"
         >
-          Create your decentralized developer card, showcase your skills with on-chain proof, and connect with the future of work.
+          Create your decentralized professional profile, showcase your skills with on-chain proof, and connect with the future of work.
         </motion.p>
         
         <motion.div
@@ -78,7 +78,7 @@ const Hero = () => {
               to="/browse"
               className="bg-secondary/80 backdrop-blur-sm border border-border text-foreground font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg hover:bg-accent transition-colors inline-flex items-center justify-center text-sm sm:text-base w-full sm:w-auto"
             >
-              Browse Developers
+              Browse Professionals
             </Link>
           </motion.div>
         </motion.div>
