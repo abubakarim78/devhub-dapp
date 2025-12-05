@@ -206,7 +206,7 @@ const CardDetails: React.FC = () => {
           </div>
           <h2 className="text-3xl font-bold text-foreground mb-4">Profile Not Found</h2>
           <p className="text-muted-foreground mb-8 text-lg">
-            {error || "The developer card you're looking for doesn't exist or could not be loaded."}
+            {error || "The professional profile you're looking for doesn't exist or could not be loaded."}
           </p>
           <Link
             to="/browse"

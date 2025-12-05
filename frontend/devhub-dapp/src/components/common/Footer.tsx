@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Twitter, Github, MessageCircle } from 'lucide-react';
 
 const Footer: React.FC = () => {
@@ -18,38 +19,39 @@ const Footer: React.FC = () => {
               <span className="text-2xl font-bold text-foreground">TumaHub</span>
             </div>
             <p className="text-sm text-muted-foreground leading-6">
-              Decentralized developer profiles on Sui. Showcase skills, connect, and collaborate.
+              Decentralized professional network on Sui. Showcase skills, connect, collaborate, and host hackathons across all Web2/Web3 niches.
             </p>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-4">Product</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Browse Developers</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Create Card</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Dashboard</a></li>
+              <li><Link to="/browse" className="hover:text-foreground transition-colors">Browse Professionals</Link></li>
+              <li><Link to="/create" className="hover:text-foreground transition-colors">Create Card</Link></li>
+              <li><Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link></li>
+              <li><Link to="/opportunities" className="hover:text-foreground transition-colors">Opportunities</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-4">Company</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Home</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Admin</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Sui Docs</a></li>
+              <li><Link to="/" className="hover:text-foreground transition-colors">Home</Link></li>
+              <li><Link to="/admin" className="hover:text-foreground transition-colors">Admin</Link></li>
+              <li><a href="https://docs.sui.io" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Sui Docs</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-4">Stay updated</h4>
             <p className="text-sm text-muted-foreground mb-4">Get updates about new features and launches.</p>
-            <div className="flex rounded-lg border border-border overflow-hidden">
+            <div className="flex flex-nowrap rounded-lg border border-border overflow-hidden w-full">
               <input
                 type="email"
                 placeholder="your@email.com"
-                className="flex-1 px-4 py-3 text-sm bg-secondary text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex-1 min-w-0 px-4 py-3 text-sm bg-secondary text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
-              <button className="bg-primary text-primary-foreground px-6 py-3 text-sm hover:bg-primary/90 transition-colors">
+              <button className="bg-primary text-primary-foreground px-4 sm:px-6 py-3 text-sm hover:bg-primary/90 transition-colors flex-shrink-0 whitespace-nowrap">
                 Subscribe
               </button>
             </div>

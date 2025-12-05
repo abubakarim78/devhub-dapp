@@ -143,7 +143,7 @@ export function SignInButton() {
       <>
         <button
           onClick={() => setShowModal(false)}
-          className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm z-[100]"
+          className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm z-[100] cursor-pointer"
           aria-label="Close modal"
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
         />
@@ -152,7 +152,7 @@ export function SignInButton() {
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
         >
           <div className="bg-background dark:bg-gray-900 border-2 border-border dark:border-gray-700 rounded-xl shadow-2xl dark:shadow-black/50 p-6 max-w-md w-full mx-4 pointer-events-auto">
-            <h2 className="text-xl font-semibold mb-4 text-foreground dark:text-white">Sign In to BountyLink</h2>
+            <h2 className="text-xl font-semibold mb-4 text-foreground dark:text-white">Sign In to TumaHub</h2>
             <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
               Choose how you'd like to sign in
             </p>
@@ -195,7 +195,7 @@ export function SignInButton() {
                             }
                           }
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium cursor-pointer"
                       >
                         <Mail size={18} className="text-foreground dark:text-white" />
                         <span>Sign in with Google</span>
@@ -218,7 +218,7 @@ export function SignInButton() {
                             }
                           }
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium cursor-pointer"
                       >
                         <Facebook size={18} className="text-foreground dark:text-white" />
                         <span>Sign in with Facebook</span>
@@ -241,7 +241,7 @@ export function SignInButton() {
                             }
                           }
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium cursor-pointer"
                       >
                         <Twitch size={18} className="text-foreground dark:text-white" />
                         <span>Sign in with Twitch</span>
@@ -273,7 +273,7 @@ export function SignInButton() {
                             console.error(`Error connecting ${wallet.name}:`, error);
                           }
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-border dark:border-gray-600 bg-card dark:bg-gray-800 hover:bg-accent dark:hover:bg-gray-700 hover:border-primary dark:hover:border-primary transition-all text-foreground dark:text-white font-medium cursor-pointer"
                       >
                         {getWalletIcon(wallet, 18)}
                         <span>Connect {wallet.name}</span>
@@ -291,7 +291,7 @@ export function SignInButton() {
 
             <button
               onClick={() => setShowModal(false)}
-              className="mt-4 w-full px-4 py-2 text-sm text-muted-foreground dark:text-gray-400 hover:text-foreground dark:hover:text-white transition-colors font-medium"
+              className="mt-4 w-full px-4 py-2 text-sm text-muted-foreground dark:text-gray-400 hover:text-foreground dark:hover:text-white transition-colors font-medium cursor-pointer"
             >
               Cancel
             </button>
@@ -305,7 +305,7 @@ export function SignInButton() {
   return (
     <button
       onClick={() => setShowModal(true)}
-      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
+      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium cursor-pointer"
     >
       Sign In
     </button>

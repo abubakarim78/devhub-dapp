@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Loader2, AlertCircle, SlidersHorizontal, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useContract } from '../hooks/useContract';
+import { usePersistentCache } from '../hooks/usePersistentCache';
 import { DevCardData } from '../lib/suiClient';
 import DeveloperCard from '@/components/common/DeveloperCard';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -47,14 +48,31 @@ const Browse: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const { getAllCards } = useContract();
+  const persistentCache = usePersistentCache();
 
   // --- DATA FETCHING ---
   useEffect(() => {
     const fetchCards = async () => {
+      // Check cache first
+      const cachedCards = persistentCache.getCachedCards();
+      if (cachedCards && cachedCards.length > 0) {
+        setAllCards(cachedCards);
+        setLoading(false);
+        // Fetch fresh data in background
+        getAllCards(false).then(freshCards => {
+          persistentCache.cacheCards(freshCards);
+          setAllCards(freshCards);
+        }).catch(err => {
+          console.error('Error fetching fresh cards:', err);
+        });
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
         const cards = await getAllCards(false);
+        persistentCache.cacheCards(cards);
         setAllCards(cards);
       } catch (err: unknown) {
         console.error('Error fetching cards:', err);
@@ -64,7 +82,7 @@ const Browse: React.FC = () => {
       }
     };
     fetchCards();
-  }, [getAllCards]);
+  }, [getAllCards, persistentCache]);
 
   // --- MEMOIZED COMPUTATIONS ---
 
