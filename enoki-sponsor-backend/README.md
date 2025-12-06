@@ -147,7 +147,7 @@ VITE_ENOKI_BACKEND_URL=https://your-backend-domain.com
 
 3. **Connect your repository**:
    - Select your GitHub repository
-   - Render will automatically detect the `render.yaml` file in the `enoki-sponsor-backend` directory
+   - Render will automatically detect the `render.yaml` file at the root of your repository
 
 4. **Configure the service**:
    - Render will use the configuration from `render.yaml`
