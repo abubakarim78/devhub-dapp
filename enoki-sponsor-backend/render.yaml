@@ -2,8 +2,10 @@ services:
   - type: web
     name: enoki-sponsor-backend
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    rootDir: enoki-sponsor-backend
+    buildCommand: pnpm install && pnpm run build
+    startCommand: pnpm start
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
