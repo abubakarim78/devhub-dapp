@@ -135,3 +135,76 @@ In production, use your production backend URL:
 VITE_ENOKI_BACKEND_URL=https://your-backend-domain.com
 ```
 
+## Deployment on Render
+
+### Option 1: Using Render Blueprint (Recommended)
+
+1. **Push your code to GitHub** (if not already done)
+
+2. **Go to Render Dashboard**:
+   - Visit [render.com](https://render.com) and sign in
+   - Click "New +" → "Blueprint"
+
+3. **Connect your repository**:
+   - Select your GitHub repository
+   - Render will automatically detect the `render.yaml` file in the `enoki-sponsor-backend` directory
+
+4. **Configure the service**:
+   - Render will use the configuration from `render.yaml`
+   - Make sure to set the environment variable `VITE_ENOKI_PRIVATE_API_KEY` in the Render dashboard:
+     - Go to your service → Environment tab
+     - Add `VITE_ENOKI_PRIVATE_API_KEY` with your Enoki Private API key value
+
+5. **Deploy**:
+   - Click "Apply" to deploy
+   - Render will build and deploy your service automatically
+
+### Option 2: Manual Setup
+
+1. **Go to Render Dashboard**:
+   - Visit [render.com](https://render.com) and sign in
+   - Click "New +" → "Web Service"
+
+2. **Connect your repository**:
+   - Select your GitHub repository
+   - Set the **Root Directory** to: `enoki-sponsor-backend`
+
+3. **Configure build settings**:
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+
+4. **Set environment variables**:
+   - Go to the "Environment" tab
+   - Add the following variables:
+     - `NODE_ENV`: `production`
+     - `VITE_ENOKI_PRIVATE_API_KEY`: Your Enoki Private API key (mark as secret)
+     - `PORT`: Leave empty (Render sets this automatically)
+
+5. **Deploy**:
+   - Click "Create Web Service"
+   - Render will build and deploy your service
+
+### After Deployment
+
+1. **Get your service URL**:
+   - Render will provide a URL like: `https://enoki-sponsor-backend.onrender.com`
+   - You can also set a custom domain in the Render dashboard
+
+2. **Update your frontend**:
+   - Update your frontend `.env` file with the production backend URL:
+   ```env
+   VITE_ENOKI_BACKEND_URL=https://enoki-sponsor-backend.onrender.com
+   ```
+
+3. **Test the deployment**:
+   - Visit `https://your-backend-url.onrender.com/health` to verify the service is running
+   - You should see: `{"status":"ok","message":"Enoki sponsor service is running"}`
+
+### Notes
+
+- Render automatically provides HTTPS
+- The service will sleep after 15 minutes of inactivity on the free tier (wakes up on first request)
+- For production, consider upgrading to a paid plan to avoid cold starts
+- Monitor logs in the Render dashboard to debug any issues
+
