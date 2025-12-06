@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: enoki-sponsor-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_ENOKI_PRIVATE_API_KEY
+        sync: false  # Set this in Render dashboard (Environment tab)
