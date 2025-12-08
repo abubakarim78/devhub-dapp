@@ -192,10 +192,19 @@ VITE_ENOKI_BACKEND_URL=https://your-backend-domain.com
    - You can also set a custom domain in the Render dashboard
 
 2. **Update your frontend**:
-   - Update your frontend `.env` file with the production backend URL:
+   - Update your frontend `.env` file in `frontend/devhub-dapp/.env` with the production backend URLs:
    ```env
-   VITE_ENOKI_BACKEND_URL=https://enoki-sponsor-backend.onrender.com
+   # Backend URL for Enoki sponsorship
+   VITE_ENOKI_BACKEND_URL=https://devhub-dapp.onrender.com
+   
+   # Backend proxy URL for Walrus uploads (avoids CORS issues)
+   VITE_WALRUS_PROXY_URL=https://devhub-dapp.onrender.com/api/walrus-upload
    ```
+   - **Important**: After updating `.env`, rebuild your frontend for changes to take effect:
+     ```bash
+     cd frontend/devhub-dapp
+     npm run build  # or pnpm build
+     ```
 
 3. **Test the deployment**:
    - Visit `https://your-backend-url.onrender.com/health` to verify the service is running

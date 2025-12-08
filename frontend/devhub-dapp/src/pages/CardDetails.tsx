@@ -25,12 +25,10 @@ const CardDetails: React.FC = () => {
   const [reviewText, setReviewText] = useState<string>('');
   const [submittingReview, setSubmittingReview] = useState<boolean>(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
-  const profileViewTracked = useRef<boolean>(false);
+  const profileViewTracked = useRef<{ cardId: number | null; account: string | null }>({ cardId: null, account: null });
+  const isTrackingInProgress = useRef<boolean>(false);
 
   useEffect(() => {
-    // Reset tracking when card ID changes
-    profileViewTracked.current = false;
-    
     const fetchCard = async () => {
       if (!id) {
         setError("No card ID provided.");
@@ -49,13 +47,23 @@ const CardDetails: React.FC = () => {
         if (cardData) {
           setCard(cardData);
           
-          // Track profile view on-chain (only once per page load, and only if visitor is not the owner)
-          if (!profileViewTracked.current) {
-            profileViewTracked.current = true;
-            
-            // Only track if the visitor is not the owner of the card
-            const isOwner = currentAccount?.address?.toLowerCase() === cardData.owner.toLowerCase();
-            if (!isOwner && currentAccount?.address) {
+          // Track profile view on-chain (only once per card ID + account combination)
+          const currentAccountAddress = currentAccount?.address?.toLowerCase() || null;
+          const hasTrackedForThisCard = profileViewTracked.current.cardId === numericId && 
+                                        profileViewTracked.current.account === currentAccountAddress;
+          
+          // Only track if:
+          // 1. We haven't tracked for this card + account combination
+          // 2. We're not already tracking (prevent concurrent calls)
+          // 3. The visitor is not the owner
+          // 4. There's a wallet connected
+          if (!hasTrackedForThisCard && !isTrackingInProgress.current) {
+            const isOwner = currentAccountAddress === cardData.owner.toLowerCase();
+            if (!isOwner && currentAccountAddress) {
+              // Mark as tracking in progress and update tracking ref
+              isTrackingInProgress.current = true;
+              profileViewTracked.current = { cardId: numericId, account: currentAccountAddress };
+              
               try {
                 const tx = trackProfileViewTransaction(numericId);
                 signAndExecute(
@@ -63,6 +71,10 @@ const CardDetails: React.FC = () => {
                   {
                     onSuccess: async (result: any) => {
                       console.log('✅ Profile view tracked on-chain for card', numericId, result.digest);
+                      // Reset tracking in progress immediately after successful transaction
+                      // The profileViewTracked ref will prevent duplicate calls
+                      isTrackingInProgress.current = false;
+                      
                       // Refresh card data after a short delay to show updated view count
                       setTimeout(async () => {
                         try {
@@ -77,14 +89,23 @@ const CardDetails: React.FC = () => {
                     },
                     onError: (error: any) => {
                       console.error('❌ Failed to track profile view on-chain:', error);
+                      // Reset tracking in progress on error so it can be retried if needed
+                      isTrackingInProgress.current = false;
+                      // Reset the tracking ref so it can be retried
+                      profileViewTracked.current = { cardId: null, account: null };
                     },
                   }
                 );
               } catch (error) {
                 console.error('Error creating profile view transaction:', error);
+                // Reset tracking in progress on error
+                isTrackingInProgress.current = false;
+                profileViewTracked.current = { cardId: null, account: null };
               }
             } else if (isOwner) {
               console.log('👤 Owner viewing own profile - view not tracked');
+              // Mark as tracked even for owner to prevent unnecessary checks
+              profileViewTracked.current = { cardId: numericId, account: currentAccountAddress };
             } else {
               console.log('⚠️ No wallet connected - cannot track profile view on-chain');
             }
@@ -101,7 +122,7 @@ const CardDetails: React.FC = () => {
     };
 
     fetchCard();
-  }, [id, getCardInfo, currentAccount?.address, signAndExecute]);
+  }, [id, getCardInfo, currentAccount?.address]);
 
   // Handle review submission
   const handleSubmitReview = async () => {
