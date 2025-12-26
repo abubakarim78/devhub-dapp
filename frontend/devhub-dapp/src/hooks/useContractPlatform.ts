@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSuiClient, useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { DEVHUB_OBJECT_ID, PACKAGE_ID, CONTRACT_FUNCTIONS } from "../lib/suiClient";
+import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from "../lib/suiClient";
 import type { ContractCacheRef } from "./useContractCache";
 import { isCacheValid, setCacheEntry } from "./useContractUtils";
 
@@ -27,7 +27,7 @@ export const useContractPlatform = (
         const balance = await withRetry(async () => {
           const tx = new Transaction();
           tx.moveCall({
-            target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
+            target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
             arguments: [tx.object(DEVHUB_OBJECT_ID)],
           });
 
@@ -83,7 +83,7 @@ export const useContractPlatform = (
       const fee = await withRetry(async () => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE}`,
           arguments: [tx.object(DEVHUB_OBJECT_ID)],
         });
 

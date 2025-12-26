@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { suiClient } from '../constants';
-import { PACKAGE_ID, CONTRACT_FUNCTIONS } from '../constants';
+import { CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
 import { parseReturnValue, bytesToHexAddress } from '../utils';
 import { Proposal } from '../types';
 
@@ -10,7 +10,7 @@ export async function getProposalDetails(proposalId: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PROPOSAL_DETAILS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PROPOSAL_DETAILS}`,
           arguments: [
             tx.object(proposalId),
           ],
@@ -37,7 +37,7 @@ export async function getUserProposals(userProposalsId: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_USER_PROPOSALS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_USER_PROPOSALS}`,
           arguments: [
             tx.object(userProposalsId),
           ],
@@ -116,7 +116,7 @@ export async function getProposalsByStatus(proposalsByStatusId: string, status: 
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PROPOSALS_BY_STATUS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PROPOSALS_BY_STATUS}`,
           arguments: [
             tx.object(proposalsByStatusId),
             tx.pure.vector('u8', Array.from(new TextEncoder().encode(status))),

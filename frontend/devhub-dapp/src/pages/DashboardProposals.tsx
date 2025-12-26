@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import Layout from "@/components/common/Layout";
 import { 
-  PACKAGE_ID, 
+  getCurrentPackageId, 
+  PREVIOUS_PACKAGE_ID_V1,
   DEVHUB_OBJECT_ID, 
   ProjectApplication, 
   getProjectApplications, 
@@ -90,11 +91,24 @@ const DashboardProposals = () => {
       if (!currentAccount?.address) return;
       try {
         // 1) UserProposals (owned by user)
-        const owned = await suiClient.getOwnedObjects({
+        // Try current package ID first, then fallback to old package ID (workaround for Move contract issue)
+        const currentPackageId = getCurrentPackageId();
+        let owned = await suiClient.getOwnedObjects({
           owner: currentAccount.address,
-          filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+          filter: { StructType: `${currentPackageId}::devhub::UserProposals` },
           options: { showType: true, showContent: true },
         });
+        
+        // If none found, try old package ID type
+        if (!owned.data || owned.data.length === 0) {
+          console.log('🔍 No UserProposals found with current package ID, trying old package ID...');
+          owned = await suiClient.getOwnedObjects({
+            owner: currentAccount.address,
+            filter: { StructType: `${PREVIOUS_PACKAGE_ID_V1}::devhub::UserProposals` },
+            options: { showType: true, showContent: true },
+          });
+        }
+        
         console.log(`🔍 Found ${owned.data?.length || 0} UserProposals objects`);
         if (owned.data && owned.data.length > 0) {
           const foundId = owned.data[0].data?.objectId || null;
@@ -277,22 +291,47 @@ const DashboardProposals = () => {
         // Fallback: Get proposals from owned objects
         if (proposalIds.length === 0) {
           console.log('🔍 Falling back to querying owned Proposal objects...');
-          // Try proposal module first (most likely)
+          // Try current package ID first, then fallback to old package ID (workaround for Move contract issue)
+          const currentPackageId = getCurrentPackageId();
+          
+          // Try proposal module first (most likely) with current package ID
           let objects = await suiClient.getOwnedObjects({
             owner: currentAccount.address,
-            filter: { StructType: `${PACKAGE_ID}::proposal::Proposal` },
+            filter: { StructType: `${currentPackageId}::proposal::Proposal` },
             options: { showContent: true, showType: true },
           });
-          console.log(`📋 Query result (proposal module): Found ${objects.data?.length || 0} Proposal objects`);
+          console.log(`📋 Query result (proposal module, current package): Found ${objects.data?.length || 0} Proposal objects`);
           
-          // If none found, try devhub module
+          // If none found, try old package ID in proposal module
+          if ((objects.data || []).length === 0) {
+            console.log('🔍 No proposals found with current package ID, trying old package ID in proposal module...');
+            objects = await suiClient.getOwnedObjects({
+              owner: currentAccount.address,
+              filter: { StructType: `${PREVIOUS_PACKAGE_ID_V1}::proposal::Proposal` },
+              options: { showContent: true, showType: true },
+            });
+            console.log(`📋 Query result (proposal module, old package): Found ${objects.data?.length || 0} Proposal objects`);
+          }
+          
+          // If still none found, try devhub module with current package ID
           if ((objects.data || []).length === 0) {
             objects = await suiClient.getOwnedObjects({
               owner: currentAccount.address,
-              filter: { StructType: `${PACKAGE_ID}::devhub::Proposal` },
+              filter: { StructType: `${currentPackageId}::devhub::Proposal` },
               options: { showContent: true, showType: true },
             });
-            console.log(`📋 Query result (devhub module): Found ${objects.data?.length || 0} Proposal objects`);
+            console.log(`📋 Query result (devhub module, current package): Found ${objects.data?.length || 0} Proposal objects`);
+          }
+          
+          // If still none found, try devhub module with old package ID
+          if ((objects.data || []).length === 0) {
+            console.log('🔍 No proposals found with current package ID, trying old package ID in devhub module...');
+            objects = await suiClient.getOwnedObjects({
+              owner: currentAccount.address,
+              filter: { StructType: `${PREVIOUS_PACKAGE_ID_V1}::devhub::Proposal` },
+              options: { showContent: true, showType: true },
+            });
+            console.log(`📋 Query result (devhub module, old package): Found ${objects.data?.length || 0} Proposal objects`);
           }
           
           proposalIds = (objects.data || []).map(obj => obj.data?.objectId || '').filter(id => id);

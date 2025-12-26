@@ -2,7 +2,7 @@
 // These functions provide a wrapper around the Sui messaging SDK
 // Note: Some functions are currently using mock implementations due to SDK compatibility issues
 
-import { suiClient, PACKAGE_ID } from '../constants';
+import { suiClient, getCurrentPackageId } from '../constants';
 import { getAllActiveCards } from '../read/adminRead';
 
 export async function createMessagingChannel(
@@ -58,7 +58,7 @@ export async function getUserChannelMemberships(userAddress: string) {
     const ownedObjects = await client.getOwnedObjects({
       owner: userAddress,
       filter: {
-        StructType: `${PACKAGE_ID}::channels::MemberCap`
+        StructType: `${getCurrentPackageId()}::channels::MemberCap`
       },
       options: {
         showContent: true,

@@ -10,6 +10,7 @@ use sui::url;
 use sui::clock::{Self, Clock};
 use sui::tx_context::{Self, TxContext};
 use sui::object::{Self, UID, ID};
+use sui::transfer;
 
 // Import our modules
 use devhub::constants;
@@ -23,10 +24,27 @@ use devhub::card::{DevCard, SkillLevel, Review};
 use devhub::project::{Project, ProjectApplication};
 use devhub::proposal::{Proposal, PlatformStatistics, UserProposals, ProposalsByStatus};
 
+// ===== VERSION TRACKING =====
+
+// Current package version - increment this with each upgrade
+const VERSION: u64 = 2;
+
+// ===== ADMIN CAP FOR UPGRADES =====
+
+/// AdminCap is used to control package upgrades.
+/// Only the holder of this capability can authorize upgrades.
+public struct AdminCap has key, store {
+    id: UID,
+}
+
 // ===== MAIN DEVHUB STRUCT =====
 
 public struct DevHub has key, store {
     id: UID,
+    // Version tracking for upgrade compatibility
+    version: u64,
+    // Admin capability ID - links DevHub to its AdminCap
+    admin_cap_id: ID,
     super_admin: address,
     admins: vector<address>,
     card_counter: u64,
@@ -43,8 +61,17 @@ public struct DevHub has key, store {
 // ===== INITIALIZATION =====
 
 fun init(ctx: &mut TxContext) {
+    // Create AdminCap for upgrade control
+    let admin_cap = AdminCap {
+        id: object::new(ctx),
+    };
+    let admin_cap_id = object::id(&admin_cap);
+
+    // Create and share DevHub with version tracking
     transfer::share_object(DevHub {
         id: object::new(ctx),
+        version: VERSION,
+        admin_cap_id,
         super_admin: tx_context::sender(ctx),
         admins: vector::empty(),
         card_counter: 0,
@@ -57,6 +84,9 @@ fun init(ctx: &mut TxContext) {
         platform_fee: constants::PLATFORM_FEE(),
         project_posting_fee: constants::PROJECT_POSTING_FEE(),
     });
+
+    // Transfer AdminCap to the deployer
+    transfer::transfer(admin_cap, tx_context::sender(ctx));
 }
 
 // ===== CARD FUNCTIONS =====
@@ -87,6 +117,9 @@ entry fun create_card(
     devhub: &mut DevHub,
     ctx: &mut TxContext,
 ) {
+    // Version check - ensure we're using the latest package version
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
+    
     let sender = tx_context::sender(ctx);
     assert!(!table::contains(&devhub.user_cards, sender), constants::USER_ALREADY_HAS_CARD());
     
@@ -190,6 +223,9 @@ entry fun update_card(
     clock: &Clock,
     ctx: &TxContext
 ) {
+    // Version check
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
+    
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     assert!(card::get_owner(card) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
 
@@ -257,6 +293,7 @@ entry fun update_avatar_walrus_blob(
     clock: &Clock,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     assert!(card::get_owner(card) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
     
@@ -274,6 +311,7 @@ entry fun add_skill(
     clock: &Clock,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     assert!(proficiency >= 1 && proficiency <= 10, constants::INVALID_SKILL_LEVEL());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     assert!(card::get_owner(card) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
@@ -296,6 +334,7 @@ entry fun remove_skill(
     clock: &Clock,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     assert!(card::get_owner(card) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
     
@@ -312,6 +351,7 @@ entry fun add_review(
     clock: &Clock,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     let reviewer = tx_context::sender(ctx);
     let current_time = clock::timestamp_ms(clock);
@@ -326,6 +366,7 @@ entry fun track_profile_view_entry(
     clock: &Clock,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     let viewer = tx_context::sender(ctx);
     let current_time = clock::timestamp_ms(clock);
@@ -339,23 +380,27 @@ entry fun track_contact_click(
     card_id: u64,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     card::track_contact_click(card, tx_context::sender(ctx));
 }
 
 entry fun activate_card(devhub: &mut DevHub, id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, id);
     assert!(card::get_owner(card) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
     card::set_open_to_work(card, true);
 }
 
 entry fun deactivate_card(devhub: &mut DevHub, id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow_mut(&mut devhub.cards, id);
     assert!(card::get_owner(card) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
     card::set_open_to_work(card, false);
 }
 
 entry fun delete_card(devhub: &mut DevHub, id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let card = table::borrow(&devhub.cards, id);
     let owner = card::get_owner(card);
     assert!(owner == tx_context::sender(ctx), constants::NOT_THE_OWNER());
@@ -402,6 +447,7 @@ entry fun create_project(
     clock: &Clock,
     ctx: &mut TxContext
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let value = coin::value(&payment);
     assert!(value >= devhub.project_posting_fee, constants::INSUFFICIENT_FUNDS());
 
@@ -495,6 +541,7 @@ entry fun update_project(
     _clock: &Clock,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let proj = table::borrow_mut(&mut devhub.projects, project_id);
     assert!(project::get_owner(proj) == tx_context::sender(ctx), constants::NOT_THE_OWNER());
     
@@ -521,6 +568,7 @@ entry fun update_project(
 }
 
 entry fun open_applications(devhub: &mut DevHub, project_id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let proj = table::borrow_mut(&mut devhub.projects, project_id);
     assert!(tx_context::sender(ctx) == project::get_owner(proj), constants::NOT_THE_OWNER());
     assert!(project::get_applications_status(proj) != string::utf8(b"Open"), constants::E_APPLICATIONS_ALREADY_OPEN());
@@ -528,6 +576,7 @@ entry fun open_applications(devhub: &mut DevHub, project_id: u64, ctx: &TxContex
 }
 
 entry fun close_applications(devhub: &mut DevHub, project_id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let proj = table::borrow_mut(&mut devhub.projects, project_id);
     assert!(tx_context::sender(ctx) == project::get_owner(proj), constants::NOT_THE_OWNER());
     assert!(project::get_applications_status(proj) != string::utf8(b"Closed"), constants::E_APPLICATIONS_ALREADY_CLOSED());
@@ -543,6 +592,7 @@ entry fun update_application_status(
     new_status: vector<u8>,
     ctx: &TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let proj = table::borrow_mut(&mut devhub.projects, project_id);
     // Only the project owner can change application statuses
     assert!(tx_context::sender(ctx) == project::get_owner(proj), constants::NOT_THE_OWNER());
@@ -613,6 +663,7 @@ entry fun apply_to_project(
     clock: &Clock,
     ctx: &mut TxContext
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let proj = table::borrow(&devhub.projects, project_id);
     assert!(project::get_applications_status(proj) == string::utf8(b"Open"), constants::E_APPLICATIONS_NOT_OPEN());
     
@@ -920,6 +971,7 @@ entry fun update_proposal_status(
     clock: &Clock,
     ctx: &TxContext
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let sender = tx_context::sender(ctx);
     assert!(
         admin::is_admin_or_super_admin(devhub.super_admin, &devhub.admins, sender),
@@ -957,12 +1009,14 @@ entry fun update_proposal_status(
 // ===== ADMIN FUNCTIONS =====
 
 entry fun grant_admin_role(devhub: &mut DevHub, new_admin: address, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     assert!(admin::is_super_admin(devhub.super_admin, tx_context::sender(ctx)), constants::NOT_SUPER_ADMIN());
     admin::add_admin(&mut devhub.admins, new_admin);
     admin::emit_admin_role_granted(new_admin);
 }
 
 entry fun revoke_admin_role(devhub: &mut DevHub, admin_to_revoke: address, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     assert!(admin::is_super_admin(devhub.super_admin, tx_context::sender(ctx)), constants::NOT_SUPER_ADMIN());
     admin::remove_admin(&mut devhub.admins, admin_to_revoke);
     admin::emit_admin_role_revoked(admin_to_revoke);
@@ -974,6 +1028,7 @@ entry fun withdraw_platform_fees(
     amount: u64,
     ctx: &mut TxContext,
 ) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     assert!(admin::is_super_admin(devhub.super_admin, tx_context::sender(ctx)), constants::NOT_SUPER_ADMIN());
 
     let current_balance = balance::value(&devhub.platform_fees);
@@ -987,16 +1042,19 @@ entry fun withdraw_platform_fees(
 }
 
 entry fun change_platform_fee(devhub: &mut DevHub, new_fee: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     assert!(admin::is_super_admin(devhub.super_admin, tx_context::sender(ctx)), constants::NOT_SUPER_ADMIN());
     devhub.platform_fee = new_fee;
 }
 
 entry fun change_project_posting_fee(devhub: &mut DevHub, new_fee: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     assert!(admin::is_super_admin(devhub.super_admin, tx_context::sender(ctx)), constants::NOT_SUPER_ADMIN());
     devhub.project_posting_fee = new_fee;
 }
 
 entry fun verify_professional(devhub: &mut DevHub, card_id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let sender = tx_context::sender(ctx);
     assert!(admin::is_admin_or_super_admin(devhub.super_admin, &devhub.admins, sender), constants::NOT_ADMIN());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
@@ -1004,13 +1062,33 @@ entry fun verify_professional(devhub: &mut DevHub, card_id: u64, ctx: &TxContext
 }
 
 entry fun unverify_professional(devhub: &mut DevHub, card_id: u64, ctx: &TxContext) {
+    assert!(devhub.version == VERSION, constants::E_WRONG_VERSION());
     let sender = tx_context::sender(ctx);
     assert!(admin::is_admin_or_super_admin(devhub.super_admin, &devhub.admins, sender), constants::NOT_ADMIN());
     let card = table::borrow_mut(&mut devhub.cards, card_id);
     card::set_verified(card, false);
 }
 
+// ===== UPGRADE MIGRATION =====
+
+/// Migrate the DevHub shared object to the current package version.
+/// This must be called after upgrading the package to update the shared object's version.
+/// Only the AdminCap owner can call this function.
+entry fun migrate(devhub: &mut DevHub, admin_cap: &AdminCap) {
+    // Verify the AdminCap matches the DevHub's admin_cap_id
+    assert!(devhub.admin_cap_id == object::id(admin_cap), constants::E_NOT_ADMIN_CAP_OWNER());
+    // Ensure this is actually an upgrade (version must be less than current)
+    assert!(devhub.version < VERSION, constants::E_NOT_UPGRADE());
+    // Update the version to match the current package version
+    devhub.version = VERSION;
+}
+
 // ===== VIEW FUNCTIONS =====
+
+// Version and upgrade-related view functions
+public fun get_version(devhub: &DevHub): u64 { devhub.version }
+public fun get_admin_cap_id(devhub: &DevHub): ID { devhub.admin_cap_id }
+public fun get_package_version(): u64 { VERSION }
 
 public fun get_user_card_id(devhub: &DevHub, user_address: address): Option<u64> {
     if (table::contains(&devhub.user_cards, user_address)) {

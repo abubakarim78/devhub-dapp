@@ -1,7 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { SuiClient } from '@mysten/sui/client';
 import { suiClient } from '../constants';
-import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
+import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
 import { parseReturnValue, bytesToHexAddress, parseU64Value, decodeBytesToString } from '../utils';
 import { Project, ProjectApplication } from '../types';
 
@@ -11,7 +11,7 @@ export async function getProjectInfo(projectId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PROJECT_INFO}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PROJECT_INFO}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(projectId),
@@ -383,7 +383,7 @@ export async function getProjectApplications(projectId: number, client?: SuiClie
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PROJECT_APPLICATIONS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PROJECT_APPLICATIONS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(projectId),
