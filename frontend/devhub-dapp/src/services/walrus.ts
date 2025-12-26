@@ -12,7 +12,10 @@ const WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus-testnet.walrus.space';
 // Optional backend proxy URL to avoid browser CORS issues when uploading
 // Set VITE_WALRUS_PROXY_URL in the frontend env to enable this, e.g.:
 // VITE_WALRUS_PROXY_URL=http://localhost:3001/api/walrus-upload
-const WALRUS_PROXY_URL = import.meta.env.VITE_WALRUS_PROXY_URL as string | undefined;
+// Using localhost for local development - commented out deployed link
+// const WALRUS_PROXY_URL = import.meta.env.VITE_WALRUS_PROXY_URL as string | undefined;
+// Hardcoded to localhost for now - uncomment the line above and remove this when deploying
+const WALRUS_PROXY_URL = 'http://localhost:3001/api/walrus-upload';
 
 // Backup endpoints in case primary fails
 const BACKUP_AGGREGATOR_URL = 'https://wal-aggregator-testnet.staketab.org';

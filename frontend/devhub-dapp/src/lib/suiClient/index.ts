@@ -30,3 +30,9 @@ export * from './read/platformStats';
 // Export messaging SDK wrapper functions
 export * from './messaging/messagingSDK';
 
+// Export upgrade utilities
+export * from './upgrade';
+
+// Export cache utilities
+export * from './clearCache';
+

@@ -3,7 +3,7 @@ import { useSuiClient, useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import {
   DEVHUB_OBJECT_ID,
-  PACKAGE_ID,
+  getCurrentPackageId,
   CONTRACT_FUNCTIONS,
   DevCardData,
   FeaturedProject,
@@ -52,12 +52,12 @@ export const useContractCards = (
         const count = await withRetry(async () => {
           const tx = new Transaction();
           tx.moveCall({
-            target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
+            target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
             arguments: [tx.object(DEVHUB_OBJECT_ID)],
           });
 
           console.log(
-            `📤 Card count transaction target: ${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
+            `📤 Card count transaction target: ${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
           );
 
           const result = await client.devInspectTransactionBlock({
@@ -92,7 +92,8 @@ export const useContractCards = (
         return 0;
       }
     },
-    [client, currentAccount, cacheRef, withRetry, setState],
+    // setState is stable from useState, no need to include it in deps
+    [client, currentAccount, cacheRef, withRetry],
   );
 
   const getCardInfo = useCallback(
@@ -112,12 +113,12 @@ export const useContractCards = (
         const cardData = await withRetry(async () => {
           const tx = new Transaction();
           tx.moveCall({
-            target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
+            target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
             arguments: [tx.object(DEVHUB_OBJECT_ID), tx.pure.u64(cardId)],
           });
 
           console.log(
-            `📤 Transaction target: ${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
+            `📤 Transaction target: ${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
           );
           console.log(`📤 DevHub Object ID: ${DEVHUB_OBJECT_ID}`);
           console.log(`📤 Sender address: ${currentAccount?.address || "0x0"}`);
@@ -651,7 +652,8 @@ export const useContractCards = (
         return [];
       }
     },
-    [getCardCount, batchFetchCards, setState],
+    // setState is stable from useState, no need to include it in deps
+    [getCardCount, batchFetchCards],
   );
 
   /**
@@ -689,7 +691,8 @@ export const useContractCards = (
         return [];
       }
     },
-    [getCardCount, batchFetchCards, setState],
+    // setState is stable from useState, no need to include it in deps
+    [getCardCount, batchFetchCards],
   );
 
   const getAllActiveCards = useCallback(
@@ -716,7 +719,8 @@ export const useContractCards = (
         return [];
       }
     },
-    [getAllCards, setState],
+    // setState is stable from useState, no need to include it in deps
+    [getAllCards],
   );
 
   const getCardsOpenToWork = useCallback(
@@ -747,7 +751,8 @@ export const useContractCards = (
         return [];
       }
     },
-    [getAllCards, setState],
+    // setState is stable from useState, no need to include it in deps
+    [getAllCards],
   );
 
   const getUserCards = useCallback(

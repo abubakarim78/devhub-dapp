@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import {
-  PACKAGE_ID,
+  getCurrentPackageId,
   Conversation,
   Connection,
   Message,
@@ -179,7 +179,7 @@ export const useContractMessaging = (
       try {
         const events = await client.queryEvents({
           query: {
-            MoveEventType: `${PACKAGE_ID}::devhub::ConnectionAccepted`
+            MoveEventType: `${getCurrentPackageId()}::devhub::ConnectionAccepted`
           },
           limit: 100,
           order: 'ascending'
@@ -216,7 +216,7 @@ export const useContractMessaging = (
       try {
         const events = await client.queryEvents({
           query: {
-            MoveEventType: `${PACKAGE_ID}::messaging::ConversationCreated`
+            MoveEventType: `${getCurrentPackageId()}::messaging::ConversationCreated`
           },
           limit: 100,
           order: 'ascending'
@@ -308,13 +308,16 @@ export const useContractMessaging = (
       }
 
       try {
-        console.log('Querying for ConversationCreated events with package ID:', PACKAGE_ID);
+        const currentPackageId = getCurrentPackageId();
+        console.log('Querying for ConversationCreated events with package ID:', currentPackageId);
+        // Query in descending order to get the most recent conversations first
+        // Increase limit to ensure we get all conversations
         const events = await client.queryEvents({
           query: {
-            MoveEventType: `${PACKAGE_ID}::messaging::ConversationCreated`
+            MoveEventType: `${getCurrentPackageId()}::messaging::ConversationCreated`
           },
-          limit: 100,
-          order: 'ascending'
+          limit: 200, // Increased limit to get more conversations
+          order: 'descending' // Changed to descending to get latest first
         });
 
         const conversationsByPair: Record<string, Conversation> = {};

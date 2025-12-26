@@ -15,7 +15,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { PACKAGE_ID, DEVHUB_OBJECT_ID } from "@/lib/suiClient";
+import { DEVHUB_OBJECT_ID, getCurrentPackageId } from "@/lib/suiClient";
 
 interface Project {
   id: string;
@@ -48,11 +48,12 @@ const Opportunities = () => {
       try {
         setLoading(true);
         console.log('🔍 Fetching projects...');
-        console.log('📦 PACKAGE_ID:', PACKAGE_ID);
+        const currentPackageId = getCurrentPackageId();
+        console.log('📦 PACKAGE_ID:', currentPackageId);
         
         // Step 1: Query ProjectCreated events
         const events = await suiClient.queryEvents({
-          query: { MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated` },
+          query: { MoveEventType: `${currentPackageId}::devhub::ProjectCreated` },
           order: "descending",
           limit: 100,
         });
@@ -447,7 +448,7 @@ const Opportunities = () => {
           console.log('🔄 Fallback 1: Querying projects owned by DevHub object...');
           const owned = await suiClient.getOwnedObjects({
             owner: DEVHUB_OBJECT_ID,
-            filter: { StructType: `${PACKAGE_ID}::devhub::Project` },
+            filter: { StructType: `${getCurrentPackageId()}::devhub::Project` },
             options: { showContent: true, showType: true },
           });
 
@@ -496,7 +497,7 @@ const Opportunities = () => {
           console.log('🔄 Fallback 2: Querying projects owned by current user...');
           const mine = await suiClient.getOwnedObjects({
             owner: currentAccount.address,
-            filter: { StructType: `${PACKAGE_ID}::devhub::Project` },
+            filter: { StructType: `${getCurrentPackageId()}::devhub::Project` },
             options: { showContent: true, showType: true },
           });
           const mineMapped = (mine.data || [])
@@ -549,7 +550,8 @@ const Opportunities = () => {
           });
           const typed = (mineAll.data || []).filter((obj: any) => {
             const t = obj.data?.type as string | undefined;
-            return t && t.includes(`${PACKAGE_ID}::devhub::Project`);
+            const currentPackageId = getCurrentPackageId();
+            return t && t.includes(`${currentPackageId}::devhub::Project`);
           });
           const typedMapped = typed
             .map((obj: any) => {

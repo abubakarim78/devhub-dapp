@@ -28,7 +28,8 @@ import {
   createUserProposalsObjectTransaction,
   createHelperObjectsBatchTransaction,
   DEVHUB_OBJECT_ID,
-  PACKAGE_ID,
+  getCurrentPackageId,
+  PREVIOUS_PACKAGE_ID_V1,
 } from "@/lib/suiClient";
 
 type Milestone = {
@@ -184,7 +185,7 @@ export default function ApplyProject() {
         // 1) UserProposals (owned by user)
         const owned = await client.getOwnedObjects({
           owner: account.address,
-          filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+          filter: { StructType: `${getCurrentPackageId()}::devhub::UserProposals` },
           options: { showType: true },
         });
         if (owned.data?.length) {
@@ -207,15 +208,125 @@ export default function ApplyProject() {
   // Capture created shared object ids from successful submission if possible via effects
   const afterSuccessPersistSharedIds = async (digest: string) => {
     try {
-      const tx = await client.getTransactionBlock({ digest, options: { showEffects: true } });
-      const created = tx.effects?.created || [];
-      const shared = created.find((c: any) => (c.owner as any)?.Shared);
-      if (shared?.reference?.objectId) {
-        localStorage.setItem("devhub_proposals_by_status_id", shared.reference.objectId);
-        setProposalsByStatusId(shared.reference.objectId);
+      const currentPackageId = getCurrentPackageId();
+      const expectedType = `${currentPackageId}::proposal::ProposalsByStatus`;
+      
+      console.log('🔍 afterSuccessPersistSharedIds - Expected type:', expectedType);
+      console.log('🔍 afterSuccessPersistSharedIds - Using package ID:', currentPackageId);
+      
+      // Use showObjectChanges to get the actual object types
+      const tx = await client.getTransactionBlock({ 
+        digest, 
+        options: { 
+          showEffects: true, 
+          showObjectChanges: true,
+          showInput: false,
+          showEvents: false,
+          showBalanceChanges: false
+        } 
+      });
+      
+      // Check objectChanges first (more reliable for type information)
+      const objectChanges = tx.objectChanges || [];
+      console.log('🔍 Object changes found:', objectChanges.length);
+      
+      // TEMPORARY: Accept old package ID type as workaround
+      const oldPackageExpectedType = `${PREVIOUS_PACKAGE_ID_V1}::proposal::ProposalsByStatus`;
+      
+      for (const change of objectChanges) {
+        if (change.type === 'created' && change.objectType) {
+          const objectId = (change as any).objectId;
+          const objectType = change.objectType;
+          
+          console.log('🔍 Checking created object:', { objectId, objectType });
+          
+          // Check if it's a shared object (owner will be in the change)
+          const owner = (change as any).owner;
+          if (owner && typeof owner === 'object' && 'Shared' in owner) {
+            // Verify the type matches (accept both current and old package ID types as workaround)
+            if (objectType === expectedType) {
+              console.log('✅ Found ProposalsByStatus with correct type:', objectId);
+              localStorage.setItem("devhub_proposals_by_status_id", objectId);
+              setProposalsByStatusId(objectId);
+              return;
+            } else if (objectType === oldPackageExpectedType) {
+              // TEMPORARY WORKAROUND: Accept old package ID type
+              console.warn('⚠️ TEMPORARY WORKAROUND: Found ProposalsByStatus with old package ID type, accepting it:', objectId);
+              localStorage.setItem("devhub_proposals_by_status_id", objectId);
+              setProposalsByStatusId(objectId);
+              return;
+            } else {
+              console.warn('⚠️ Found shared object with wrong type:', { objectId, objectType, expectedType });
+            }
+          }
+        }
       }
-    } catch (_) {
-      // ignore
+      
+      // Fallback: check effects.created if objectChanges didn't work
+      const created = tx.effects?.created || [];
+      console.log('🔍 Fallback: Checking effects.created:', created.length);
+      
+      for (const obj of created) {
+        if ((obj.owner as any)?.Shared && obj.reference?.objectId) {
+          try {
+            // Verify the object type
+            const objData = await client.getObject({ 
+              id: obj.reference.objectId, 
+              options: { showType: true } 
+            });
+            
+            console.log('🔍 Checking object from effects:', { objectId: obj.reference.objectId, type: objData.data?.type });
+            
+            // TEMPORARY: Accept old package ID type as workaround
+            const oldPackageExpectedType = `${PREVIOUS_PACKAGE_ID_V1}::proposal::ProposalsByStatus`;
+            
+            if (objData.data?.type === expectedType) {
+              localStorage.setItem("devhub_proposals_by_status_id", obj.reference.objectId);
+              setProposalsByStatusId(obj.reference.objectId);
+              console.log('✅ Extracted ProposalsByStatus ID from transaction:', obj.reference.objectId);
+              return;
+            } else if (objData.data?.type === oldPackageExpectedType) {
+              // TEMPORARY WORKAROUND: Accept old package ID type
+              console.warn('⚠️ TEMPORARY WORKAROUND: Found ProposalsByStatus with old package ID type in effects, accepting it:', obj.reference.objectId);
+              localStorage.setItem("devhub_proposals_by_status_id", obj.reference.objectId);
+              setProposalsByStatusId(obj.reference.objectId);
+              return;
+            }
+          } catch (e) {
+            // Continue to next object
+            console.warn('Failed to verify object type:', e);
+          }
+        }
+      }
+      
+      // Last fallback: use first shared object from objectChanges, but log warning about type mismatch
+      const sharedChange = objectChanges.find((change: any) => 
+        change.type === 'created' && 
+        change.owner && 
+        typeof change.owner === 'object' && 
+        'Shared' in change.owner
+      );
+      
+      if (sharedChange && (sharedChange as any).objectId) {
+        const fallbackObjectId = (sharedChange as any).objectId;
+        const fallbackType = (sharedChange as any).objectType;
+        console.warn(`⚠️ Could not verify ProposalsByStatus type match. Found shared object with type: ${fallbackType}, expected: ${expectedType}`);
+        console.warn('⚠️ Using first shared object from objectChanges despite type mismatch. This may cause issues later.');
+        localStorage.setItem("devhub_proposals_by_status_id", fallbackObjectId);
+        setProposalsByStatusId(fallbackObjectId);
+      } else {
+        // Final fallback: use first shared object from effects
+        const shared = created.find((c: any) => (c.owner as any)?.Shared);
+        if (shared?.reference?.objectId) {
+          console.warn('⚠️ Could not verify ProposalsByStatus type, using first shared object from effects');
+          localStorage.setItem("devhub_proposals_by_status_id", shared.reference.objectId);
+          setProposalsByStatusId(shared.reference.objectId);
+        } else {
+          console.error('❌ Could not find any shared objects in the transaction');
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting ProposalsByStatus ID:', error);
     }
   };
 
@@ -320,10 +431,11 @@ export default function ApplyProject() {
             console.log('✅ UserProposals ID (from batch transaction details):', ensuredUserProposalsId);
           } else {
             // Fallback: Query for the created UserProposals object
-            console.log(`🔍 Querying for UserProposals with PACKAGE_ID: ${PACKAGE_ID}`);
+            const currentPackageId = getCurrentPackageId();
+            console.log(`🔍 Querying for UserProposals with PACKAGE_ID: ${currentPackageId}`);
             const owned = await client.getOwnedObjects({
               owner: account.address,
-              filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+              filter: { StructType: `${getCurrentPackageId()}::devhub::UserProposals` },
               options: { showType: true },
             });
             console.log('📦 Query result:', owned);
@@ -340,7 +452,8 @@ export default function ApplyProject() {
                 objectId: obj.data?.objectId,
                 type: obj.data?.type
               })));
-              throw new Error(`Failed to create UserProposals object. PACKAGE_ID: ${PACKAGE_ID}. Please check if the package ID is correct.`);
+              const currentPackageId = getCurrentPackageId();
+              throw new Error(`Failed to create UserProposals object. PACKAGE_ID: ${currentPackageId}. Please check if the package ID is correct.`);
             }
             setUserProposalsId(ensuredUserProposalsId);
             console.log('✅ UserProposals ID (from query):', ensuredUserProposalsId);
@@ -418,10 +531,11 @@ export default function ApplyProject() {
             console.log('✅ UserProposals ID (from transaction details):', ensuredUserProposalsId);
           } else {
             // Fallback: Query for the created object
-            console.log(`🔍 Querying for UserProposals with PACKAGE_ID: ${PACKAGE_ID}`);
+            const currentPackageId = getCurrentPackageId();
+            console.log(`🔍 Querying for UserProposals with PACKAGE_ID: ${currentPackageId}`);
             const again = await client.getOwnedObjects({
               owner: account.address,
-              filter: { StructType: `${PACKAGE_ID}::devhub::UserProposals` },
+              filter: { StructType: `${getCurrentPackageId()}::devhub::UserProposals` },
               options: { showType: true },
             });
             console.log('📦 Query result:', again);
@@ -438,7 +552,8 @@ export default function ApplyProject() {
                 objectId: obj.data?.objectId,
                 type: obj.data?.type
               })));
-              throw new Error(`Failed to create UserProposals object. PACKAGE_ID: ${PACKAGE_ID}. Please check if the package ID is correct.`);
+              const currentPackageId = getCurrentPackageId();
+              throw new Error(`Failed to create UserProposals object. PACKAGE_ID: ${currentPackageId}. Please check if the package ID is correct.`);
             }
             setUserProposalsId(ensuredUserProposalsId);
             console.log('✅ UserProposals ID (from query):', ensuredUserProposalsId);
@@ -637,7 +752,8 @@ export default function ApplyProject() {
           // Object exists, continue with validation
           // Validate it's the correct type
           // Note: The ProposalsByStatus object is created in the proposal module, not devhub
-          const expectedType = `${PACKAGE_ID}::proposal::ProposalsByStatus`;
+          const currentPackageId = getCurrentPackageId();
+          const expectedType = `${currentPackageId}::proposal::ProposalsByStatus`;
           const actualType = obj.data?.type;
           if (!actualType) {
             throw new Error('ProposalsByStatus object has no type information');
@@ -652,7 +768,7 @@ export default function ApplyProject() {
               The ProposalsByStatus object was created with a different package ID.
               Automatically recreating it with the new package ID...
               
-              Current PACKAGE_ID: ${PACKAGE_ID}
+              Current PACKAGE_ID: ${currentPackageId}
               Object's package ID: ${objectPackageId}`);
             
             // Clear the old cached ID so it gets recreated
@@ -667,12 +783,14 @@ export default function ApplyProject() {
             const txCreatePBS = createProposalsByStatusTransaction();
             await new Promise<void>((resolve, reject) => {
               signExecute(
-                { transaction: txCreatePBS, options: { showEffects: true } } as any,
+                { transaction: txCreatePBS, options: { showEffects: true, showObjectChanges: true } } as any,
                 {
                   onSuccess: async (res: any) => {
                     try {
                       console.log('✅ New ProposalsByStatus created, digest:', res.digest);
-                      await client.waitForTransaction({ digest: res.digest });
+                      // Wait for transaction to be fully processed
+                      await client.waitForTransaction({ digest: res.digest, options: { showObjectChanges: true } });
+                      // Extract the object ID from the transaction
                       await afterSuccessPersistSharedIds(res.digest);
                       resolve();
                     } catch (e) {
@@ -689,14 +807,15 @@ export default function ApplyProject() {
             });
             setError(null);
             
-            // Fetch the newly created object ID
+            // Fetch the newly created object ID (it should have been set by afterSuccessPersistSharedIds)
             const cached = localStorage.getItem("devhub_proposals_by_status_id");
             if (cached) {
               ensuredProposalsByStatusId = cached;
               setProposalsByStatusId(cached);
               console.log('✅ New ProposalsByStatus ID:', ensuredProposalsByStatusId);
               
-              // Re-fetch the object to get the shared version
+              // Re-fetch the object to get the shared version (with a small delay to ensure it's indexed)
+              await new Promise(resolve => setTimeout(resolve, 1000));
               const newObj = await client.getObject({ 
                 id: ensuredProposalsByStatusId, 
                 options: { showType: true, showOwner: true, showContent: true } 
@@ -706,11 +825,38 @@ export default function ApplyProject() {
                 throw new Error(`New ProposalsByStatus object ${ensuredProposalsByStatusId} not found`);
               }
               
-              // Verify it has the correct type now
+              // Verify it has the correct type now (recalculate expectedType to ensure it uses current package ID)
+              const currentPackageIdForValidation = getCurrentPackageId();
+              const expectedTypeForNew = `${currentPackageIdForValidation}::proposal::ProposalsByStatus`;
               const newType = newObj.data.type;
-              if (newType !== expectedType) {
-                throw new Error(`New ProposalsByStatus still has wrong type. Expected: ${expectedType}, Got: ${newType}`);
+              console.log('🔍 Validating new object type:', { expectedTypeForNew, newType, objectId: ensuredProposalsByStatusId });
+              
+              // TEMPORARY WORKAROUND: Accept old package ID type since Move contract creates objects with old type
+              const oldPackageType = `${PREVIOUS_PACKAGE_ID_V1}::proposal::ProposalsByStatus`;
+              
+              if (newType !== expectedTypeForNew && newType !== oldPackageType) {
+                console.error('❌ Type mismatch after recreation:', { 
+                  expected: expectedTypeForNew, 
+                  got: newType, 
+                  objectId: ensuredProposalsByStatusId,
+                  currentPackageId: currentPackageIdForValidation
+                });
+                
+                // This is a critical error - the Move contract is creating objects with an unexpected package ID
+                localStorage.removeItem("devhub_proposals_by_status_id");
+                setProposalsByStatusId(null);
+                
+                throw new Error(
+                  `CRITICAL: Move contract is creating ProposalsByStatus objects with an unexpected package ID type. ` +
+                  `Expected: ${expectedTypeForNew} or ${oldPackageType}, Got: ${newType}. ` +
+                  `Please check the Move contract code.`
+                );
+              } else if (newType === oldPackageType) {
+                // TEMPORARY WORKAROUND: Accept old package ID type
+                console.warn('⚠️ TEMPORARY WORKAROUND: New object has old package ID type, but accepting it:', newType);
               }
+              
+              console.log('✅ New object type validated correctly');
               
               // Extract shared version from the new object
               if (newObj.data.owner && typeof newObj.data.owner === 'object' && 'Shared' in newObj.data.owner) {

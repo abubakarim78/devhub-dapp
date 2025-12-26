@@ -87,7 +87,9 @@ const Messages: React.FC = () => {
     useConversations, 
     getAllActiveCards, 
     getSampleCards,
-    uploadToWalrus
+    uploadToWalrus,
+    getCardCount,
+    getCardInfo
   } = useContract();
   
   const [selectedMessage, setSelectedMessage] = useState<string>('');
@@ -109,6 +111,8 @@ const Messages: React.FC = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const processedConversationRef = useRef<Set<string>>(new Set());
+  const loadingMessagesRef = useRef<string | null>(null);
+  const conversationsRef = useRef<typeof conversations>(conversations);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -177,8 +181,13 @@ const Messages: React.FC = () => {
       if (cachedNameMap) {
         try {
           const parsedCache = JSON.parse(cachedNameMap);
-          setAddressToNameMap(parsedCache);
-          console.log('Loaded address to name mapping from cache:', parsedCache);
+          // Normalize all keys to lowercase for consistent lookups
+          const normalizedCache: Record<string, string> = {};
+          Object.keys(parsedCache).forEach(key => {
+            normalizedCache[key.toLowerCase()] = parsedCache[key];
+          });
+          setAddressToNameMap(normalizedCache);
+          console.log('Loaded address to name mapping from cache (normalized):', normalizedCache);
         } catch (e) {
           console.warn('Failed to parse cached name map:', e);
         }
@@ -190,13 +199,18 @@ const Messages: React.FC = () => {
       
       allCards.forEach((card: any) => {
         if (card.owner && card.name) {
-          nameMap[card.owner] = card.name;
+          // Store with normalized (lowercase) address as key for consistent lookups
+          const normalizedOwner = card.owner.toLowerCase();
+          nameMap[normalizedOwner] = card.name;
         }
       });
       
-      // Update state and cache
-      setAddressToNameMap(nameMap);
-      localStorage.setItem('addressToNameMap', JSON.stringify(nameMap));
+      // Merge with existing map (don't overwrite)
+      setAddressToNameMap(prev => {
+        const merged = { ...prev, ...nameMap };
+        localStorage.setItem('addressToNameMap', JSON.stringify(merged));
+        return merged;
+      });
       console.log('Loaded fresh address to name mapping:', nameMap);
       return nameMap;
     } catch (error) {
@@ -213,8 +227,13 @@ const Messages: React.FC = () => {
       if (cachedDeveloperMap) {
         try {
           const parsedCache = JSON.parse(cachedDeveloperMap);
-          setAddressToDeveloperMap(parsedCache);
-          console.log('Loaded developer info from cache:', Object.keys(parsedCache));
+          // Normalize all keys to lowercase for consistent lookups
+          const normalizedCache: Record<string, { name: string; title: string; imageUrl: string }> = {};
+          Object.keys(parsedCache).forEach(key => {
+            normalizedCache[key.toLowerCase()] = parsedCache[key];
+          });
+          setAddressToDeveloperMap(normalizedCache);
+          console.log('Loaded developer info from cache (normalized):', Object.keys(normalizedCache));
         } catch (e) {
           console.warn('Failed to parse cached developer map:', e);
         }
@@ -227,7 +246,9 @@ const Messages: React.FC = () => {
       
       activeCards.forEach((card: any) => {
         if (card.owner && card.name) {
-          developerMap[card.owner] = {
+          // Store with normalized (lowercase) address as key for consistent lookups
+          const normalizedOwner = card.owner.toLowerCase();
+          developerMap[normalizedOwner] = {
             name: card.name,
             title: card.niche || 'Developer',
             imageUrl: card.imageUrl || '/api/placeholder/40/40'
@@ -235,9 +256,12 @@ const Messages: React.FC = () => {
         }
       });
       
-      // Update state and cache
-      setAddressToDeveloperMap(developerMap);
-      localStorage.setItem('addressToDeveloperMap', JSON.stringify(developerMap));
+      // Merge with existing map (don't overwrite)
+      setAddressToDeveloperMap(prev => {
+        const merged = { ...prev, ...developerMap };
+        localStorage.setItem('addressToDeveloperMap', JSON.stringify(merged));
+        return merged;
+      });
       console.log('Loaded fresh developer info for addresses:', Object.keys(developerMap));
       console.log('Developer map:', developerMap);
     } catch (error) {
@@ -245,41 +269,65 @@ const Messages: React.FC = () => {
     }
   }, [getAllActiveCards]);
 
-  // Get user name for a given address
+  // Get user name for a given address (case-insensitive lookup)
   const getUserName = useCallback((address: string) => {
-    // First check if it's the current user
-    if (address === currentAccount?.address) {
+    if (!address) return 'Unknown';
+    
+    // First check if it's the current user (case-insensitive)
+    if (address.toLowerCase() === currentAccount?.address?.toLowerCase()) {
       return 'You';
     }
     
-    // Check developer map first (most reliable source)
-    const developerInfo = addressToDeveloperMap[address];
+    const normalizedAddress = address.toLowerCase();
+    
+    // Check developer map first (most reliable source) - try both original and normalized
+    const developerInfo = addressToDeveloperMap[address] || addressToDeveloperMap[normalizedAddress];
     if (developerInfo && developerInfo.name) {
       return developerInfo.name;
     }
     
-    // Check address to name map
-    const nameFromMap = addressToNameMap[address];
+    // Check address to name map - try both original and normalized
+    const nameFromMap = addressToNameMap[address] || addressToNameMap[normalizedAddress];
     if (nameFromMap) {
       return nameFromMap;
     }
     
+    // Check availableDevelopers as fallback
+    const availableDev = availableDevelopers.find(dev => 
+      dev.owner?.toLowerCase() === normalizedAddress
+    );
+    if (availableDev?.name) {
+      return availableDev.name;
+    }
+    
     // Fallback to address
     return `Developer ${address.slice(0, 8)}...`;
-  }, [currentAccount?.address, addressToDeveloperMap, addressToNameMap]);
+  }, [currentAccount?.address, addressToDeveloperMap, addressToNameMap, availableDevelopers]);
 
-  // Get user avatar for a given address
+  // Get user avatar for a given address (case-insensitive lookup)
   const getUserAvatar = useCallback((address: string) => {
-    // Check developer map first (most reliable source)
-    const developerInfo = addressToDeveloperMap[address];
+    if (!address) return '/api/placeholder/40/40';
+    
+    const normalizedAddress = address.toLowerCase();
+    
+    // Check developer map first (most reliable source) - try both original and normalized
+    const developerInfo = addressToDeveloperMap[address] || addressToDeveloperMap[normalizedAddress];
     if (developerInfo && developerInfo.imageUrl) {
       return developerInfo.imageUrl;
+    }
+    
+    // Check availableDevelopers as fallback
+    const availableDev = availableDevelopers.find(dev => 
+      dev.owner?.toLowerCase() === normalizedAddress
+    );
+    if (availableDev?.imageUrl) {
+      return availableDev.imageUrl;
     }
     
     // Fallback to generated avatar
     const name = getUserName(address);
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=40`;
-  }, [addressToDeveloperMap, getUserName]);
+  }, [addressToDeveloperMap, getUserName, availableDevelopers]);
 
   // Function to update conversation names when address mapping changes
   const updateConversationNames = useCallback((nameMap: Record<string, string>) => {
@@ -457,33 +505,78 @@ const Messages: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMessage]);
 
-  // Load messages when a conversation is selected (consolidated)
-  useEffect(() => {
-    console.log('Selected message changed:', selectedMessage);
-    if (selectedMessage) {
-      // loadMessages already handles cache restoration internally
-      loadMessages(selectedMessage, false);
-    }
-  }, [selectedMessage]);
-
-  const loadConversations = useCallback(async (forceRefresh: boolean = false) => {
+  const loadConversations = useCallback(async (forceRefresh: boolean = false, silent: boolean = false) => {
     if (!currentAccount?.address) return;
     
-    setLoading(true);
+    // Only show loading state if not a silent background refresh
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       // For now, skip the new SDK and go directly to legacy conversations
       // since the SDK has compatibility issues
-      console.log('Using legacy conversation loading due to SDK compatibility issues');
+      if (!silent) {
+        console.log('Using legacy conversation loading due to SDK compatibility issues');
+      }
       
       let contractConversations: any[] = [];
       try {
         contractConversations = await useConversations(currentAccount.address, forceRefresh);
-        console.log('Loaded legacy conversations:', contractConversations);
+        if (!silent) {
+          console.log('Loaded legacy conversations from events:', contractConversations);
+        }
       } catch (error) {
         console.warn('Failed to load conversations from contract:', error);
-        // If the function doesn't exist or fails, create mock conversations for testing
         contractConversations = [];
         console.log('Using empty conversations list as fallback');
+      }
+      
+        // Load known conversation IDs from localStorage as fallback
+      try {
+        const knownConversationsKey = `known_conversations:${currentAccount.address}`;
+        const knownConversationIds = JSON.parse(localStorage.getItem(knownConversationsKey) || '[]');
+        if (!silent) {
+          console.log('Loaded known conversation IDs from localStorage:', knownConversationIds);
+        }
+        
+        // Fetch any conversations that weren't found in events but are in localStorage
+        for (const conversationId of knownConversationIds) {
+          const existsInContract = contractConversations.some(conv => conv.id === conversationId);
+          if (!existsInContract) {
+            try {
+              // Try to fetch the conversation object directly
+              const conversationObj = await suiClient.getObject({
+                id: conversationId,
+                options: { showContent: true, showType: true }
+              });
+              
+              if (conversationObj.data) {
+                const conversationFields = (conversationObj.data.content as any)?.fields;
+                const p1 = conversationFields?.participant1 || currentAccount.address;
+                const p2 = conversationFields?.participant2 || currentAccount.address;
+                
+                // Only add if current user is a participant
+                if (p1.toLowerCase() === currentAccount.address.toLowerCase() || 
+                    p2.toLowerCase() === currentAccount.address.toLowerCase()) {
+                  contractConversations.push({
+                    id: conversationId,
+                    participant1: p1,
+                    participant2: p2,
+                    messages: []
+                  });
+                  console.log('✅ Restored conversation from localStorage:', conversationId);
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to restore conversation from localStorage:', conversationId, error);
+              // Remove invalid conversation ID from localStorage
+              const updatedKnownIds = knownConversationIds.filter((id: string) => id !== conversationId);
+              localStorage.setItem(knownConversationsKey, JSON.stringify(updatedKnownIds));
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load known conversations from localStorage:', error);
       }
       
       // First, create conversations without loading messages (to avoid rate limiting)
@@ -525,6 +618,134 @@ const Messages: React.FC = () => {
       
       // Set conversations immediately (before loading messages)
       setConversations(uiConversations);
+      
+      // Collect all participant addresses and fetch missing developer info
+      const participantAddresses = new Set<string>();
+      contractConversations.forEach(conv => {
+        participantAddresses.add(conv.participant1.toLowerCase());
+        participantAddresses.add(conv.participant2.toLowerCase());
+      });
+      
+      // Fetch developer info for any participants not in the map
+      const missingAddresses = Array.from(participantAddresses).filter(addr => 
+        !addressToDeveloperMap[addr] && addr !== currentAccount.address?.toLowerCase()
+      );
+      
+      if (missingAddresses.length > 0) {
+        if (!silent) {
+          console.log('Fetching developer info for missing participants:', missingAddresses);
+        }
+        // Try to fetch cards for missing addresses
+        try {
+          const updatedDeveloperMap = { ...addressToDeveloperMap };
+          const updatedNameMap = { ...addressToNameMap };
+          let hasUpdates = false;
+          const foundAddresses = new Set<string>();
+          
+          // First try getAllActiveCards (faster, but only includes openToWork cards)
+          try {
+            const activeCards = await getAllActiveCards();
+            activeCards.forEach((card: any) => {
+              if (!card.owner || !card.name) return;
+              const cardOwner = card.owner.toLowerCase();
+              if (missingAddresses.includes(cardOwner)) {
+                updatedDeveloperMap[cardOwner] = {
+                  name: card.name,
+                  title: card.niche || 'Developer',
+                  imageUrl: card.imageUrl || '/api/placeholder/40/40'
+                };
+                updatedNameMap[cardOwner] = card.name;
+                foundAddresses.add(cardOwner);
+                hasUpdates = true;
+                if (!silent) {
+                  console.log(`✅ Fetched developer info from active cards for ${cardOwner.slice(0, 8)}...: ${card.name}`);
+                }
+              }
+            });
+          } catch (activeError) {
+            console.warn('Error fetching active cards:', activeError);
+          }
+          
+          // If there are still missing addresses, try to get them from availableDevelopers
+          const stillMissing = missingAddresses.filter(addr => !foundAddresses.has(addr));
+          if (stillMissing.length > 0 && availableDevelopers.length > 0) {
+            availableDevelopers.forEach((dev: any) => {
+              if (!dev.owner || !dev.name) return;
+              const devOwner = dev.owner.toLowerCase();
+              if (stillMissing.includes(devOwner)) {
+                updatedDeveloperMap[devOwner] = {
+                  name: dev.name,
+                  title: dev.niche || dev.title || 'Developer',
+                  imageUrl: dev.imageUrl || '/api/placeholder/40/40'
+                };
+                updatedNameMap[devOwner] = dev.name;
+                foundAddresses.add(devOwner);
+                hasUpdates = true;
+                if (!silent) {
+                  console.log(`✅ Fetched developer info from availableDevelopers for ${devOwner.slice(0, 8)}...: ${dev.name}`);
+                }
+              }
+            });
+          }
+          
+          // If there are still missing addresses, fetch ALL cards (not just active) to find them
+          const finalMissing = missingAddresses.filter(addr => !foundAddresses.has(addr));
+          if (finalMissing.length > 0 && getCardCount && getCardInfo) {
+            if (!silent) {
+              console.log(`🔍 Fetching ALL cards to find info for remaining ${finalMissing.length} addresses...`);
+            }
+            try {
+              const totalCardCount = await getCardCount();
+              if (!silent) {
+                console.log(`📊 Total cards to check: ${totalCardCount}`);
+              }
+              
+              // Limit to first 100 cards to avoid timeout, but prioritize missing addresses
+              const cardsToCheck = Math.min(totalCardCount, 100);
+              for (let cardId = 1; cardId <= cardsToCheck && finalMissing.length > foundAddresses.size; cardId++) {
+                try {
+                  const cardInfo = await getCardInfo(cardId);
+                  if (cardInfo && cardInfo.owner && cardInfo.name) {
+                    const cardOwner = cardInfo.owner.toLowerCase();
+                    if (finalMissing.includes(cardOwner)) {
+                      updatedDeveloperMap[cardOwner] = {
+                        name: cardInfo.name,
+                        title: cardInfo.niche || 'Developer',
+                        imageUrl: cardInfo.imageUrl || '/api/placeholder/40/40'
+                      };
+                      updatedNameMap[cardOwner] = cardInfo.name;
+                      foundAddresses.add(cardOwner);
+                      hasUpdates = true;
+                      if (!silent) {
+                        console.log(`✅ Fetched developer info from ALL cards for ${cardOwner.slice(0, 8)}...: ${cardInfo.name}`);
+                      }
+                    }
+                  }
+                  // Small delay to avoid rate limiting
+                  if (cardId % 10 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                  }
+                } catch (cardError) {
+                  // Continue to next card if this one fails
+                  continue;
+                }
+              }
+            } catch (allCardsError) {
+              console.warn('Error fetching all cards:', allCardsError);
+            }
+          }
+          
+          if (hasUpdates) {
+            setAddressToDeveloperMap(updatedDeveloperMap);
+            setAddressToNameMap(updatedNameMap);
+            // Update cache
+            localStorage.setItem('addressToDeveloperMap', JSON.stringify(updatedDeveloperMap));
+            localStorage.setItem('addressToNameMap', JSON.stringify(updatedNameMap));
+          }
+        } catch (error) {
+          console.warn('Failed to fetch developer info for missing participants:', error);
+        }
+      }
       
       // Load messages for conversations sequentially with delays (to avoid rate limiting)
       // This runs asynchronously and updates conversations as messages are loaded
@@ -609,29 +830,68 @@ const Messages: React.FC = () => {
       }
       
       const hasToParam = Boolean(searchParams.get('to'));
-      if (uiConversations.length > 0 && !selectedMessage && !hasToParam) {
+      if (uiConversations.length > 0 && !selectedMessage && !hasToParam && !silent) {
         setSelectedMessage(uiConversations[0].id);
         console.log('Auto-selected first conversation:', uiConversations[0].id);
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
     } finally {
-      setLoading(false);
+      // Only clear loading state if not a silent background refresh
+      if (!silent) {
+        setLoading(false);
+      }
     }
-  }, [currentAccount?.address, useConversations, addressToNameMap, searchParams]);
+  }, [currentAccount?.address, useConversations, addressToNameMap, addressToDeveloperMap, availableDevelopers, searchParams, getAllActiveCards, getCardCount, getCardInfo]);
+
+  // Periodic refresh of conversations to detect new messages from other users
+  useEffect(() => {
+    if (!currentAccount?.address) return;
+
+    // Initial load
+    loadConversations(false);
+
+    // Set up periodic refresh every 10 seconds to check for new conversations and messages
+    // Silent background refresh - no loading states visible to users
+    const interval = setInterval(() => {
+      loadConversations(true, true).catch(err => {
+        // Silent failure - only log to console for debugging, don't show to users
+        console.debug('Background conversation refresh failed:', err);
+      });
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [currentAccount?.address, loadConversations]);
 
 
-  const loadMessages = useCallback(async (conversationId: string, forceRefresh: boolean = false) => {
+  // Update conversations ref when conversations change
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  const loadMessages = useCallback(async (conversationId: string, forceRefresh: boolean = false, silent: boolean = false) => {
     if (!conversationId || !currentAccount?.address) return;
     
+    // Prevent duplicate loading
+    if (loadingMessagesRef.current === conversationId && !forceRefresh) {
+      if (!silent) {
+        console.log('Already loading messages for this conversation, skipping...');
+      }
+      return;
+    }
+    
+    loadingMessagesRef.current = conversationId;
+    
     // Only load from localStorage if conversations are already loaded (to ensure participants are available)
-    if (!forceRefresh && conversations.length > 0) {
+    if (!forceRefresh && conversationsRef.current.length > 0) {
       try {
         const cachedMessages = localStorage.getItem(`messages-${conversationId}`);
         if (cachedMessages) {
           const parsedMessages = JSON.parse(cachedMessages);
           setCurrentMessages(parsedMessages);
-          console.log('Loaded cached messages from localStorage:', parsedMessages.length);
+          if (!silent) {
+            console.log('Loaded cached messages from localStorage:', parsedMessages.length);
+          }
         }
       } catch (error) {
         console.warn('Failed to load messages from localStorage:', error);
@@ -642,35 +902,47 @@ const Messages: React.FC = () => {
     if (forceRefresh) {
       try {
         localStorage.removeItem(`messages-${conversationId}`);
-        console.log('Cleared localStorage cache for conversation:', conversationId);
+        if (!silent) {
+          console.log('Cleared localStorage cache for conversation:', conversationId);
+        }
       } catch (error) {
         console.warn('Failed to clear localStorage cache:', error);
       }
     }
     
     try {
-      console.log('Loading messages for conversation:', conversationId);
+      if (!silent) {
+        console.log('Loading messages for conversation:', conversationId);
+      }
       
       // For now, skip the new SDK and go directly to legacy messages
       // since the SDK has compatibility issues
-      console.log('Using legacy message loading due to SDK compatibility issues');
+      if (!silent) {
+        console.log('Using legacy message loading due to SDK compatibility issues');
+      }
       
-      const currentConversation = conversations.find(conv => conv.id === conversationId);
+      const currentConversation = conversationsRef.current.find(conv => conv.id === conversationId);
       const participants = currentConversation ? [currentConversation.participant1, currentConversation.participant2] : undefined;
       
-      console.log('Current conversation found:', !!currentConversation);
-      console.log('Conversations list:', conversations);
-      console.log('Conversation ID to find:', conversationId);
-      console.log('Loading messages with participants:', participants);
-      console.log('Participant1:', currentConversation?.participant1);
-      console.log('Participant2:', currentConversation?.participant2);
+      if (!silent) {
+        console.log('Current conversation found:', !!currentConversation);
+        console.log('Conversations list:', conversationsRef.current);
+        console.log('Conversation ID to find:', conversationId);
+        console.log('Loading messages with participants:', participants);
+        console.log('Participant1:', currentConversation?.participant1);
+        console.log('Participant2:', currentConversation?.participant2);
+      }
       
       // Get real messages from the contract with decryption
       let contractMessages: any[] = [];
       try {
+        // useMessages signature: (conversationId: string, participants?: string[])
+        const participants = currentConversation ? [currentConversation.participant1, currentConversation.participant2] : undefined;
         contractMessages = await useMessages(conversationId, participants);
-        console.log('Contract messages:', contractMessages);
-        console.log('Contract messages count:', contractMessages.length);
+        if (!silent) {
+          console.log('Contract messages:', contractMessages);
+          console.log('Contract messages count:', contractMessages.length);
+        }
       } catch (error) {
         console.warn('Failed to load messages from contract:', error);
         // If the function fails, use empty messages list
@@ -743,7 +1015,9 @@ const Messages: React.FC = () => {
         };
       });
       
-      console.log('UI messages:', uiMessages);
+      if (!silent) {
+        console.log('UI messages:', uiMessages);
+      }
       
       // If this is a force refresh (after sending a message), merge with existing messages
       if (forceRefresh) {
@@ -785,7 +1059,9 @@ const Messages: React.FC = () => {
               : (lastMessageTimestamp < 1000000000000 ? lastMessageTimestamp * 1000 : lastMessageTimestamp);
             
             updateLastSeen(conversationId, timestamp);
-            console.log('Updated last seen from message timestamp:', timestamp, new Date(timestamp));
+            if (!silent) {
+              console.log('Updated last seen from message timestamp:', timestamp, new Date(timestamp));
+            }
           }
         }
       }
@@ -793,7 +1069,9 @@ const Messages: React.FC = () => {
       // Store messages in localStorage for persistence
       try {
         localStorage.setItem(`messages-${conversationId}`, JSON.stringify(uiMessages));
-        console.log('Messages stored in localStorage for persistence');
+        if (!silent) {
+          console.log('Messages stored in localStorage for persistence');
+        }
       } catch (storageError) {
         console.warn('Failed to store messages in localStorage:', storageError);
       }
@@ -814,9 +1092,49 @@ const Messages: React.FC = () => {
       } catch (storageError) {
         console.error('Failed to load messages from localStorage:', storageError);
         setCurrentMessages([]);
+      } finally {
+        // Clear loading flag
+        if (loadingMessagesRef.current === conversationId) {
+          loadingMessagesRef.current = null;
+        }
       }
     }
-  }, [currentAccount?.address, useMessages]);
+  }, [currentAccount?.address, useMessages, getAllActiveCards, availableDevelopers, addressToDeveloperMap, addressToNameMap, getCardCount, getCardInfo]);
+
+  // Load messages when a conversation is selected (consolidated)
+  useEffect(() => {
+    if (!selectedMessage) return;
+    
+    console.log('Selected message changed:', selectedMessage);
+    
+    // Use a small delay to prevent rapid re-triggers
+    const timeoutId = setTimeout(() => {
+      if (selectedMessage && loadingMessagesRef.current !== selectedMessage) {
+        loadMessages(selectedMessage, false);
+      }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedMessage, loadMessages]);
+
+  // Periodic refresh of messages for the currently selected conversation
+  useEffect(() => {
+    if (!selectedMessage || !currentAccount?.address) return;
+
+    // Set up periodic refresh every 10 seconds to check for new messages
+    // Silent background refresh - no loading states visible to users
+    const interval = setInterval(() => {
+      const currentSelected = selectedMessage;
+      if (currentSelected) {
+        loadMessages(currentSelected, true, true).catch(err => {
+          // Silent failure - only log to console for debugging, don't show to users
+          console.debug('Background message refresh failed:', err);
+        });
+      }
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedMessage, currentAccount?.address, loadMessages]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -915,10 +1233,75 @@ const Messages: React.FC = () => {
       console.log('Skipping new SDK due to compatibility issues, using legacy messaging');
       
       // Check if this is a mock conversation (not a real Sui object)
-      const currentConversation = conversations.find(conv => conv.id === selectedMessage);
+      let currentConversation = conversations.find(conv => conv.id === selectedMessage);
+      
+      // If conversation not found in list but selectedMessage is a valid Sui object ID, 
+      // try to fetch it directly and create a minimal conversation entry
+      if (!currentConversation && selectedMessage && selectedMessage.startsWith('0x') && selectedMessage.length === 66) {
+        try {
+          console.log('Conversation not in list, fetching directly:', selectedMessage);
+          const conversationObj = await suiClient.getObject({
+            id: selectedMessage,
+            options: { showContent: true, showType: true }
+          });
+          
+          if (conversationObj.data) {
+            const conversationFields = (conversationObj.data.content as any)?.fields;
+            const p1 = conversationFields?.participant1 || currentAccount.address;
+            const p2 = conversationFields?.participant2 || currentAccount.address;
+            const otherParticipant = p1 === currentAccount.address ? p2 : p1;
+            
+            // Get participant name
+            const developerInfo = addressToDeveloperMap[otherParticipant];
+            const participantName = developerInfo?.name || 
+              addressToNameMap[otherParticipant] || 
+              `User ${otherParticipant.slice(0, 8)}...`;
+            
+            // Create minimal conversation entry
+            currentConversation = {
+              id: selectedMessage,
+              participant1: p1,
+              participant2: p2,
+              participantName,
+              messages: [],
+              lastMessage: '',
+              lastMessageTime: '',
+              unreadCount: 0,
+            };
+            
+            // Persist to localStorage
+            try {
+              const knownConversationsKey = `known_conversations:${currentAccount.address}`;
+              const knownConversations = JSON.parse(localStorage.getItem(knownConversationsKey) || '[]');
+              if (!knownConversations.includes(selectedMessage)) {
+                knownConversations.push(selectedMessage);
+                localStorage.setItem(knownConversationsKey, JSON.stringify(knownConversations));
+              }
+            } catch (error) {
+              console.warn('Failed to persist conversation ID:', error);
+            }
+            
+            // Add to conversations list
+            setConversations(prev => {
+              if (prev.some(conv => conv.id === selectedMessage)) {
+                return prev;
+              }
+              return [currentConversation!, ...prev];
+            });
+            
+            console.log('✅ Created conversation entry from object:', currentConversation);
+          }
+        } catch (error) {
+          console.error('Failed to fetch conversation object:', error);
+          console.error('Conversation not found and cannot be fetched');
+          setSending(false);
+          return;
+        }
+      }
       
       if (!currentConversation) {
         console.error('Conversation not found');
+        setSending(false);
         return;
       }
 
@@ -1066,6 +1449,9 @@ const Messages: React.FC = () => {
 
         console.log('Message sent successfully:', digest);
 
+        // Wait a bit for the transaction to be indexed on-chain before refreshing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
         // Update the conversation list to show the new message
         setConversations(prev => {
           return prev.map(conv => {
@@ -1084,7 +1470,29 @@ const Messages: React.FC = () => {
         // Update last seen timestamp
         updateLastSeen(selectedMessage);
 
+        // Persist conversation ID for BOTH participants in localStorage
+        // This ensures the receiver can see the conversation even if event indexing is delayed
+        try {
+          const participants = [currentConversation.participant1, currentConversation.participant2];
+          for (const participant of participants) {
+            const knownConversationsKey = `known_conversations:${participant}`;
+            const knownConversations = JSON.parse(localStorage.getItem(knownConversationsKey) || '[]');
+            if (!knownConversations.includes(selectedMessage)) {
+              knownConversations.push(selectedMessage);
+              localStorage.setItem(knownConversationsKey, JSON.stringify(knownConversations));
+              console.log(`✅ Persisted conversation ID for participant ${participant.slice(0, 8)}...:`, selectedMessage);
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to persist conversation ID for both participants:', error);
+        }
+
+        // Reload messages with force refresh to get the new message from blockchain
         await loadMessages(selectedMessage, true);
+        
+        // Also refresh conversations list to ensure receiver sees the conversation
+        await loadConversations(true);
+        
         setToast({ message: 'Message sent', type: 'success' });
       }
     } catch (error) {
@@ -1134,18 +1542,70 @@ const Messages: React.FC = () => {
       const tx = startConversationTransaction(participant2);
       console.log('📝 Transaction created, executing signAndExecute...');
       
-      // Wait for transaction confirmation before proceeding
-      const digest = await new Promise<string>((resolve, reject) => {
+      // Wait for transaction confirmation and extract conversation ID
+      const { digest, conversationId } = await new Promise<{ digest: string; conversationId: string | null }>((resolve, reject) => {
         signAndExecute(
           { transaction: tx as any },
           {
             onSuccess: async (result: any) => {
               try {
                 console.log('Conversation transaction submitted:', result);
-                // Wait for transaction to be confirmed
-                await suiClient.waitForTransaction({ digest: result.digest });
-                console.log('Conversation transaction confirmed');
-                resolve(result.digest);
+                // Wait for transaction to be confirmed and get full effects
+                const txResult = await suiClient.waitForTransaction({ 
+                  digest: result.digest,
+                  options: {
+                    showEffects: true,
+                    showEvents: true,
+                  }
+                });
+                console.log('Conversation transaction confirmed:', txResult);
+                
+                // Try to extract conversation ID from events first
+                let extractedConversationId: string | null = null;
+                if (txResult.events) {
+                  for (const event of txResult.events) {
+                    if (event.type.includes('ConversationCreated')) {
+                      try {
+                        const eventData = typeof event.parsedJson === 'object' && event.parsedJson !== null 
+                          ? event.parsedJson as any 
+                          : JSON.parse(event.bcs || '{}');
+                        if (eventData.conversation_id) {
+                          extractedConversationId = eventData.conversation_id;
+                          console.log('✅ Extracted conversation ID from event:', extractedConversationId);
+                          break;
+                        }
+                      } catch (e) {
+                        console.warn('Failed to parse event:', e);
+                      }
+                    }
+                  }
+                }
+                
+                // If not found in events, try to extract from created objects
+                if (!extractedConversationId && txResult.effects?.created) {
+                  // The conversation object should be one of the created objects
+                  // We can check the object type or use the first created object if it's likely a conversation
+                  for (const created of txResult.effects.created) {
+                    if (created.reference) {
+                      // Fetch the object to check its type
+                      try {
+                        const obj = await suiClient.getObject({
+                          id: created.reference.objectId,
+                          options: { showType: true }
+                        });
+                        if (obj.data && obj.data.type && obj.data.type.includes('Conversation')) {
+                          extractedConversationId = created.reference.objectId;
+                          console.log('✅ Extracted conversation ID from created object:', extractedConversationId);
+                          break;
+                        }
+                      } catch (e) {
+                        // Continue to next object
+                      }
+                    }
+                  }
+                }
+                
+                resolve({ digest: result.digest, conversationId: extractedConversationId });
               } catch (e) {
                 reject(e);
               }
@@ -1155,10 +1615,131 @@ const Messages: React.FC = () => {
         );
       });
 
-      console.log('Conversation started successfully, digest:', digest);
+      console.log('Conversation started successfully, digest:', digest, 'conversationId:', conversationId);
       
       // Function to find and select the new conversation with retries
       const findAndSelectConversation = async (retries = 10, delay = 1000) => {
+        // If we already extracted the conversation ID from the transaction, use it directly
+        if (conversationId) {
+          console.log('✅ Using conversation ID from transaction:', conversationId);
+          try {
+            // Verify the conversation exists by fetching it
+            const conversationObj = await suiClient.getObject({
+              id: conversationId,
+              options: { showContent: true, showType: true }
+            });
+            
+            if (conversationObj.data) {
+              console.log('✅ Conversation object verified, selecting it');
+              
+              // Extract participant information from the conversation object
+              const conversationFields = (conversationObj.data.content as any)?.fields;
+              let extractedParticipant1 = currentAccount.address;
+              let extractedParticipant2 = participant2; // Use the parameter passed to handleStartConversation
+              
+              // Try to extract from the object if available
+              if (conversationFields?.participant1) {
+                extractedParticipant1 = conversationFields.participant1;
+              }
+              if (conversationFields?.participant2) {
+                extractedParticipant2 = conversationFields.participant2;
+              }
+              
+              // Get participant name for display
+              const otherParticipant = extractedParticipant1 === currentAccount.address ? extractedParticipant2 : extractedParticipant1;
+              const developerInfo = addressToDeveloperMap[otherParticipant];
+              const participantName = developerInfo?.name || 
+                addressToNameMap[otherParticipant] || 
+                availableDevelopers.find(dev => dev.owner === otherParticipant)?.name ||
+                `User ${otherParticipant.slice(0, 8)}...`;
+              
+              // Manually add the conversation to state so it's available immediately
+              const newConversation: ConversationData = {
+                id: conversationId,
+                participant1: extractedParticipant1,
+                participant2: extractedParticipant2,
+                participantName,
+                messages: [],
+                lastMessage: 'Start a conversation...',
+                lastMessageTime: 'Just now',
+                unreadCount: 0,
+                lastSeen: Date.now()
+              };
+              
+              // Persist conversation ID to localStorage for BOTH participants
+              // This ensures both sender and receiver can see the conversation
+              try {
+                const participants = [extractedParticipant1, extractedParticipant2];
+                for (const participant of participants) {
+                  const knownConversationsKey = `known_conversations:${participant}`;
+                  const knownConversations = JSON.parse(localStorage.getItem(knownConversationsKey) || '[]');
+                  if (!knownConversations.includes(conversationId)) {
+                    knownConversations.push(conversationId);
+                    localStorage.setItem(knownConversationsKey, JSON.stringify(knownConversations));
+                    console.log(`✅ Persisted conversation ID for participant ${participant.slice(0, 8)}...:`, conversationId);
+                  }
+                }
+              } catch (error) {
+                console.warn('Failed to persist conversation ID for both participants:', error);
+              }
+              
+              setConversations(prev => {
+                // Check if conversation already exists
+                if (prev.some(conv => conv.id === conversationId)) {
+                  return prev;
+                }
+                return [newConversation, ...prev];
+              });
+              
+              setSelectedMessage(conversationId);
+              await loadMessages(conversationId, true);
+              await loadConversations(true);
+              setIsCreatingConversation(false);
+              return;
+            }
+          } catch (error) {
+            console.warn('⚠️ Could not verify extracted conversation ID, falling back to event query:', error);
+            // Fall through to event query method
+          }
+        }
+        
+        // Try to query events directly by transaction digest first
+        if (digest && !conversationId) {
+          try {
+            console.log('🔍 Querying events for transaction digest:', digest);
+            const events = await suiClient.queryEvents({
+              query: { Transaction: digest },
+              limit: 10,
+            });
+            
+            for (const event of events.data) {
+              if (event.type.includes('ConversationCreated')) {
+                try {
+                  const eventData = typeof event.parsedJson === 'object' && event.parsedJson !== null 
+                    ? event.parsedJson as any 
+                    : JSON.parse(event.bcs || '{}');
+                  if (eventData.conversation_id) {
+                    const foundId = eventData.conversation_id;
+                    console.log('✅ Found conversation ID from transaction events:', foundId);
+                    setSelectedMessage(foundId);
+                    await loadMessages(foundId, true);
+                    await loadConversations(true);
+                    setIsCreatingConversation(false);
+                    return;
+                  }
+                } catch (e) {
+                  console.warn('Failed to parse event from transaction query:', e);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to query events by transaction digest:', error);
+          }
+        }
+        
+        // Small delay to allow for event indexing
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         for (let i = 0; i < retries; i++) {
           try {
             console.log(`Attempting to find new conversation (attempt ${i + 1}/${retries})...`);
@@ -1301,11 +1882,28 @@ const Messages: React.FC = () => {
       
       // Update conversation names with the new developer data
       const nameMap: Record<string, string> = {};
+      const developerMap: Record<string, { name: string; title: string; imageUrl: string }> = {};
       developers.forEach(dev => {
         if (dev.owner && dev.name) {
-          nameMap[dev.owner] = dev.name;
+          // Store with normalized (lowercase) address as key for consistent lookups
+          const normalizedOwner = dev.owner.toLowerCase();
+          nameMap[normalizedOwner] = dev.name;
+          developerMap[normalizedOwner] = {
+            name: dev.name,
+            title: dev.title || (dev as any).niche || 'Developer',
+            imageUrl: dev.imageUrl || '/api/placeholder/40/40'
+          };
         }
       });
+      
+      // Update maps with new developer data
+      if (Object.keys(nameMap).length > 0) {
+        setAddressToNameMap(prev => ({ ...prev, ...nameMap }));
+        setAddressToDeveloperMap(prev => ({ ...prev, ...developerMap }));
+        // Update cache
+        localStorage.setItem('addressToNameMap', JSON.stringify({ ...addressToNameMap, ...nameMap }));
+        localStorage.setItem('addressToDeveloperMap', JSON.stringify({ ...addressToDeveloperMap, ...developerMap }));
+      }
       
       // Update conversations with new names
       updateConversationNames(nameMap);
@@ -1414,7 +2012,7 @@ const Messages: React.FC = () => {
                         Messages
                       </h1>
                       <p className="text-xl text-muted-foreground">
-                        Chat with employers, collaborators, and other builders on BountyLink. Real-time messaging powered by Sui blockchain.
+                        Chat with employers, collaborators, and other builders on TumaHub. Real-time messaging powered by Sui blockchain.
                       </p>
                     </div>
                     
@@ -1447,14 +2045,16 @@ const Messages: React.FC = () => {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.4 }}
-                    className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-18rem)]"
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)] max-lg:h-[calc(100vh-8rem)]"
                   >
                     {/* Left Panel - Messages List */}
                     <motion.div
                       initial={{ opacity: 0, x: -30 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.6, delay: 0.5 }}
-                      className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl flex flex-col overflow-hidden"
+                      className={`bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl flex flex-col overflow-hidden ${
+                        selectedMessage ? 'max-lg:hidden' : ''
+                      }`}
                     >
                       {/* Header Row - Inbox, Search */}
                       <div className="flex items-center gap-3 mb-6">
@@ -1570,7 +2170,7 @@ const Messages: React.FC = () => {
                       initial={{ opacity: 0, x: 30 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.6, delay: 0.7 }}
-                      className="lg:col-span-2 bg-card/70 backdrop-blur-xl rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
+                      className="lg:col-span-2 bg-card/70 backdrop-blur-xl rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden min-h-0 max-lg:h-[calc(100vh-12rem)] max-lg:col-span-full"
                     >
                       {/* Chat Header */}
                       <div className="p-6 border-b border-border">
@@ -1662,7 +2262,7 @@ const Messages: React.FC = () => {
                       </div>
 
                       {/* Chat Messages */}
-                      <div className="flex-1 p-6 overflow-y-auto space-y-4 min-h-0 scrollbar-hide">
+                      <div className="flex-1 p-4 sm:p-5 md:p-6 overflow-y-auto space-y-4 min-h-0 scrollbar-hide">
                         {!selectedMessage ? (
                           <div className="flex items-center justify-center h-full">
                             <div className="text-center">
@@ -2001,7 +2601,7 @@ const Messages: React.FC = () => {
                       </div>
 
                       {/* Message Input */}
-                      <div className="p-6 border-t border-border">
+                      <div className="p-4 sm:p-5 md:p-6 border-t border-border flex-shrink-0">
                         {selectedMessage ? (
                           <>
                             {/* Hidden file input */}
@@ -2013,25 +2613,44 @@ const Messages: React.FC = () => {
                               accept="image/*,video/*,application/pdf,text/*"
                             />
                             
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-end gap-3">
                               <div className="flex-1 relative">
-                                <input
-                                  type="text"
+                                <textarea
                                   value={newMessage}
                                   onChange={(e) => setNewMessage(e.target.value)}
-                                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSendMessage();
+                                    }
+                                  }}
                                   placeholder={`Write a message to ${(() => {
                                     const conversation = conversations.find(conv => conv.id === selectedMessage);
                                     if (conversation) {
                                       const otherParticipant = conversation.participant1 === currentAccount?.address 
                                         ? conversation.participant2 
                                         : conversation.participant1;
-                                      return `${otherParticipant.slice(0, 8)}...`;
+                                      const normalizedOtherParticipant = otherParticipant?.toLowerCase();
+                                      // Try to get the participant name from addressToDeveloperMap or addressToNameMap (case-insensitive)
+                                      const developerInfo = addressToDeveloperMap[otherParticipant] || addressToDeveloperMap[normalizedOtherParticipant];
+                                      const name = developerInfo?.name || addressToNameMap[otherParticipant] || addressToNameMap[normalizedOtherParticipant];
+                                      // Also check availableDevelopers
+                                      const availableDev = availableDevelopers.find(dev => dev.owner?.toLowerCase() === normalizedOtherParticipant);
+                                      return name || availableDev?.name || conversation.participantName || `${otherParticipant.slice(0, 8)}...`;
                                     }
-                                    return 'this developer';
-                                  })()}...`}
+                                    return 'this user';
+                                  })()}`}
                                   disabled={sending || uploading}
-                                  className="w-full px-4 py-3 bg-background/70 backdrop-blur-xl border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder-muted-foreground disabled:opacity-50"
+                                  rows={1}
+                                  className="w-full px-4 py-3 sm:py-4 md:py-4 min-h-[52px] sm:min-h-[60px] md:min-h-[64px] max-h-[200px] bg-background/70 backdrop-blur-xl border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder-muted-foreground disabled:opacity-50 resize-none overflow-y-auto scrollbar-hide text-base sm:text-base md:text-lg leading-relaxed"
+                                  style={{
+                                    resize: 'none',
+                                  }}
+                                  onInput={(e) => {
+                                    const target = e.target as HTMLTextAreaElement;
+                                    target.style.height = 'auto';
+                                    target.style.height = `${Math.min(target.scrollHeight, 200)}px`;
+                                  }}
                                 />
                               </div>
                               <motion.button
@@ -2039,35 +2658,35 @@ const Messages: React.FC = () => {
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => document.getElementById('file-upload')?.click()}
                                 disabled={uploading}
-                                className="p-2 hover:bg-accent rounded-lg transition-colors disabled:opacity-50"
+                                className="p-3 sm:p-3.5 md:p-4 hover:bg-accent rounded-lg transition-colors disabled:opacity-50 min-h-[52px] sm:min-h-[60px] md:min-h-[64px] flex items-center justify-center"
                                 title="Attach file"
                               >
                                 {uploading ? (
-                                  <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                                  <Loader2 className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 text-muted-foreground animate-spin" />
                                 ) : (
-                                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                  <Paperclip className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 text-muted-foreground" />
                                 )}
                               </motion.button>
                               <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                className="p-2 hover:bg-accent rounded-lg transition-colors"
+                                className="p-3 sm:p-3.5 md:p-4 hover:bg-accent rounded-lg transition-colors min-h-[52px] sm:min-h-[60px] md:min-h-[64px] flex items-center justify-center"
                                 title="Add emoji"
                               >
-                                <Smile className="h-4 w-4 text-muted-foreground" />
+                                <Smile className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 text-muted-foreground" />
                               </motion.button>
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={handleSendMessage}
                               disabled={!newMessage.trim() || sending}
-                              className="px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-4 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[52px] sm:min-h-[60px] md:min-h-[64px]"
                             >
                               {sending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 animate-spin" />
                               ) : (
-                                <Send className="h-4 w-4" />
+                                <Send className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                               )}
                             </motion.button>
                             </div>
@@ -2122,7 +2741,7 @@ const Messages: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search developers..."
+                placeholder="Search users..."
                 value={developerSearchQuery}
                 onChange={(e) => setDeveloperSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-background/70 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder-muted-foreground"
@@ -2132,7 +2751,7 @@ const Messages: React.FC = () => {
             {loadingDevelopers ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Loading developers...</span>
+                <span className="ml-2 text-muted-foreground">Loading users...</span>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-3 mb-4 scrollbar-hide">
@@ -2140,7 +2759,7 @@ const Messages: React.FC = () => {
                   <div className="text-center py-8">
                     <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
-                      {developerSearchQuery ? 'No developers found matching your search' : 'No active developers found'}
+                      {developerSearchQuery ? 'No users found matching your search' : 'No active users found'}
                     </p>
                   </div>
                 ) : (

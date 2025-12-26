@@ -12,7 +12,7 @@ import { CacheTTL } from '@/lib/cache/localStorageCache';
 import { 
   getDetailedAnalytics,
   DEVHUB_OBJECT_ID,
-  PACKAGE_ID
+  getCurrentPackageId
 } from '@/lib/suiClient';
 import {
   Dialog,
@@ -93,10 +93,6 @@ const Toast: React.FC<{
     </div>
   );
 };
-
-
-
-
 
 const Dashboard: React.FC = () => {
   const currentAccount = useCurrentAccount();
@@ -724,15 +720,16 @@ const Dashboard: React.FC = () => {
       const fetchActivities = async () => {
         try {
           const userCardIds = cards.map(card => card.id.toString());
+          const currentPackageId = getCurrentPackageId();
           const eventTypes = [
-            `${PACKAGE_ID}::devhub::ReviewAdded`,
-            `${PACKAGE_ID}::devhub::ProfileViewed`,
-            `${PACKAGE_ID}::devhub::ProjectCreated`,
-            `${PACKAGE_ID}::devhub::ApplicationSubmitted`,
-            `${PACKAGE_ID}::devhub::ProposalCreated`,
-            `${PACKAGE_ID}::devhub::CardUpdated`,
-            `${PACKAGE_ID}::connections::ConnectionRequestSent`,
-            `${PACKAGE_ID}::connections::ConnectionAccepted`,
+            `${currentPackageId}::devhub::ReviewAdded`,
+            `${currentPackageId}::devhub::ProfileViewed`,
+            `${currentPackageId}::devhub::ProjectCreated`,
+            `${currentPackageId}::devhub::ApplicationSubmitted`,
+            `${currentPackageId}::devhub::ProposalCreated`,
+            `${currentPackageId}::devhub::CardUpdated`,
+            `${currentPackageId}::connections::ConnectionRequestSent`,
+            `${currentPackageId}::connections::ConnectionAccepted`,
           ];
 
           // Query all events in parallel
@@ -752,7 +749,7 @@ const Dashboard: React.FC = () => {
             filter: {
               FromAddress: currentAccount.address,
               MoveFunction: {
-                package: PACKAGE_ID,
+                package: getCurrentPackageId(),
                 module: 'connections',
                 function: 'accept_connection_request'
               }
@@ -991,12 +988,12 @@ const Dashboard: React.FC = () => {
           const [allCards, connectionEvents, requestEvents] = await Promise.all([
             getSampleCards(50).catch(() => []),
             suiClient.queryEvents({
-              query: { MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted` },
+              query: { MoveEventType: `${getCurrentPackageId()}::connections::ConnectionAccepted` },
               limit: 100,
               order: 'descending'
             }).catch(() => ({ data: [] })),
             suiClient.queryEvents({
-              query: { MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent` },
+              query: { MoveEventType: `${getCurrentPackageId()}::connections::ConnectionRequestSent` },
               limit: 100,
               order: 'descending'
             }).catch(() => ({ data: [] }))
@@ -1043,12 +1040,25 @@ const Dashboard: React.FC = () => {
               const cardName = card.name || `${card.owner.slice(0, 8)}...`;
               const avatarUrl = buildAvatarFor(cardName, normalizeAddr(card.owner), card);
               
-              let status: 'available' | 'busy' | 'offline' = 'available';
-              if (card?.analytics?.totalViews > 100) {
+              // Determine status based on card's actual live status
+              // Priority: isActive > openToWork
+              let status: 'available' | 'busy' | 'offline';
+              
+              // If card is inactive, status is offline
+              if (card?.isActive === false) {
+                status = 'offline';
+              }
+              // If card is active and openToWork is explicitly true, status is available
+              else if (card?.openToWork === true) {
+                status = 'available';
+              }
+              // If card is active and openToWork is explicitly false, status is busy
+              else if (card?.openToWork === false) {
                 status = 'busy';
               }
-              if (!card?.openToWork) {
-                status = 'offline';
+              // If openToWork is undefined but card is active, default to available
+              else {
+                status = 'available';
               }
 
               return {

@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { suiClient } from '../constants';
-import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
+import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
 import { parseReturnValue, bytesToHexAddress, parseU64Value } from '../utils';
 import { DevCardData, SkillLevel, FeaturedProject, Review, WorkPreferences, SocialLinks } from '../types';
 
@@ -10,7 +10,7 @@ export async function getCardInfo(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_INFO}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -223,7 +223,7 @@ export async function getCardSkills(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_SKILLS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_SKILLS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -251,7 +251,7 @@ export async function getCardReviews(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_REVIEWS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_REVIEWS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -986,7 +986,7 @@ export async function getDetailedAnalytics(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_DETAILED_ANALYTICS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_DETAILED_ANALYTICS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -1074,7 +1074,7 @@ export async function getWorkPreferences(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_WORK_PREFERENCES}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_WORK_PREFERENCES}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -1433,7 +1433,7 @@ export async function getSocialLinks(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_SOCIAL_LINKS}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_SOCIAL_LINKS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),
@@ -1800,7 +1800,7 @@ export async function getLanguages(cardId: number) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_LANGUAGES}`,
+          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_LANGUAGES}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.u64(cardId),

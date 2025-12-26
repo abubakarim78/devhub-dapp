@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
+import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
 
 // Helper function to create transaction block for card creation
 export function createCardTransaction(
@@ -31,7 +31,7 @@ export function createCardTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
     arguments: [
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.name))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardData.niche))),
@@ -71,7 +71,7 @@ export function deleteCardTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.DELETE_CARD}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.DELETE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -110,7 +110,7 @@ export function updateCardTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CARD}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -149,7 +149,7 @@ export function updateAvatarWalrusBlobTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_AVATAR_WALRUS_BLOB}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_AVATAR_WALRUS_BLOB}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -166,7 +166,7 @@ export function activateCardTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ACTIVATE_CARD}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ACTIVATE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -181,7 +181,7 @@ export function deactivateCardTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.DEACTIVATE_CARD}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.DEACTIVATE_CARD}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -201,7 +201,7 @@ export function addSkillTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_SKILL}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_SKILL}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -223,7 +223,7 @@ export function removeSkillTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.REMOVE_SKILL}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.REMOVE_SKILL}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -247,7 +247,7 @@ export function addReviewTransaction(
   const hasReviewText = reviewText && reviewText.trim().length > 0;
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_REVIEW}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_REVIEW}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -267,7 +267,7 @@ export function trackProfileViewTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.TRACK_PROFILE_VIEW}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.TRACK_PROFILE_VIEW}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -283,7 +283,7 @@ export function trackContactClickTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.TRACK_CONTACT_CLICK}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.TRACK_CONTACT_CLICK}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -304,7 +304,7 @@ export function updateWorkPreferencesTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_WORK_PREFERENCES}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_WORK_PREFERENCES}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -330,7 +330,7 @@ export function updateSocialLinksTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_SOCIAL_LINKS}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_SOCIAL_LINKS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -353,7 +353,7 @@ export function updateLanguagesTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_LANGUAGES}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_LANGUAGES}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -373,7 +373,7 @@ export function updateFeaturedProjectsTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_FEATURED_PROJECTS}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_FEATURED_PROJECTS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -390,7 +390,7 @@ export function verifyProfessionalTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.VERIFY_PROFESSIONAL}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.VERIFY_PROFESSIONAL}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
@@ -405,7 +405,7 @@ export function unverifyProfessionalTransaction(cardId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UNVERIFY_PROFESSIONAL}`,
+    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UNVERIFY_PROFESSIONAL}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(cardId),
