@@ -12,7 +12,7 @@ import {
     createCardTransaction, 
     PLATFORM_FEE, 
     setGasPaymentForTransaction,
-    getCurrentPackageId,
+    PACKAGE_ID,
     DEVHUB_OBJECT_ID,
     CONTRACT_FUNCTIONS
 } from '../lib/suiClient';
@@ -502,7 +502,7 @@ const CreateCard: React.FC = () => {
                     
                     // Add the card creation move call using the split coin for payment
                     tx.moveCall({
-                        target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
+                        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
                         arguments: [
                             tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.name))),
                             tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.niche))),
@@ -579,7 +579,7 @@ const CreateCard: React.FC = () => {
                     
                     // Add the card creation move call using the split coin for payment
                     tx.moveCall({
-                        target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
+                        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_CARD}`,
                         arguments: [
                             tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.name))),
                             tx.pure.vector('u8', Array.from(new TextEncoder().encode(cardDataForTransaction.niche))),

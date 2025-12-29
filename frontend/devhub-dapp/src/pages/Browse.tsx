@@ -82,7 +82,7 @@ const Browse: React.FC = () => {
       }
     };
     fetchCards();
-  }, [getAllCards]); // getAllCards is now stable from useCallback (setState removed from deps)
+  }, [getAllCards, persistentCache]);
 
   // --- MEMOIZED COMPUTATIONS ---
 

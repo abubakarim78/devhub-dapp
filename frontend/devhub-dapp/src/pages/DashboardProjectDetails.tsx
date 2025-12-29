@@ -10,7 +10,7 @@ import {
   Save, X, Paperclip, Image as ImageIcon, File
 } from 'lucide-react';
 import Layout from '@/components/common/Layout';
-import { DEVHUB_OBJECT_ID, updateProjectTransaction, getCurrentPackageId } from '@/lib/suiClient';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, updateProjectTransaction } from '@/lib/suiClient';
 import { WalrusService } from '@/services/walrus';
 
 interface Project {
@@ -58,7 +58,7 @@ const DashboardProjectDetails: React.FC = () => {
       try {
         // Query events first to get project_id mapping
         const events = await suiClient.queryEvents({
-          query: { MoveEventType: `${getCurrentPackageId()}::devhub::ProjectCreated` },
+          query: { MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated` },
           limit: 100,
         });
         
@@ -166,7 +166,7 @@ const DashboardProjectDetails: React.FC = () => {
             }
             
             const events = await suiClient.queryEvents({
-              query: { MoveEventType: `${getCurrentPackageId()}::devhub::ProjectCreated` },
+              query: { MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated` },
               limit: 100,
             });
             

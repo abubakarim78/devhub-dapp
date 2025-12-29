@@ -4,7 +4,7 @@ import { ArrowLeft, DollarSign, Clock, Calendar, Code2, Loader2, User, Tag, Brie
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '@/components/common/Layout';
-import { DEVHUB_OBJECT_ID, getCurrentPackageId } from '@/lib/suiClient';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID } from '@/lib/suiClient';
 import { WalrusService } from '@/services/walrus';
 
 interface Project {
@@ -145,7 +145,7 @@ const ProjectDetails: React.FC = () => {
               
               // First, get all events to map project IDs
               const events = await suiClient.queryEvents({
-                query: { MoveEventType: `${getCurrentPackageId()}::devhub::ProjectCreated` },
+                query: { MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated` },
                 limit: 100,
               });
               
@@ -284,7 +284,7 @@ const ProjectDetails: React.FC = () => {
         // This handles the case where the ID format might be different
         try {
           const events = await suiClient.queryEvents({
-                query: { MoveEventType: `${getCurrentPackageId()}::devhub::ProjectCreated` },
+            query: { MoveEventType: `${PACKAGE_ID}::devhub::ProjectCreated` },
             limit: 100,
           });
           

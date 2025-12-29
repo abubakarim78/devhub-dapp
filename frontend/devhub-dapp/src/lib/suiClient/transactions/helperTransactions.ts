@@ -1,12 +1,12 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, CONTRACT_FUNCTIONS } from '../constants';
 
 // Helper function to create platform statistics
 export function createPlatformStatisticsTransaction() {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_PLATFORM_STATISTICS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_PLATFORM_STATISTICS}`,
     arguments: [],
   });
 
@@ -16,13 +16,9 @@ export function createPlatformStatisticsTransaction() {
 // Helper function to create proposals by status
 export function createProposalsByStatusTransaction() {
   const tx = new Transaction();
-  const packageId = getCurrentPackageId();
-  
-  console.log('🔍 createProposalsByStatusTransaction using package ID:', packageId);
-  console.log('🔍 Function target:', `${packageId}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSALS_BY_STATUS}`);
-  
+
   tx.moveCall({
-    target: `${packageId}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSALS_BY_STATUS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSALS_BY_STATUS}`,
     arguments: [],
   });
 
@@ -34,7 +30,7 @@ export function createUserProposalsObjectTransaction() {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_USER_PROPOSALS_OBJECT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_USER_PROPOSALS_OBJECT}`,
     arguments: [],
   });
 
@@ -47,14 +43,13 @@ export function createHelperObjectsBatchTransaction() {
 
   // Create UserProposals object
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_USER_PROPOSALS_OBJECT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_USER_PROPOSALS_OBJECT}`,
     arguments: [],
   });
 
   // Create ProposalsByStatus object
-  const packageId = getCurrentPackageId();
   tx.moveCall({
-    target: `${packageId}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSALS_BY_STATUS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSALS_BY_STATUS}`,
     arguments: [],
   });
 

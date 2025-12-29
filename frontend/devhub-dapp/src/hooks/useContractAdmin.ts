@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { getCurrentPackageId, getAdmins as getAdminsFromContract, getSuperAdmin } from "../lib/suiClient";
+import { PACKAGE_ID, getAdmins as getAdminsFromContract, getSuperAdmin } from "../lib/suiClient";
 import type { ContractCacheRef } from "./useContractCache";
 import { isCacheValid, setCacheEntry } from "./useContractUtils";
 
@@ -21,8 +21,7 @@ export const useContractAdmin = (
 
       try {
         console.log(`🔍 Checking admin status for: ${address}`);
-        const currentPackageId = getCurrentPackageId();
-        console.log(`📦 Using PACKAGE_ID: ${currentPackageId}`);
+        console.log(`📦 Using PACKAGE_ID: ${PACKAGE_ID}`);
 
         // Use getAdmins and check if address is in the list
         // IMPORTANT: Publisher (super_admin) should NOT have regular admin access
@@ -62,8 +61,7 @@ export const useContractAdmin = (
         const errorMessage = err?.message || err?.toString() || '';
         if (errorMessage.includes('Package object does not exist') || 
             errorMessage.includes('does not exist with ID')) {
-          const currentPackageId = getCurrentPackageId();
-          console.warn(`⚠️ Package ${currentPackageId} does not exist on the network. This may be normal if the package hasn't been published yet.`);
+          console.warn(`⚠️ Package ${PACKAGE_ID} does not exist on the network. This may be normal if the package hasn't been published yet.`);
           return false;
         }
         console.error(`❌ Error checking admin status:`, err);
@@ -136,8 +134,7 @@ export const useContractAdmin = (
         const errorMessage = err?.message || err?.toString() || '';
         if (errorMessage.includes('Package object does not exist') || 
             errorMessage.includes('does not exist with ID')) {
-          const currentPackageId = getCurrentPackageId();
-          console.warn(`⚠️ Package ${currentPackageId} does not exist on the network. This may be normal if the package hasn't been published yet.`);
+          console.warn(`⚠️ Package ${PACKAGE_ID} does not exist on the network. This may be normal if the package hasn't been published yet.`);
           return false;
         }
         console.error(`❌ Error checking super admin status:`, err);

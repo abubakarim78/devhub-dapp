@@ -14,7 +14,7 @@ import {
   getRecentActivity,
   getPlatformFee,
   getActivityStats,
-  getCurrentPackageId,
+  PACKAGE_ID,
   DEVHUB_OBJECT_ID,
 } from "../lib/suiClient";
 import SuperAdminSidebar, {
@@ -455,14 +455,14 @@ const SuperAdmin: React.FC = () => {
       // Combine both transactions
       const combinedTx = new Transaction();
       combinedTx.moveCall({
-        target: `${getCurrentPackageId()}::devhub::change_platform_fee`,
+        target: `${PACKAGE_ID}::devhub::change_platform_fee`,
         arguments: [
           combinedTx.object(DEVHUB_OBJECT_ID),
           combinedTx.pure.u64(platformFeeInMist),
         ],
       });
       combinedTx.moveCall({
-        target: `${getCurrentPackageId()}::devhub::change_project_posting_fee`,
+        target: `${PACKAGE_ID}::devhub::change_project_posting_fee`,
         arguments: [
           combinedTx.object(DEVHUB_OBJECT_ID),
           combinedTx.pure.u64(projectFeeInMist),

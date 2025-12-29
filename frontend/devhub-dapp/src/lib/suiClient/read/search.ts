@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { suiClient } from '../constants';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
 import { parseReturnValue } from '../utils';
 
 export async function searchCardsBySkill(skillName: string, minProficiency: number) {
@@ -9,7 +9,7 @@ export async function searchCardsBySkill(skillName: string, minProficiency: numb
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_SKILL}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_SKILL}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.string(skillName),
@@ -37,7 +37,7 @@ export async function searchCardsByLocation(location: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_LOCATION}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_LOCATION}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.string(location),
@@ -64,7 +64,7 @@ export async function searchCardsByWorkType(workType: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_WORK_TYPE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_WORK_TYPE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.string(workType),
@@ -91,7 +91,7 @@ export async function searchCardsByNiche(niche: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_NICHE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEARCH_CARDS_BY_NICHE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.string(niche),
@@ -118,7 +118,7 @@ export async function searchProjectsBySkill(skill: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.SEARCH_PROJECTS_BY_SKILL}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SEARCH_PROJECTS_BY_SKILL}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.string(skill),
@@ -145,7 +145,7 @@ export async function getAvailableDevelopers() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_AVAILABLE_DEVELOPERS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_AVAILABLE_DEVELOPERS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -171,7 +171,7 @@ export async function getOpenProjects() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_OPEN_PROJECTS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_OPEN_PROJECTS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -198,7 +198,7 @@ export async function getUIUXDesigners() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_UI_UX_DESIGNERS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_UI_UX_DESIGNERS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -224,7 +224,7 @@ export async function getContentCreators() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CONTENT_CREATORS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CONTENT_CREATORS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -250,7 +250,7 @@ export async function getDevOpsProfessionals() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_DEVOPS_PROFESSIONALS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_DEVOPS_PROFESSIONALS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],

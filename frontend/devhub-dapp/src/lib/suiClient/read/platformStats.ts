@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { suiClient } from '../constants';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
 import { parseReturnValue, parseU64Value, bytesToHexAddress } from '../utils';
 
 export async function getPlatformStatistics(platformStatisticsId: string) {
@@ -9,7 +9,7 @@ export async function getPlatformStatistics(platformStatisticsId: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_STATISTICS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_STATISTICS}`,
           arguments: [
             tx.object(platformStatisticsId),
           ],
@@ -43,7 +43,7 @@ export async function getCardCount(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CARD_COUNT}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -72,7 +72,7 @@ export async function getSuperAdmin(): Promise<string | null> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_SUPER_ADMIN}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_SUPER_ADMIN}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],

@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import { CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, CONTRACT_FUNCTIONS } from '../constants';
 import { ConnectionRequest } from '../types';
 
 // === Legacy Messaging Functions (Deprecated) ===
@@ -10,7 +10,7 @@ export function startConversationTransaction(participant2: string) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::messaging::${CONTRACT_FUNCTIONS.START_CONVERSATION}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.START_CONVERSATION}`,
     arguments: [
       tx.pure.address(participant2),
       tx.object(SUI_CLOCK_OBJECT_ID),
@@ -63,7 +63,7 @@ export async function sendEncryptedMessageTransaction(
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${getCurrentPackageId()}::messaging::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
+      target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
       arguments: [
         tx.object(conversationId),
         tx.pure.vector('u8', Array.from(encryptedBytes)), // This is the full BCS-encoded encrypted object
@@ -95,7 +95,7 @@ export function sendMessageTransaction(
   console.log('Encoded content length:', encodedContent.length);
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::messaging::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.SEND_MESSAGE}`,
     arguments: [
       tx.object(conversationId),
       tx.pure.vector('u8', encodedContent),
@@ -114,7 +114,7 @@ export function markAsReadTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::messaging::${CONTRACT_FUNCTIONS.MARK_AS_READ}`,
+    target: `${PACKAGE_ID}::messaging::${CONTRACT_FUNCTIONS.MARK_AS_READ}`,
     arguments: [
       tx.object(conversationId),
       tx.pure.u64(messageIndex),
@@ -131,7 +131,7 @@ export function createConnectionStoreTransaction() {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::connections::${CONTRACT_FUNCTIONS.CREATE_CONNECTION_STORE}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.CREATE_CONNECTION_STORE}`,
     arguments: [],
   });
 
@@ -148,7 +148,7 @@ export function sendConnectionRequestTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::connections::${CONTRACT_FUNCTIONS.SEND_CONNECTION_REQUEST}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.SEND_CONNECTION_REQUEST}`,
     arguments: [
       tx.pure.address(to),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(introMessage))),
@@ -168,7 +168,7 @@ export function acceptConnectionRequestTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::connections::${CONTRACT_FUNCTIONS.ACCEPT_CONNECTION_REQUEST}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.ACCEPT_CONNECTION_REQUEST}`,
     arguments: [
       tx.object(connectionStoreId),
       tx.object(connectionRequest.id), // Pass the ConnectionRequest object ID
@@ -185,7 +185,7 @@ export function declineConnectionRequestTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::connections::${CONTRACT_FUNCTIONS.DECLINE_CONNECTION_REQUEST}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.DECLINE_CONNECTION_REQUEST}`,
     arguments: [
       tx.object(connectionRequestId),
     ],
@@ -205,7 +205,7 @@ export function updateConnectionPreferencesTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::connections::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_PREFERENCES}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_PREFERENCES}`,
     arguments: [
       tx.object(connectionStoreId),
       tx.pure.address(connectedUser),
@@ -227,7 +227,7 @@ export function updateConnectionStatusTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::connections::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_STATUS}`,
+    target: `${PACKAGE_ID}::connections::${CONTRACT_FUNCTIONS.UPDATE_CONNECTION_STATUS}`,
     arguments: [
       tx.object(connectionStoreId),
       tx.pure.address(connectedUser),
@@ -243,7 +243,7 @@ export function updateConnectionStatusTransaction(
 export async function createChannelTransaction(channelName: string, initialMembers: string[]) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${getCurrentPackageId()}::channels::${CONTRACT_FUNCTIONS.CREATE_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.CREATE_CHANNEL}`,
     arguments: [
       tx.pure.string(channelName),
       tx.pure.vector('address', initialMembers),
@@ -261,7 +261,7 @@ export async function sendMessageToChannelTransaction(
 ) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${getCurrentPackageId()}::channels::${CONTRACT_FUNCTIONS.SEND_MESSAGE_TO_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.SEND_MESSAGE_TO_CHANNEL}`,
     arguments: [
       tx.object(channelId),
       tx.object(memberCapId),
@@ -279,7 +279,7 @@ export async function addMemberToChannelTransaction(
 ) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${getCurrentPackageId()}::channels::${CONTRACT_FUNCTIONS.ADD_MEMBER_TO_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.ADD_MEMBER_TO_CHANNEL}`,
     arguments: [
       tx.object(channelId),
       tx.pure.address(newMember),
@@ -295,7 +295,7 @@ export async function removeMemberFromChannelTransaction(
 ) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${getCurrentPackageId()}::channels::${CONTRACT_FUNCTIONS.REMOVE_MEMBER_FROM_CHANNEL}`,
+    target: `${PACKAGE_ID}::channels::${CONTRACT_FUNCTIONS.REMOVE_MEMBER_FROM_CHANNEL}`,
     arguments: [
       tx.object(channelId),
       tx.pure.address(memberToRemove),
@@ -311,7 +311,7 @@ export async function removeMemberFromChannelTransaction(
 export async function getChannelMessagesTransaction(channelId: string) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${getCurrentPackageId()}::channels::get_channel_messages`,
+    target: `${PACKAGE_ID}::channels::get_channel_messages`,
     arguments: [tx.object(channelId)],
   });
   return tx;
@@ -321,7 +321,7 @@ export async function getChannelMessagesTransaction(channelId: string) {
 export async function getChannelMembersTransaction(channelId: string) {
   const tx = new Transaction();
   tx.moveCall({
-    target: `${getCurrentPackageId()}::channels::get_channel_members`,
+    target: `${PACKAGE_ID}::channels::get_channel_members`,
     arguments: [tx.object(channelId)],
   });
   return tx;
