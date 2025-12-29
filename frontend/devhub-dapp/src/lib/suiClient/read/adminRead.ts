@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { suiClient } from '../constants';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
 import { parseReturnValue, parseU64Value, bytesToHexAddress } from '../utils';
 import { DevCardData } from '../types';
 import { getCardCount } from './platformStats';
@@ -12,7 +12,7 @@ export async function getProjectManagers() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PROJECT_MANAGERS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PROJECT_MANAGERS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -38,7 +38,7 @@ export async function getCommunityManagers() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_COMMUNITY_MANAGERS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_COMMUNITY_MANAGERS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -64,7 +64,7 @@ export async function getDevelopmentDirectors() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_DEVELOPMENT_DIRECTORS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_DEVELOPMENT_DIRECTORS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -90,7 +90,7 @@ export async function getProductManagers() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PRODUCT_MANAGERS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PRODUCT_MANAGERS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -116,7 +116,7 @@ export async function getMarketingSpecialists() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_MARKETING_SPECIALISTS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_MARKETING_SPECIALISTS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -142,7 +142,7 @@ export async function getBusinessAnalysts() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_BUSINESS_ANALYSTS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_BUSINESS_ANALYSTS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -168,7 +168,7 @@ export async function getCustomNiches() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CUSTOM_NICHES}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CUSTOM_NICHES}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -194,7 +194,7 @@ export async function getAllNichesInUse() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_ALL_NICHES_IN_USE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_ALL_NICHES_IN_USE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -220,7 +220,7 @@ export async function getAvailableNiches() {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_AVAILABLE_NICHES}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_AVAILABLE_NICHES}`,
           arguments: [],
         });
         return tx;
@@ -244,7 +244,7 @@ export async function isCustomNiche(niche: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.IS_CUSTOM_NICHE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_CUSTOM_NICHE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
             tx.pure.string(niche),
@@ -272,7 +272,7 @@ export async function getAdmins(): Promise<string[]> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_ADMINS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_ADMINS}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -478,7 +478,7 @@ export async function getPlatformFeeBalance(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_PLATFORM_FEE_BALANCE}`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -521,7 +521,7 @@ export async function getPlatformFee(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::get_platform_fee`,
+          target: `${PACKAGE_ID}::devhub::get_platform_fee`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -549,7 +549,7 @@ export async function getProjectPostingFee(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::get_project_posting_fee`,
+          target: `${PACKAGE_ID}::devhub::get_project_posting_fee`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -799,7 +799,7 @@ export async function getPlatformStats(): Promise<{
         transactionBlock: (() => {
           const tx = new Transaction();
           tx.moveCall({
-            target: `${getCurrentPackageId()}::devhub::get_platform_stats`,
+            target: `${PACKAGE_ID}::devhub::get_platform_stats`,
             arguments: [
               tx.object(DEVHUB_OBJECT_ID),
             ],
@@ -870,7 +870,7 @@ export async function getProjectCount(): Promise<number> {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::get_project_count`,
+          target: `${PACKAGE_ID}::devhub::get_project_count`,
           arguments: [
             tx.object(DEVHUB_OBJECT_ID),
           ],
@@ -900,114 +900,64 @@ export async function getRecentActivity(): Promise<Array<{
   status: string;
 }>> {
   try {
-    const packageId = getCurrentPackageId();
-    console.log('🔍 Fetching activity events from package:', packageId);
+    console.log('🔍 Fetching activity events from package:', PACKAGE_ID);
     
     // Query events from the contract - events are in different modules
-    let events: any = { data: [] };
-    try {
-      events = await suiClient.queryEvents({
-        query: {
-          MoveEventType: `${packageId}::admin::AdminRoleGranted`
-        },
-        limit: 50,
-        order: 'descending'
-      });
-      console.log(`📊 AdminRoleGranted events: ${events.data.length}`);
-      if (events.data.length > 0) {
-        console.log('📋 Sample AdminRoleGranted event:', events.data[0]);
-      }
-    } catch (error) {
-      console.error('❌ Error querying AdminRoleGranted events:', error);
-    }
+    const events = await suiClient.queryEvents({
+      query: {
+        MoveEventType: `${PACKAGE_ID}::admin::AdminRoleGranted`
+      },
+      limit: 10,
+      order: 'descending'
+    });
+    console.log(`📊 AdminRoleGranted events: ${events.data.length}`);
 
-    let adminRevokedEvents: any = { data: [] };
-    try {
-      adminRevokedEvents = await suiClient.queryEvents({
-        query: {
-          MoveEventType: `${packageId}::admin::AdminRoleRevoked`
-        },
-        limit: 50,
-        order: 'descending'
-      });
-      console.log(`📊 AdminRoleRevoked events: ${adminRevokedEvents.data.length}`);
-    } catch (error) {
-      console.error('❌ Error querying AdminRoleRevoked events:', error);
-    }
+    const adminRevokedEvents = await suiClient.queryEvents({
+      query: {
+        MoveEventType: `${PACKAGE_ID}::admin::AdminRoleRevoked`
+      },
+      limit: 10,
+      order: 'descending'
+    });
+    console.log(`📊 AdminRoleRevoked events: ${adminRevokedEvents.data.length}`);
 
-    let feeWithdrawnEvents: any = { data: [] };
-    try {
-      feeWithdrawnEvents = await suiClient.queryEvents({
-        query: {
-          MoveEventType: `${packageId}::admin::PlatformFeesWithdrawn`
-        },
-        limit: 50,
-        order: 'descending'
-      });
-      console.log(`📊 PlatformFeesWithdrawn events: ${feeWithdrawnEvents.data.length}`);
-    } catch (error) {
-      console.error('❌ Error querying PlatformFeesWithdrawn events:', error);
-    }
+    const feeWithdrawnEvents = await suiClient.queryEvents({
+      query: {
+        MoveEventType: `${PACKAGE_ID}::admin::PlatformFeesWithdrawn`
+      },
+      limit: 10,
+      order: 'descending'
+    });
+    console.log(`📊 PlatformFeesWithdrawn events: ${feeWithdrawnEvents.data.length}`);
 
-    let cardCreatedEvents: any = { data: [] };
-    try {
-      cardCreatedEvents = await suiClient.queryEvents({
-        query: {
-          MoveEventType: `${packageId}::card::CardCreated`
-        },
-        limit: 50,
-        order: 'descending'
-      });
-      console.log(`📊 CardCreated events: ${cardCreatedEvents.data.length}`);
-    } catch (error) {
-      console.error('❌ Error querying CardCreated events:', error);
-    }
+    const cardCreatedEvents = await suiClient.queryEvents({
+      query: {
+        MoveEventType: `${PACKAGE_ID}::card::CardCreated`
+      },
+      limit: 5,
+      order: 'descending'
+    });
+    console.log(`📊 CardCreated events: ${cardCreatedEvents.data.length}`);
 
-    let projectCreatedEvents: any = { data: [] };
-    try {
-      projectCreatedEvents = await suiClient.queryEvents({
-        query: {
-          MoveEventType: `${packageId}::project::ProjectCreated`
-        },
-        limit: 50,
-        order: 'descending'
-      });
-      console.log(`📊 ProjectCreated events: ${projectCreatedEvents.data.length}`);
-    } catch (error) {
-      console.error('❌ Error querying ProjectCreated events:', error);
-    }
+    const projectCreatedEvents = await suiClient.queryEvents({
+      query: {
+        MoveEventType: `${PACKAGE_ID}::project::ProjectCreated`
+      },
+      limit: 10,
+      order: 'descending'
+    });
+    console.log(`📊 ProjectCreated events: ${projectCreatedEvents.data.length}`);
 
-    // Also try querying by package to get all events as a fallback
-    let allPackageEvents: any[] = [];
+    // Also try querying by package to get all events
     try {
       const packageEvents = await suiClient.queryEvents({
         query: {
-          Package: packageId
+          Package: PACKAGE_ID
         },
-        limit: 100,
+        limit: 50,
         order: 'descending'
       });
       console.log(`📊 All package events: ${packageEvents.data.length}`);
-      allPackageEvents = packageEvents.data || [];
-      
-      // Log event types to help debug
-      const eventTypes = new Set<string>();
-      allPackageEvents.forEach(event => {
-        if (event.type) eventTypes.add(event.type);
-      });
-      console.log('📋 Available event types:', Array.from(eventTypes));
-      
-      // If we have package events but no specific events, try to parse them
-      if (allPackageEvents.length > 0 && 
-          events.data.length === 0 && 
-          adminRevokedEvents.data.length === 0 && 
-          feeWithdrawnEvents.data.length === 0) {
-        console.log('⚠️ Found package events but no specific event types matched, analyzing...');
-        allPackageEvents.forEach(event => {
-          console.log('Event type:', event.type);
-          console.log('Event data:', event.parsedJson || event.bcs);
-        });
-      }
     } catch (e) {
       console.warn('⚠️ Could not query all package events:', e);
     }
@@ -1026,10 +976,10 @@ export async function getRecentActivity(): Promise<Array<{
     events.data.forEach((event: any) => {
       activity.push({
         when: new Date(Number(event.timestampMs || 0)).toISOString(),
-        type: 'Role Granted', // Match filter option
+        type: 'AdminRoleGranted',
         actor: event.parsedJson?.admin || 'Unknown',
         details: `Admin role granted to ${event.parsedJson?.admin || 'Unknown'}`,
-        txStatus: 'Confirmed', // Match UI expectation
+        txStatus: 'success',
         status: 'completed'
       });
     });
@@ -1038,10 +988,10 @@ export async function getRecentActivity(): Promise<Array<{
     adminRevokedEvents.data.forEach((event: any) => {
       activity.push({
         when: new Date(Number(event.timestampMs || 0)).toISOString(),
-        type: 'Role Revoked', // Match filter option
+        type: 'AdminRoleRevoked',
         actor: event.parsedJson?.admin || 'Unknown',
         details: `Admin role revoked from ${event.parsedJson?.admin || 'Unknown'}`,
-        txStatus: 'Confirmed',
+        txStatus: 'success',
         status: 'completed'
       });
     });
@@ -1050,10 +1000,10 @@ export async function getRecentActivity(): Promise<Array<{
     feeWithdrawnEvents.data.forEach((event: any) => {
       activity.push({
         when: new Date(Number(event.timestampMs || 0)).toISOString(),
-        type: 'Withdrawal', // Match filter option
-        actor: event.parsedJson?.recipient || event.parsedJson?.admin || 'Unknown',
-        details: `Platform fees withdrawn: ${event.parsedJson?.amount ? (Number(event.parsedJson.amount) / 1e9).toFixed(4) : 0} SUI`,
-        txStatus: 'Confirmed',
+        type: 'PlatformFeesWithdrawn',
+        actor: event.parsedJson?.recipient || 'Unknown',
+        details: `Platform fees withdrawn: ${event.parsedJson?.amount || 0} MIST`,
+        txStatus: 'success',
         status: 'completed'
       });
     });
@@ -1062,10 +1012,10 @@ export async function getRecentActivity(): Promise<Array<{
     cardCreatedEvents.data.forEach((event: any) => {
       activity.push({
         when: new Date(Number(event.timestampMs || 0)).toISOString(),
-        type: 'Card Created', // Match filter option
+        type: 'CardCreated',
         actor: event.parsedJson?.owner || 'Unknown',
-        details: `Card created: ID ${event.parsedJson?.card_id || 'Unknown'}`,
-        txStatus: 'Confirmed',
+        details: `Card created: ${event.parsedJson?.card_id || 'Unknown'}`,
+        txStatus: 'success',
         status: 'completed'
       });
     });
@@ -1074,23 +1024,16 @@ export async function getRecentActivity(): Promise<Array<{
     projectCreatedEvents.data.forEach((event: any) => {
       activity.push({
         when: new Date(Number(event.timestampMs || 0)).toISOString(),
-        type: 'Project Created', // Match filter option
+        type: 'ProjectCreated',
         actor: event.parsedJson?.owner || 'Unknown',
-        details: `Project created: ID ${event.parsedJson?.project_id || 'Unknown'}`,
-        txStatus: 'Confirmed',
+        details: `Project created: ${event.parsedJson?.project_id || 'Unknown'}`,
+        txStatus: 'success',
         status: 'completed'
       });
     });
 
     // Sort by timestamp (most recent first)
     activity.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
-
-    console.log(`✅ Total activities found: ${activity.length}`);
-    if (activity.length > 0) {
-      console.log('📋 Sample activities:', activity.slice(0, 3));
-    } else {
-      console.warn('⚠️ No activities found. Event queries returned empty results.');
-    }
 
     return activity.slice(0, 20); // Return top 20 most recent activities
   } catch (error) {
@@ -1108,13 +1051,12 @@ export async function getActivityStats(): Promise<{
   projectEvents: number;
 }> {
   try {
-    const packageId = getCurrentPackageId();
-    console.log('🔍 Fetching activity statistics from package:', packageId);
+    console.log('🔍 Fetching activity statistics from package:', PACKAGE_ID);
     
     // Query events from the contract - events are in different modules
     const adminGrantedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${packageId}::admin::AdminRoleGranted`
+        MoveEventType: `${PACKAGE_ID}::admin::AdminRoleGranted`
       },
       limit: 100,
       order: 'descending'
@@ -1122,7 +1064,7 @@ export async function getActivityStats(): Promise<{
 
     const adminRevokedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${packageId}::admin::AdminRoleRevoked`
+        MoveEventType: `${PACKAGE_ID}::admin::AdminRoleRevoked`
       },
       limit: 100,
       order: 'descending'
@@ -1130,7 +1072,7 @@ export async function getActivityStats(): Promise<{
 
     const feeWithdrawnEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${packageId}::admin::PlatformFeesWithdrawn`
+        MoveEventType: `${PACKAGE_ID}::admin::PlatformFeesWithdrawn`
       },
       limit: 100,
       order: 'descending'
@@ -1138,7 +1080,7 @@ export async function getActivityStats(): Promise<{
 
     const cardCreatedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${packageId}::card::CardCreated`
+        MoveEventType: `${PACKAGE_ID}::card::CardCreated`
       },
       limit: 100,
       order: 'descending'
@@ -1146,7 +1088,7 @@ export async function getActivityStats(): Promise<{
 
     const projectCreatedEvents = await suiClient.queryEvents({
       query: {
-        MoveEventType: `${packageId}::project::ProjectCreated`
+        MoveEventType: `${PACKAGE_ID}::project::ProjectCreated`
       },
       limit: 100,
       order: 'descending'

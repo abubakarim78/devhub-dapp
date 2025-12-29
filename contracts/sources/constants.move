@@ -22,12 +22,6 @@ public fun E_INVALID_PROPOSAL_STATUS(): u64 { 20 }
 public fun NOT_SUPER_ADMIN(): u64 { 21 }
 public fun INVALID_CUSTOM_NICHE(): u64 { 22 }
 public fun USER_ALREADY_HAS_CARD(): u64 { 23 }
-public fun E_WRONG_VERSION(): u64 { 24 }
-public fun E_NOT_ADMIN_CAP_OWNER(): u64 { 25 }
-public fun E_NOT_UPGRADE(): u64 { 26 }
-
-// Version constant - must be incremented with each upgrade
-public fun VERSION(): u64 { 1 }
 
 // Fee constants
 public fun PLATFORM_FEE(): u64 { 100_000_000 }

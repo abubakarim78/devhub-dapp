@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
 
 // Helper function to create project
 export function createProjectTransaction(
@@ -34,7 +34,7 @@ export function createProjectTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROJECT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROJECT}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(projectData.title))),
@@ -128,7 +128,7 @@ export function applyToProjectPTB(
   // Apply to project - single command in PTB
   console.log('📝 Building apply_to_project PTB...');
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.APPLY_TO_PROJECT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.APPLY_TO_PROJECT}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID), // arg_idx 0: &mut DevHub
       tx.object(options.userProposalsId), // arg_idx 1: &mut UserProposals
@@ -180,7 +180,7 @@ export function addMilestonesPTB(
   milestones.forEach((milestone, index) => {
     if (milestone.description.trim()) {
       tx.moveCall({
-        target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_MILESTONE_TO_PROPOSAL}`,
+        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_MILESTONE_TO_PROPOSAL}`,
         arguments: [
           tx.object(proposalId),
           tx.pure.vector('u8', Array.from(new TextEncoder().encode(milestone.description))),
@@ -415,7 +415,7 @@ export function applyToProjectTransaction(
   console.log('✅ All arguments validated. Building moveCall...');
   
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.APPLY_TO_PROJECT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.APPLY_TO_PROJECT}`,
     arguments: moveCallArgs,
   });
   
@@ -541,7 +541,7 @@ export function openApplicationsTransaction(projectId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.OPEN_APPLICATIONS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.OPEN_APPLICATIONS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(projectId),
@@ -556,7 +556,7 @@ export function closeApplicationsTransaction(projectId: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CLOSE_APPLICATIONS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CLOSE_APPLICATIONS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(projectId),
@@ -574,7 +574,7 @@ export function updateProjectStatusTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROJECT_STATUS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROJECT_STATUS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(projectId),
@@ -604,7 +604,7 @@ export function updateProjectTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROJECT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROJECT}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(projectId),
@@ -633,7 +633,7 @@ export function addAttachmentToProjectTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_ATTACHMENT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_ATTACHMENT}`,
     arguments: [
       tx.object(projectId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(blobId))),
@@ -651,7 +651,7 @@ export function removeAttachmentFromProjectTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.REMOVE_ATTACHMENT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.REMOVE_ATTACHMENT}`,
     arguments: [
       tx.object(projectId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(blobId))),
@@ -670,7 +670,7 @@ export function updateApplicationStatusTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_APPLICATION_STATUS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_APPLICATION_STATUS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(projectId),

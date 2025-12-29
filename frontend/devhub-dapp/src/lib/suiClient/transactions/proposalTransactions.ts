@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
 
 // Helper function to create proposal
 export function createProposalTransaction(
@@ -18,7 +18,7 @@ export function createProposalTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSAL}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.CREATE_PROPOSAL}`,
     arguments: [
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(proposalData.opportunityTitle))),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(proposalData.proposalTitle))),
@@ -52,7 +52,7 @@ export function editProposalTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.EDIT_PROPOSAL}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.EDIT_PROPOSAL}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(proposalData.opportunityTitle))),
@@ -80,7 +80,7 @@ export function addDeliverableTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_DELIVERABLE}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_DELIVERABLE}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(description))),
@@ -102,7 +102,7 @@ export function addTeamMemberTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_TEAM_MEMBER}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_TEAM_MEMBER}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(name))),
@@ -122,7 +122,7 @@ export function addLinkTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_LINK}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_LINK}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(url))),
@@ -142,7 +142,7 @@ export function submitProposalTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.SUBMIT_PROPOSAL}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.SUBMIT_PROPOSAL}`,
     arguments: [
       tx.object(proposalId),
       tx.object(platformStatisticsId),
@@ -164,7 +164,7 @@ export function updateProposalStatusTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROPOSAL_STATUS}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_PROPOSAL_STATUS}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.object(proposalId),
@@ -186,7 +186,7 @@ export function addDiscussionCommentTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_DISCUSSION_COMMENT}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_DISCUSSION_COMMENT}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(text))),
@@ -209,7 +209,7 @@ export function addAttachmentToProposalTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_ATTACHMENT_TO_PROPOSAL}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_ATTACHMENT_TO_PROPOSAL}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(name))),
@@ -234,7 +234,7 @@ export function addMilestoneToProposalTransaction(
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.ADD_MILESTONE_TO_PROPOSAL}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.ADD_MILESTONE_TO_PROPOSAL}`,
     arguments: [
       tx.object(proposalId),
       tx.pure.vector('u8', Array.from(new TextEncoder().encode(description))),

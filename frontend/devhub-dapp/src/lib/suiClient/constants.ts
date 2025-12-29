@@ -1,20 +1,8 @@
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
 // Contract configuration
-// Package ID - Updated after upgrade (Version 3 on-chain, VERSION = 2 in code)
-export const PACKAGE_ID = '0x5ea66000fe623041b4231cd641aa7e1ba6781a52cfebb1cbc3e9dbcdfdb585c2';
-// Previous Package IDs - kept for reference
-export const PREVIOUS_PACKAGE_ID_V2 = '0x23aa50e2202d3d6b90378998f9a74a067ff6f475ce1dd4e4de6f7e773d0e2dbd';
-export const PREVIOUS_PACKAGE_ID_V1 = '0x43096e49e837fdf621305180a32f20c8ce8526583dbd363d05aeb852cb3693cb';
-// DevHub shared object ID - persists across upgrades
-export const DEVHUB_OBJECT_ID = '0x0a1ebcf69ed9ef0ca70d7f28d5169a73df2b68fb6eba763fe5cf8ddad3ffdf40';
-// UpgradeCap ID - persists across upgrades (same ID, updated version)
-export const UPGRADE_CAP_ID = '0x44537dc5782da090b1981af922dbddc8ef1a3c4213066f28864e78b430cd6d36';
-// AdminCap ID - needed for migrations
-export const ADMIN_CAP_ID = '0xa14a2741802f825ed07bcceb59a9b9085ce4ae81d3faf2927f6861e6eefd532c';
-// LocalStorage keys for upgrade management
-export const UPGRADE_CAP_ID_KEY = 'devhub_upgrade_cap_id';
-export const ADMIN_CAP_ID_KEY = 'devhub_admin_cap_id';
+export const PACKAGE_ID = '0x25aedeaa9e734753ca0ee96b5a7ebbdd88ddcc67b1bdd373e908a4b9d87bbbbf';
+export const DEVHUB_OBJECT_ID = '0xc46150ba438f351dfdb4c42aeb588fce0f58b282e50e9f5809555977c79ca94d';
 // ConnectionStore is a shared object - we'll query for it dynamically
 export const CONNECTION_STORE_ID = ''; // Will be fetched dynamically
 export const PLATFORM_FEE = 100_000_000; // 0.1 SUI in MIST
@@ -22,13 +10,9 @@ export const PROJECT_POSTING_FEE = 200_000_000; // 0.2 SUI in MIST
 export const MIN_GAS_BALANCE = 100_000_000; // 0.1 SUI in MIST - minimum for gas
 
 // Initialize Sui client with messaging SDK
-// Using a CORS-enabled RPC endpoint for browser compatibility
-// Set VITE_SUI_RPC_URL in .env file to use a CORS-enabled endpoint
-// Alternative endpoints: https://testnet.sui.chainbase.online/v1
-const RPC_URL = import.meta.env.VITE_SUI_RPC_URL || getFullnodeUrl('testnet');
-
+// Note: Due to version compatibility issues, we'll use a simpler approach
 export const suiClient = new SuiClient({
-  url: RPC_URL,
+  url: getFullnodeUrl('testnet'),
   mvr: {
     overrides: {
       packages: {
@@ -108,12 +92,6 @@ export const CONTRACT_FUNCTIONS = {
   CHANGE_PLATFORM_FEE: 'change_platform_fee',
   IS_ADMIN: 'is_admin',
   IS_SUPER_ADMIN: 'is_super_admin',
-
-  // Upgrade functions
-  MIGRATE: 'migrate',
-  GET_VERSION: 'get_version',
-  GET_ADMIN_CAP_ID: 'get_admin_cap_id',
-  GET_PACKAGE_VERSION: 'get_package_version',
 
   // View functions
   GET_CARD_INFO: 'get_card_info',
@@ -198,10 +176,9 @@ export async function getConnectionStoreId(): Promise<string | null> {
 
     // Try to query for ConnectionStoreCreated events
     try {
-      const currentPackageId = getCurrentPackageId();
       const events = await suiClient.queryEvents({
         query: {
-          MoveEventType: `${currentPackageId}::connections::ConnectionStoreCreated`
+          MoveEventType: `${PACKAGE_ID}::connections::ConnectionStoreCreated`
         },
         limit: 1,
         order: 'descending'
@@ -234,86 +211,5 @@ export async function getConnectionStoreId(): Promise<string | null> {
 export function storeConnectionStoreId(storeId: string): void {
   localStorage.setItem('devhub_connection_store_id', storeId);
   console.log('Stored ConnectionStore ID:', storeId);
-}
-
-// ===== UPGRADE CAP MANAGEMENT =====
-
-/**
- * Get the UpgradeCap ID (prefers localStorage, falls back to constant)
- */
-export function getUpgradeCapId(): string {
-  const stored = localStorage.getItem(UPGRADE_CAP_ID_KEY);
-  return stored || UPGRADE_CAP_ID;
-}
-
-/**
- * Store the UpgradeCap ID in localStorage
- */
-export function storeUpgradeCapId(upgradeCapId: string): void {
-  localStorage.setItem(UPGRADE_CAP_ID_KEY, upgradeCapId);
-  console.log('Stored UpgradeCap ID:', upgradeCapId);
-}
-
-/**
- * Get the AdminCap ID (prefers localStorage, falls back to constant)
- */
-export function getAdminCapId(): string {
-  const stored = localStorage.getItem(ADMIN_CAP_ID_KEY);
-  return stored || ADMIN_CAP_ID;
-}
-
-/**
- * Store the AdminCap ID in localStorage
- */
-export function storeAdminCapId(adminCapId: string): void {
-  localStorage.setItem(ADMIN_CAP_ID_KEY, adminCapId);
-  console.log('Stored AdminCap ID:', adminCapId);
-}
-
-/**
- * Update the package ID after an upgrade
- */
-export function updatePackageId(newPackageId: string): void {
-  console.log('Package upgraded to:', newPackageId);
-  localStorage.setItem('devhub_package_id', newPackageId);
-}
-
-/**
- * Get the current package ID (from localStorage if updated, otherwise default)
- */
-export function getCurrentPackageId(): string {
-  const stored = localStorage.getItem('devhub_package_id');
-  const packageId = stored || PACKAGE_ID;
-  
-  // Safety check: if stored package ID matches a known old package ID, use current one
-  if (stored === PREVIOUS_PACKAGE_ID_V1 || stored === PREVIOUS_PACKAGE_ID_V2) {
-    console.warn(`⚠️ Detected old package ID in localStorage (${stored}), using current package ID: ${PACKAGE_ID}`);
-    // Optionally auto-update to prevent future issues
-    updatePackageId(PACKAGE_ID);
-    return PACKAGE_ID;
-  }
-  
-  return packageId;
-}
-
-/**
- * Initialize upgrade info from publish transaction
- * Call this after publishing to store all IDs
- */
-export function initializeUpgradeInfo(
-  upgradeCapId?: string,
-  adminCapId?: string,
-  packageId?: string,
-  devhubObjectId?: string
-): void {
-  if (upgradeCapId) storeUpgradeCapId(upgradeCapId);
-  if (adminCapId) storeAdminCapId(adminCapId);
-  if (packageId) updatePackageId(packageId);
-  console.log('Upgrade info initialized:', {
-    upgradeCapId: upgradeCapId || UPGRADE_CAP_ID,
-    adminCapId: adminCapId || ADMIN_CAP_ID,
-    packageId: packageId || PACKAGE_ID,
-    devhubObjectId: devhubObjectId || DEVHUB_OBJECT_ID,
-  });
 }
 

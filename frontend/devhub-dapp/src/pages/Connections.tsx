@@ -23,7 +23,7 @@ import {
   getConnectionStoreId,
   createConnectionStoreTransaction,
   storeConnectionStoreId,
-  getCurrentPackageId
+  PACKAGE_ID
 } from '@/lib/suiClient';
 import { WalrusService } from '@/services/walrus';
 
@@ -145,7 +145,7 @@ const Connections: React.FC = () => {
       // Query ConnectionAccepted events to get connections (event-based approach)
       const events = await client.queryEvents({
         query: {
-          MoveEventType: `${getCurrentPackageId()}::connections::ConnectionAccepted`
+          MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
         },
         limit: 100
       });
@@ -186,7 +186,7 @@ const Connections: React.FC = () => {
       // to avoid infinite loop
       const events = await client.queryEvents({
         query: {
-          MoveEventType: `${getCurrentPackageId()}::connections::ConnectionAccepted`
+          MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
         },
         limit: 100
       });
@@ -213,7 +213,7 @@ const Connections: React.FC = () => {
           try {
             const sentEvents = await client.queryEvents({
               query: {
-                MoveEventType: `${getCurrentPackageId()}::connections::ConnectionRequestSent`
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent`
               },
               limit: 100,
               order: 'descending'
@@ -221,7 +221,7 @@ const Connections: React.FC = () => {
 
             const acceptedEvents = await client.queryEvents({
               query: {
-                MoveEventType: `${getCurrentPackageId()}::connections::ConnectionAccepted`
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
               },
               limit: 100,
               order: 'descending'
@@ -229,7 +229,7 @@ const Connections: React.FC = () => {
 
             const declinedEvents = await client.queryEvents({
               query: {
-                MoveEventType: `${getCurrentPackageId()}::connections::ConnectionDeclined`
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionDeclined`
               },
               limit: 100,
               order: 'descending'
@@ -396,7 +396,7 @@ const Connections: React.FC = () => {
         // Query ConnectionRequestSent events to find requests sent by current user
         const sentEvents = await client.queryEvents({
           query: {
-            MoveEventType: `${getCurrentPackageId()}::connections::ConnectionRequestSent`
+            MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent`
           },
           limit: 100,
           order: 'descending'
@@ -405,7 +405,7 @@ const Connections: React.FC = () => {
         // Query ConnectionAccepted events to filter out accepted requests
         const acceptedEvents = await client.queryEvents({
           query: {
-            MoveEventType: `${getCurrentPackageId()}::connections::ConnectionAccepted`
+            MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
           },
           limit: 100,
           order: 'descending'
@@ -414,7 +414,7 @@ const Connections: React.FC = () => {
         // Query ConnectionDeclined events to filter out declined requests
         const declinedEvents = await client.queryEvents({
           query: {
-            MoveEventType: `${getCurrentPackageId()}::connections::ConnectionDeclined`
+            MoveEventType: `${PACKAGE_ID}::connections::ConnectionDeclined`
           },
           limit: 100,
           order: 'descending'
@@ -607,7 +607,7 @@ const Connections: React.FC = () => {
           try {
             const events = await client.queryEvents({
               query: {
-                MoveEventType: `${getCurrentPackageId()}::connections::ConnectionStoreCreated`
+                MoveEventType: `${PACKAGE_ID}::connections::ConnectionStoreCreated`
               },
               limit: 1,
               order: 'descending'
@@ -734,7 +734,7 @@ const Connections: React.FC = () => {
           // Reload sent requests to show the pending request
           const sentEvents = await client.queryEvents({
             query: {
-              MoveEventType: `${getCurrentPackageId()}::connections::ConnectionRequestSent`
+              MoveEventType: `${PACKAGE_ID}::connections::ConnectionRequestSent`
             },
             limit: 100,
             order: 'descending'
@@ -742,7 +742,7 @@ const Connections: React.FC = () => {
           
           const acceptedEvents = await client.queryEvents({
             query: {
-              MoveEventType: `${getCurrentPackageId()}::connections::ConnectionAccepted`
+              MoveEventType: `${PACKAGE_ID}::connections::ConnectionAccepted`
             },
             limit: 100,
             order: 'descending'
@@ -750,7 +750,7 @@ const Connections: React.FC = () => {
           
           const declinedEvents = await client.queryEvents({
             query: {
-              MoveEventType: `${getCurrentPackageId()}::connections::ConnectionDeclined`
+              MoveEventType: `${PACKAGE_ID}::connections::ConnectionDeclined`
             },
             limit: 100,
             order: 'descending'

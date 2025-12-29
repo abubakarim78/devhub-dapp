@@ -1,12 +1,12 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '../constants';
 
 // Helper function to grant admin role
 export function grantAdminRoleTransaction(newAdmin: string) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GRANT_ADMIN_ROLE}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GRANT_ADMIN_ROLE}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.address(newAdmin),
@@ -21,7 +21,7 @@ export function revokeAdminRoleTransaction(adminToRevoke: string) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.REVOKE_ADMIN_ROLE}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.REVOKE_ADMIN_ROLE}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.address(adminToRevoke),
@@ -36,7 +36,7 @@ export function changePlatformFeeTransaction(newFee: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::change_platform_fee`,
+    target: `${PACKAGE_ID}::devhub::change_platform_fee`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(newFee),
@@ -51,7 +51,7 @@ export function changeProjectPostingFeeTransaction(newFee: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::change_project_posting_fee`,
+    target: `${PACKAGE_ID}::devhub::change_project_posting_fee`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.u64(newFee),
@@ -66,7 +66,7 @@ export function withdrawFeesTransaction(recipient: string, amount: number) {
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.WITHDRAW_PLATFORM_FEES}`,
+    target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.WITHDRAW_PLATFORM_FEES}`,
     arguments: [
       tx.object(DEVHUB_OBJECT_ID),
       tx.pure.address(recipient),

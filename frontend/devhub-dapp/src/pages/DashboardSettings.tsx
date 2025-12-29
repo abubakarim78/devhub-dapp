@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useContract } from '@/hooks/useContract';
-import { DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS, getCurrentPackageId } from '@/lib/suiClient';
+import { PACKAGE_ID, DEVHUB_OBJECT_ID, CONTRACT_FUNCTIONS } from '@/lib/suiClient';
 
 interface UserSettings {
   profile: {
@@ -180,7 +180,7 @@ const DashboardSettings: React.FC = () => {
       const tx = new Transaction();
       // Update work preferences
       tx.moveCall({
-        target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_WORK_PREFERENCES}`,
+        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_WORK_PREFERENCES}`,
         arguments: [
           tx.object(DEVHUB_OBJECT_ID),
           tx.pure.u64(cardId),
@@ -206,7 +206,7 @@ const DashboardSettings: React.FC = () => {
       const yearsOfExperience: number = Number(card.yearsOfExperience ?? 0);
 
       tx.moveCall({
-        target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CARD}`,
+        target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.UPDATE_CARD}`,
         arguments: [
           tx.object(DEVHUB_OBJECT_ID),
           tx.pure.u64(cardId),

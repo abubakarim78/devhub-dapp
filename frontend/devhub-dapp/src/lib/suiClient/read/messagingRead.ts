@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { suiClient } from '../constants';
-import { CONTRACT_FUNCTIONS, getCurrentPackageId } from '../constants';
+import { PACKAGE_ID, CONTRACT_FUNCTIONS } from '../constants';
 import { parseReturnValue } from '../utils';
 import { Message, Connection, ConnectionRequest } from '../types';
 
@@ -187,7 +187,7 @@ export async function getConnections(connectionStoreId: string, user: string) {
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.GET_CONNECTIONS}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.GET_CONNECTIONS}`,
           arguments: [
             tx.object(connectionStoreId),
             tx.pure.address(user),
@@ -214,7 +214,7 @@ export async function isConnected(connectionStoreId: string, user1: string, user
       transactionBlock: (() => {
         const tx = new Transaction();
         tx.moveCall({
-          target: `${getCurrentPackageId()}::devhub::${CONTRACT_FUNCTIONS.IS_CONNECTED}`,
+          target: `${PACKAGE_ID}::devhub::${CONTRACT_FUNCTIONS.IS_CONNECTED}`,
           arguments: [
             tx.object(connectionStoreId),
             tx.pure.address(user1),
@@ -240,13 +240,12 @@ export async function isConnected(connectionStoreId: string, user1: string, user
 export async function getConnectionRequests(userAddress: string): Promise<ConnectionRequest[]> {
   try {
     console.log('Querying connection requests for user:', userAddress);
-    const currentPackageId = getCurrentPackageId();
-    console.log('Using package ID:', currentPackageId);
+    console.log('Using package ID:', PACKAGE_ID);
 
     const objects = await suiClient.getOwnedObjects({
       owner: userAddress,
       filter: {
-        StructType: `${currentPackageId}::connections::ConnectionRequest`,
+        StructType: `${PACKAGE_ID}::connections::ConnectionRequest`,
       },
       options: {
         showContent: true,
