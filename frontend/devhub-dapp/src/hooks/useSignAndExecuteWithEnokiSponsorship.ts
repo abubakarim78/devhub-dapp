@@ -65,13 +65,32 @@ export function useSignAndExecuteWithEnokiSponsorship(): UseMutationResult<
   // For Enoki wallets, implement sponsored transaction flow
   const sponsorAndExecute = async (args: { transaction: Transaction }): Promise<{ digest: string }> => {
     try {
+      // Validate backend URL is configured
+      if (!BACKEND_URL || BACKEND_URL === 'http://localhost:3001') {
+        console.warn('⚠️ Backend URL not configured or using default. Make sure VITE_ENOKI_BACKEND_URL is set in your .env file');
+      }
+
       // Step 1: Build transaction with onlyTransactionKind: true
+      console.log('🔨 Building transaction for sponsorship...');
       const txBytes = await args.transaction.build({
         client: suiClient,
         onlyTransactionKind: true,
       });
+      
+      if (!txBytes || txBytes.length === 0) {
+        throw new Error('Failed to build transaction bytes');
+      }
+      
+      console.log('✅ Transaction built successfully, length:', txBytes.length);
 
       // Step 2: Sponsor the transaction via backend
+      console.log('📤 Sponsoring transaction via backend:', {
+        backendUrl: `${BACKEND_URL}/api/sponsor-transaction`,
+        sender: currentAccount.address,
+        network: NETWORK,
+        txBytesLength: txBytes.length,
+      });
+
       const sponsorResponse = await fetch(`${BACKEND_URL}/api/sponsor-transaction`, {
         method: 'POST',
         headers: {
@@ -85,8 +104,26 @@ export function useSignAndExecuteWithEnokiSponsorship(): UseMutationResult<
       });
 
       if (!sponsorResponse.ok) {
-        const errorData = await sponsorResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to sponsor transaction: ${sponsorResponse.statusText}`);
+        let errorData: any = {};
+        try {
+          errorData = await sponsorResponse.json();
+        } catch (e) {
+          // If JSON parsing fails, try to get text
+          const text = await sponsorResponse.text().catch(() => 'Unknown error');
+          errorData = { error: text, details: `Status: ${sponsorResponse.status} ${sponsorResponse.statusText}` };
+        }
+        
+        console.error('❌ Sponsor transaction failed:', {
+          status: sponsorResponse.status,
+          statusText: sponsorResponse.statusText,
+          error: errorData.error,
+          details: errorData.details,
+          fullError: errorData,
+        });
+        
+        throw new Error(
+          errorData.error || errorData.details || `Failed to sponsor transaction: ${sponsorResponse.status} ${sponsorResponse.statusText}`
+        );
       }
 
       const sponsorData: SponsorTransactionResponse = await sponsorResponse.json();
@@ -131,7 +168,26 @@ export function useSignAndExecuteWithEnokiSponsorship(): UseMutationResult<
       // Return digest for consistency with regular signAndExecute
       return { digest: sponsorData.digest };
     } catch (error) {
-      console.error('Error in Enoki sponsored transaction:', error);
+      console.error('❌ Error in Enoki sponsored transaction:', error);
+      
+      // Provide more helpful error messages
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to sponsor transaction')) {
+          console.error('💡 Troubleshooting tips:');
+          console.error('   1. Check if the backend server is running');
+          console.error('   2. Verify VITE_ENOKI_BACKEND_URL is set correctly in .env');
+          console.error('   3. Check backend logs for detailed error information');
+          console.error('   4. Verify VITE_ENOKI_PRIVATE_API_KEY is set in backend .env');
+        }
+        
+        if (error.message.includes('fetch')) {
+          console.error('💡 Network error - check:');
+          console.error('   1. Backend server is accessible at:', BACKEND_URL);
+          console.error('   2. CORS is properly configured on the backend');
+          console.error('   3. Network connectivity');
+        }
+      }
+      
       throw error;
     }
   };

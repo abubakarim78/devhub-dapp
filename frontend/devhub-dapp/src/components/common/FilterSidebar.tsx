@@ -27,23 +27,31 @@ const FilterItem = ({ icon, label, count }: { icon: React.ReactNode, label: stri
 
 export const FilterSidebar = () => {
   return (
-    <aside className="hidden lg:block space-y-4 sm:space-y-5 md:space-y-6">
-      <SidebarCard title="Saved Searches">
-        <FilterItem icon={<Bookmark className="h-3 w-3 sm:h-4 sm:w-4" />} label="Auditors • EU • FT" count={14} />
-        <FilterItem icon={<Bookmark className="h-3 w-3 sm:h-4 sm:w-4" />} label="Move + React • PT" count={27} />
-      </SidebarCard>
+    <aside 
+      className="hidden lg:block max-h-[calc(100vh-8rem)] overflow-y-auto sidebar-scrollable"
+      style={{
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none',
+      }}
+    >
+      <div className="space-y-4 sm:space-y-5 md:space-y-6 pb-4">
+        <SidebarCard title="Saved Searches">
+          <FilterItem icon={<Bookmark className="h-3 w-3 sm:h-4 sm:w-4" />} label="Auditors • EU • FT" count={14} />
+          <FilterItem icon={<Bookmark className="h-3 w-3 sm:h-4 sm:w-4" />} label="Move + React • PT" count={27} />
+        </SidebarCard>
 
-      <SidebarCard title="Quick Filters">
-        <FilterItem icon={<Zap className="h-3 w-3 sm:h-4 sm:w-4" />} label="Available now" count={68} />
-        <FilterItem icon={<Star className="h-3 w-3 sm:h-4 sm:w-4" />} label="Top rated" count={32} />
-        <FilterItem icon={<MapPin className="h-3 w-3 sm:h-4 sm:w-4" />} label="Your timezone" count={44} />
-      </SidebarCard>
+        <SidebarCard title="Quick Filters">
+          <FilterItem icon={<Zap className="h-3 w-3 sm:h-4 sm:w-4" />} label="Available now" count={68} />
+          <FilterItem icon={<Star className="h-3 w-3 sm:h-4 sm:w-4" />} label="Top rated" count={32} />
+          <FilterItem icon={<MapPin className="h-3 w-3 sm:h-4 sm:w-4" />} label="Your timezone" count={44} />
+        </SidebarCard>
 
-      <SidebarCard title="Looking for">
-        <FilterItem icon={<Search className="h-3 w-3 sm:h-4 sm:w-4" />} label="Smart Contract Engineer" count={112} />
-        <FilterItem icon={<Search className="h-3 w-3 sm:h-4 sm:w-4" />} label="Full-Stack Engineer" count={201} />
-        <FilterItem icon={<Search className="h-3 w-3 sm:h-4 sm:w-4" />} label="Security Auditor" count={47} />
-      </SidebarCard>
+        <SidebarCard title="Looking for">
+          <FilterItem icon={<Search className="h-3 w-3 sm:h-4 sm:w-4" />} label="Smart Contract Engineer" count={112} />
+          <FilterItem icon={<Search className="h-3 w-3 sm:h-4 sm:w-4" />} label="Full-Stack Engineer" count={201} />
+          <FilterItem icon={<Search className="h-3 w-3 sm:h-4 sm:w-4" />} label="Security Auditor" count={47} />
+        </SidebarCard>
+      </div>
     </aside>
   );
 };

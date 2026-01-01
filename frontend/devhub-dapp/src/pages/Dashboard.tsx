@@ -1043,11 +1043,14 @@ const Dashboard: React.FC = () => {
               const cardName = card.name || `${card.owner.slice(0, 8)}...`;
               const avatarUrl = buildAvatarFor(cardName, normalizeAddr(card.owner), card);
               
+              // Determine status based on card state:
+              // - 'busy' if card is not active (!isActive)
+              // - 'offline' if card is active but not open to work
+              // - 'available' if card is active and open to work
               let status: 'available' | 'busy' | 'offline' = 'available';
-              if (card?.analytics?.totalViews > 100) {
+              if (!card?.isActive) {
                 status = 'busy';
-              }
-              if (!card?.openToWork) {
+              } else if (!card?.openToWork) {
                 status = 'offline';
               }
 

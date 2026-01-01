@@ -165,6 +165,26 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;  /* Safari and Chrome */
   }
+  
+  /* More specific scrollbar hiding for sidebars */
+  .sidebar-scrollable {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .sidebar-scrollable::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+    display: none;
+  }
+  .sidebar-scrollable::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  .sidebar-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-scrollable::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 /* Position Sonner toasts below the navbar */
