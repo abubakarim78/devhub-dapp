@@ -81,18 +81,26 @@ export const useContractCards = (
         });
 
         cacheRef.current.cardCount = setCacheEntry(count);
-        setState((prev: any) => ({ ...prev, cardCount: count }));
+        setState((prev: any) => {
+          // Only update if the value has changed to prevent unnecessary re-renders
+          if (prev.cardCount === count) return prev;
+          return { ...prev, cardCount: count };
+        });
         console.log(`✅ Final card count: ${count}`);
         return count;
       } catch (err) {
         console.error("❌ Error getting card count:", err);
         const errorMessage =
           err instanceof Error ? err.message : "Failed to get card count";
-        setState((prev: any) => ({ ...prev, error: errorMessage }));
+        setState((prev: any) => {
+          // Only update if the error has changed
+          if (prev.error === errorMessage) return prev;
+          return { ...prev, error: errorMessage };
+        });
         return 0;
       }
     },
-    [client, currentAccount, cacheRef, withRetry, setState],
+    [client, currentAccount, cacheRef, withRetry],
   );
 
   const getCardInfo = useCallback(
@@ -651,7 +659,7 @@ export const useContractCards = (
         return [];
       }
     },
-    [getCardCount, batchFetchCards, setState],
+    [getCardCount, batchFetchCards],
   );
 
   /**
@@ -689,7 +697,7 @@ export const useContractCards = (
         return [];
       }
     },
-    [getCardCount, batchFetchCards, setState],
+    [getCardCount, batchFetchCards],
   );
 
   const getAllActiveCards = useCallback(
@@ -716,7 +724,7 @@ export const useContractCards = (
         return [];
       }
     },
-    [getAllCards, setState],
+    [getAllCards],
   );
 
   const getCardsOpenToWork = useCallback(
@@ -747,7 +755,7 @@ export const useContractCards = (
         return [];
       }
     },
-    [getAllCards, setState],
+    [getAllCards],
   );
 
   const getUserCards = useCallback(

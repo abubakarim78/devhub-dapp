@@ -8,17 +8,28 @@ const Stats = () => {
   const [developerCount, setDeveloperCount] = useState<number>(0);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchStats = async () => {
       try {
         const count = await getCardCount();
-        setDeveloperCount(count);
+        if (isMounted) {
+          setDeveloperCount(count);
+        }
       } catch (error) {
         console.error("Failed to fetch stats:", error);
         // Fallback to a static number if the fetch fails
-        setDeveloperCount(1200); 
+        if (isMounted) {
+          setDeveloperCount(1200); 
+        }
       }
     };
+    
     fetchStats();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [getCardCount]);
 
   const stats = [

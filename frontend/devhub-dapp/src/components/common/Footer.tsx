@@ -12,7 +12,7 @@ const Footer: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <img 
-                src="/DevHub.jpg" 
+                src="/tumahub.jpeg" 
                 alt="TumaHub Logo" 
                 className="h-12 w-12 rounded-lg object-cover"
               />

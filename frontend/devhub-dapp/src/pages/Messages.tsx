@@ -13,7 +13,8 @@ import {
   Loader2,
   Download,
   FileText,
-  Smile
+  Smile,
+  ArrowLeft
 } from 'lucide-react';
 import Layout from '@/components/common/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -108,7 +109,26 @@ const Messages: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [showMobileChat, setShowMobileChat] = useState(false); // Track if mobile is showing chat view
+  const [isMobile, setIsMobile] = useState(false); // Track if we're on mobile
   const processedConversationRef = useRef<Set<string>>(new Set());
+
+  // Check if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const wasMobile = isMobile;
+      const nowMobile = window.innerWidth < 1024;
+      setIsMobile(nowMobile);
+      
+      // If switching from mobile to desktop, reset mobile chat state
+      if (wasMobile && !nowMobile) {
+        setShowMobileChat(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [isMobile]);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -424,6 +444,9 @@ const Messages: React.FC = () => {
         if (existingConv) {
           console.log('📋 Found existing conversation:', existingConv.id);
           setSelectedMessage(existingConv.id);
+          if (isMobile) {
+            setShowMobileChat(true);
+          }
           await loadMessages(existingConv.id, true);
           return;
         }
@@ -444,10 +467,13 @@ const Messages: React.FC = () => {
   useEffect(() => {
     if (routeConversationId) {
       setSelectedMessage(routeConversationId);
+      if (isMobile) {
+        setShowMobileChat(true);
+      }
       loadMessages(routeConversationId, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeConversationId]);
+  }, [routeConversationId, isMobile]);
 
   // Keep URL in sync when selecting a conversation in UI
   useEffect(() => {
@@ -611,6 +637,8 @@ const Messages: React.FC = () => {
       const hasToParam = Boolean(searchParams.get('to'));
       if (uiConversations.length > 0 && !selectedMessage && !hasToParam) {
         setSelectedMessage(uiConversations[0].id);
+        // On desktop, auto-select first conversation, but on mobile don't switch to chat automatically
+        // Users should explicitly click to view chat on mobile
         console.log('Auto-selected first conversation:', uiConversations[0].id);
       }
     } catch (error) {
@@ -1124,6 +1152,9 @@ const Messages: React.FC = () => {
         console.log('📋 Existing conversation found, selecting it:', existingConv.id);
         setSelectedMessage(existingConv.id);
         await loadMessages(existingConv.id);
+        if (isMobile) {
+          setShowMobileChat(true);
+        }
         setIsCreatingConversation(false);
         return;
       }
@@ -1212,6 +1243,11 @@ const Messages: React.FC = () => {
               setSelectedMessage(newConversationId);
               console.log('📍 Set selectedMessage to:', newConversationId);
               
+              // On mobile, switch to chat view
+              if (isMobile) {
+                setShowMobileChat(true);
+              }
+              
               // Load messages for the new conversation
               await loadMessages(newConversationId, true);
               
@@ -1238,6 +1274,9 @@ const Messages: React.FC = () => {
                   newId: finalVerifiedConversation.id
                 });
                 setSelectedMessage(finalVerifiedConversation.id);
+                if (isMobile) {
+                  setShowMobileChat(true);
+                }
                 await loadMessages(finalVerifiedConversation.id, true);
               } else if (!finalVerifiedConversation) {
                 console.warn('⚠️ Conversation not found in final list, keeping original selection');
@@ -1447,14 +1486,16 @@ const Messages: React.FC = () => {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.4 }}
-                    className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-18rem)]"
+                    className="grid grid-cols-1 lg:grid-cols-6 gap-6 h-[calc(100vh-12rem)]"
                   >
                     {/* Left Panel - Messages List */}
                     <motion.div
                       initial={{ opacity: 0, x: -30 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.6, delay: 0.5 }}
-                      className="bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl flex flex-col overflow-hidden"
+                      className={`lg:col-span-2 bg-card/70 backdrop-blur-xl rounded-2xl p-6 border border-border shadow-2xl flex flex-col overflow-hidden ${
+                        showMobileChat ? 'hidden lg:flex' : 'flex'
+                      }`}
                     >
                       {/* Header Row - Inbox, Search */}
                       <div className="flex items-center gap-3 mb-6">
@@ -1513,6 +1554,11 @@ const Messages: React.FC = () => {
                                 setSelectedMessage(conversation.id);
                                 // Force refresh messages when switching conversations
                                 await loadMessages(conversation.id, true);
+                                
+                                // On mobile, switch to chat view
+                                if (isMobile) {
+                                  setShowMobileChat(true);
+                                }
                               }}
                               className={`p-4 rounded-xl cursor-pointer transition-all ${
                                 selectedMessage === conversation.id
@@ -1570,12 +1616,29 @@ const Messages: React.FC = () => {
                       initial={{ opacity: 0, x: 30 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.6, delay: 0.7 }}
-                      className="lg:col-span-2 bg-card/70 backdrop-blur-xl rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
+                      className={`lg:col-span-4 bg-card/70 backdrop-blur-xl rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden ${
+                        !showMobileChat && !selectedMessage ? 'hidden lg:flex' : 'flex'
+                      }`}
                     >
                       {/* Chat Header */}
                       <div className="p-6 border-b border-border">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1">
+                            {/* Back button for mobile */}
+                            {isMobile && showMobileChat && (
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                  setShowMobileChat(false);
+                                  setSelectedMessage('');
+                                }}
+                                className="lg:hidden p-2 hover:bg-accent rounded-lg transition-colors"
+                                title="Back to inbox"
+                              >
+                                <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+                              </motion.button>
+                            )}
                             <img
                               src={(() => {
                                 if (!selectedMessage) return 'https://ui-avatars.com/api/?name=??&background=random&color=fff&size=48';
@@ -1799,7 +1862,7 @@ const Messages: React.FC = () => {
                                 )}
                                 
                                 {/* Message content */}
-                                <div className={`flex flex-col max-w-xs lg:max-w-md ${!isFirstInGroup ? 'ml-13' : ''}`}>
+                                <div className={`flex flex-col max-w-xs lg:max-w-2xl xl:max-w-3xl ${!isFirstInGroup ? 'ml-13' : ''}`}>
                                   {/* Sender name and timestamp - show for first message in group for all users */}
                                   {isFirstInGroup && (
                                     <div className="flex items-center gap-2 mb-1">

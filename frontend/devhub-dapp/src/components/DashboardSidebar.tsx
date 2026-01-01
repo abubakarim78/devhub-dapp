@@ -229,53 +229,61 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ className, onNaviga
       transition={{ duration: 0.5 }}
       className={className}
     >
-      <div className="lg:sticky lg:top-0 lg:w-[320px] xl:w-[280px] max-lg:w-full bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-border shadow-2xl shadow-primary/5 lg:overflow-visible lg:z-30">
-        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 md:mb-8">
-          <LayoutDashboard className="text-primary h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Dashboard</h2>
-        </div>
-        <nav className="space-y-2">
-          {navItems.map((item, index) => {
-            const isActive = location.pathname === item.href;
-            const Icon = item.icon;
+      <div 
+        className="lg:sticky lg:top-0 lg:w-[320px] xl:w-[280px] max-lg:w-full bg-secondary/50 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-border shadow-2xl shadow-primary/5 lg:z-30 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto sidebar-scrollable"
+        style={{
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 md:mb-8">
+            <LayoutDashboard className="text-primary h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Dashboard</h2>
+          </div>
+          <nav className="space-y-2">
+            {navItems.map((item, index) => {
+              const isActive = location.pathname === item.href;
+              const Icon = item.icon;
 
-            return (
-              <motion.div
-                key={index}
-                whileHover={{ x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                className="lg:block"
-              >
-                <Link
-                  to={item.href}
-                  onClick={handleLinkClick}
-                  className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 text-left rounded-lg transition-colors duration-200 group relative ${
-                    isActive
-                      ? 'bg-primary/20 text-primary border border-primary/30'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                  }`}
+              return (
+                <motion.div
+                  key={index}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="lg:block"
                 >
-                  <Icon className="h-5 w-5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium block text-sm sm:text-base">{item.label}</span>
-                    <span className="text-xs text-muted-foreground group-hover:text-foreground/70 hidden sm:block">
-                      {item.description}
-                    </span>
-                  </div>
-                  {item.id === 'messages' && unreadCount > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-semibold text-white bg-red-500 rounded-full"
-                    >
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-            );
-          })}
-        </nav>
+                  <Link
+                    to={item.href}
+                    onClick={handleLinkClick}
+                    className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 text-left rounded-lg transition-colors duration-200 group relative ${
+                      isActive
+                        ? 'bg-primary/20 text-primary border border-primary/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium block text-sm sm:text-base">{item.label}</span>
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground/70 hidden sm:block">
+                        {item.description}
+                      </span>
+                    </div>
+                    {item.id === 'messages' && unreadCount > 0 && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-semibold text-white bg-red-500 rounded-full"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </motion.span>
+                    )}
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </nav>
+        </div>
       </div>
     </motion.aside>
   );

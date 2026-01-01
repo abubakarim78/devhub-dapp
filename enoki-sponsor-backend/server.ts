@@ -97,22 +97,43 @@ app.post('/api/sponsor-transaction', async (req: Request<object, object, Sponsor
         const defaultAllowedAddresses = allowedAddresses || [sender];
 
         console.log(`Sponsoring transaction for ${sender} on ${targetNetwork}`);
+        console.log('Transaction details:', {
+            sender,
+            network: targetNetwork,
+            transactionKindBytesLength: transactionKindBytes?.length || 0,
+            hasAllowedTargets: !!defaultAllowedTargets,
+            allowedAddresses: defaultAllowedAddresses,
+        });
+
+        // Validate Enoki client is initialized
+        if (!enokiClient) {
+            throw new Error('Enoki client is not initialized. Check VITE_ENOKI_PRIVATE_API_KEY environment variable.');
+        }
 
         // Create sponsored transaction
-
-        const sponsored = await enokiClient.createSponsoredTransaction({
-
-            network: targetNetwork,
-
-            transactionKindBytes,
-
-            sender,
-
-            allowedMoveCallTargets: defaultAllowedTargets,
-
-            allowedAddresses: defaultAllowedAddresses,
-
-        });
+        let sponsored;
+        try {
+            sponsored = await enokiClient.createSponsoredTransaction({
+                network: targetNetwork,
+                transactionKindBytes,
+                sender,
+                allowedMoveCallTargets: defaultAllowedTargets,
+                allowedAddresses: defaultAllowedAddresses,
+            });
+        } catch (enokiError: any) {
+            console.error('Enoki SDK error details:', {
+                name: enokiError?.name,
+                message: enokiError?.message,
+                code: enokiError?.code,
+                stack: enokiError?.stack,
+            });
+            
+            // Re-throw with more context
+            throw new Error(
+                `Enoki SDK error: ${enokiError?.message || 'Unknown error'}. ` +
+                `Check: 1) API key is valid, 2) Network matches (${targetNetwork}), 3) Transaction bytes are valid`
+            );
+        }
 
         res.json({
 
@@ -127,12 +148,22 @@ app.post('/api/sponsor-transaction', async (req: Request<object, object, Sponsor
     } catch (error) {
 
         console.error('Error sponsoring transaction:', error);
+        
+        // Log full error details for debugging
+        if (error instanceof Error) {
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+        }
 
         res.status(500).json({ 
 
             error: 'Failed to sponsor transaction',
 
-            details: error instanceof Error ? error.message : 'Unknown error'
+            details: error instanceof Error ? error.message : 'Unknown error',
+            
+            // Include more details for debugging (remove in production if sensitive)
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
 
         });
 
