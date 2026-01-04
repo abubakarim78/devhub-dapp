@@ -138,9 +138,13 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin = false }) => {
         <div className="flex justify-between items-start lg:items-center py-2 lg:py-0 min-h-[64px] lg:h-16 sm:lg:h-20">
           <Link to="/" className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2 group flex-shrink-0 pt-1 lg:pt-0">
             <img 
-              src="/tumahub.jpeg" 
+              src="/tumahub.jpg" 
               alt="TumaHub Logo" 
               className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-lg object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/tumahub.jpeg"; // Fallback to .jpeg
+              }}
             />
             <span className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-foreground hidden xs:inline">TumaHub</span>
           </Link>

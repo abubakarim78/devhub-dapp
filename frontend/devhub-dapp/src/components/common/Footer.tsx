@@ -12,9 +12,13 @@ const Footer: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <img 
-                src="/tumahub.jpeg" 
+                src="/tumahub.jpg" 
                 alt="TumaHub Logo" 
                 className="h-12 w-12 rounded-lg object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "/tumahub.jpeg"; // Fallback to .jpeg
+                }}
               />
               <span className="text-2xl font-bold text-foreground">TumaHub</span>
             </div>
